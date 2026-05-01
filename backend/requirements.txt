@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+geopandas
+shapely
+rasterio
+rasterstats
+earthengine-api
+osmnx
+pandas
+numpy
+scipy
+pyarrow
+python-dotenv
