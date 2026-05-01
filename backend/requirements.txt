@@ -11,3 +11,4 @@ numpy
 scipy
 pyarrow
 python-dotenv
+httpx

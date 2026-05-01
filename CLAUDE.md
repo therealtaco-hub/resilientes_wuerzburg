@@ -119,11 +119,14 @@ resilientes-wuerzburg/
 │ ├── requirements.txt
 │ ├── routers/
 │ │ ├── trees.py
+│ │ ├── zensus.py
 │ │ ├── lst.py
 │ │ └── simulate.py
 │ ├── utils/
 │ │ ├── data_loader.py
 │ │ └── analysis.py
+│ ├── tests/
+│ │ └── test_trees.py
 │ └── data/ (lokale Datendateien: GeoTIFF, GeoParquet, CSV)
 └── frontend/
 ├── src/
@@ -141,3 +144,57 @@ resilientes-wuerzburg/
 - Secrets ausschließlich über `.env` + `python-dotenv` / Vite `import.meta.env`
 - Keine API-Keys oder Pfade hardcoden
 - Backend gibt immer GeoJSON oder JSON zurück, nie rohe GeoDataFrames
+
+---
+
+## Implementierungsstand
+
+### Backend-Endpoints
+| Endpoint | Status | Beschreibung |
+|---|---|---|
+| `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection. Query-Param `?refresh=true` erzwingt API-Reload. Modul-Level-Cache + GeoParquet-Persistierung in `backend/data/trees.parquet`. |
+| `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `gitter_id`, `anteil_65plus`, `einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
+| `GET /api/lst` | ⏳ offen | LST-Raster aus GEE/GeoTIFF, vermutlich als aggregierte Zonenwerte pro 100m-Gitterzelle. |
+| `GET /api/simulate/*` | ⏳ offen | Simulation Bäume / Entsiegelung. |
+
+### `utils/data_loader.py`
+- `load_tree_cadastre(force_refresh=False)` – paginierter Abruf der opendata.wuerzburg.de-API mit `httpx` (limit=100, ~447 Requests), GeoParquet-Cache.
+- `load_zensus(force_refresh=False)` – merged Alter- + Bevölkerungs-CSV, filtert Würzburg-Bbox, baut 100×100m-Quadratzellen.
+
+### Daten-Caching
+- Erste Requests laden von Quelle und schreiben `backend/data/{trees,zensus}.parquet`.
+- Folge-Requests lesen direkt aus Parquet (kein Netzwerk, kein CSV-Parsing).
+- `_DATA_DIR.mkdir(parents=True, exist_ok=True)` beim Modul-Import.
+- `*.parquet` ist global in `.gitignore`.
+
+---
+
+## Datenbesonderheiten & Abweichungen von ursprünglichen Annahmen
+
+### Zensus-CSVs (Destatis 2022)
+- **Trennzeichen:** Semikolon (`;`), nicht Komma → `pd.read_csv(..., sep=";")`.
+- **Spaltennamen weichen vom Standardschema ab:**
+  - `GITTER_ID_100m` (Großbuchstaben), nicht `Gitter_ID_100m`.
+  - Altersklassen heißen `Unter18`, `a18bis29`, `a30bis49`, `a50bis64`, `a65undaelter` (5 Klassen, nicht 6).
+- **Maskierte Werte:** Kleine Gitterzellen enthalten `–`/`�` (Geheimhaltungszeichen).
+  → Konvertierung mit `pd.to_numeric(..., errors="coerce")`, NaN bleibt erhalten und wird im Frontend transparent gerendert.
+- **CRS der Gitterkoordinaten:** EPSG:3035 (LAEA), **nicht** UTM Zone 32N. Würzburg liegt bei
+  `x ≈ 4.307–4.320 Mio.`, `y ≈ 2.967–2.978 Mio.` Aktueller Filter mit Puffer:
+  `x: 4_300_000–4_325_000`, `y: 2_960_000–2_985_000`.
+- Geometrie: `Point(x_mp_100m, y_mp_100m).buffer(50, cap_style=3)` in EPSG:3035, danach `to_crs("EPSG:4326")`.
+
+### Baumkataster-API
+- Koordinatenfeld ist `geo_punkt` mit Unterfeldern `lon`/`lat` (kein GeoJSON-Geometrie-Objekt).
+- Gesamtanzahl Records: 44.647 (Stand Implementierung).
+
+---
+
+## Offene TODOs
+
+- [ ] `/api/zensus` erstmals triggern und Anzahl gelieferter Features validieren (Erwartung: ~8.000–12.000 Zellen). Bei Abweichung Bbox nachjustieren.
+- [ ] `GET /api/lst` implementieren (LST aus GEE oder lokalem GeoTIFF).
+- [ ] Vulnerabilitäts-Score: gewichtete Kombination aus LST + `anteil_65plus` (Formel kommt vom Nutzer).
+- [ ] ATKIS/OSM-Endpoint für Entsiegelungs-Layer.
+- [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
+- [ ] Frontend-Setup (React/Vite/deck.gl) noch nicht begonnen.
+- [ ] `backend/tests/test_trees.py` ist manuell ausführbar; CI-Integration offen.

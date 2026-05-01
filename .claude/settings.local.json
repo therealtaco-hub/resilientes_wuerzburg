@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm create *)",
       "Bash(npm install *)",
-      "Bash(npx shadcn@latest init --defaults)"
+      "Bash(npx shadcn@latest init --defaults)",
+      "Bash(python -c \"import pandas as pd; print\\('--- Alter ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\); print\\(\\); print\\('--- Bevoelkerung ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\)\")"
     ]
   }
 }
