@@ -12,3 +12,5 @@ scipy
 pyarrow
 python-dotenv
 httpx
+pytest
+pytest-asyncio

@@ -4,7 +4,31 @@
       "Bash(npm create *)",
       "Bash(npm install *)",
       "Bash(npx shadcn@latest init --defaults)",
-      "Bash(python -c \"import pandas as pd; print\\('--- Alter ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\); print\\(\\); print\\('--- Bevoelkerung ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\)\")"
+      "Bash(python -c \"import pandas as pd; print\\('--- Alter ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\); print\\(\\); print\\('--- Bevoelkerung ---'\\); print\\(pd.read_csv\\('data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv', nrows=3, sep=';'\\).to_string\\(\\)\\)\")",
+      "Read(//c/c/Users/Marvi/OneDrive/Studium/Code/AI/resilientes_wuerzburg/backend/**)",
+      "Bash(uvicorn main:app --host 127.0.0.1 --port 8000)",
+      "Bash(curl -s http://127.0.0.1:8000/)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(python -m pytest tests/ -v --timeout=120)",
+      "Bash(pip show *)",
+      "Read(//c/Users/Marvi/AppData/Local/Programs/**)",
+      "Read(//c/Users/Marvi/.venv/**)",
+      "Bash(/c/Users/Marvi/OneDrive/Studium/Code/AI/resilientes_wuerzburg/backend/venv/Scripts/pip show *)",
+      "Bash(/c/Users/Marvi/OneDrive/Studium/Code/AI/resilientes_wuerzburg/backend/venv/Scripts/pip list *)",
+      "Bash(pip list *)",
+      "Bash(conda list *)",
+      "Bash(/c/Users/Marvi/miniconda3/python.exe --version)",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest --version)",
+      "Bash(pkill -f \"uvicorn main:app\")",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/uvicorn main:app --host 127.0.0.1 --port 8000)",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/test_trees.py tests/test_data_loader.py -v -k \"tree or trees\" --timeout=600)",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/test_trees.py tests/test_data_loader.py -v -k \"tree or trees\")",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/test_trees.py::test_feature_count_plausible -v)",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/test_zensus.py tests/test_data_loader.py -v -k \"zensus\")",
+      "Bash(curl -s http://localhost:8000/api/trees)",
+      "Bash(/c/Users/Marvi/miniconda3/python.exe -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Features: {len\\(d[\\\\\"features\\\\\"]\\)}'\\)\")",
+      "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/ -v)",
+      "Bash(/c/Users/Marvi/miniconda3/python.exe -c ' *)"
     ]
   }
 }
