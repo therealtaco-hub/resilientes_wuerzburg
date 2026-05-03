@@ -14,6 +14,12 @@
 
   ---
 
+## Design
+- Design-Referenz: `docs/Design-System.html` – immer prüfen bevor neue 
+  UI-Komponenten erfunden werden
+
+  ---
+
 ## Gesamtarchitektur
 
 ```
@@ -112,6 +118,8 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 ## Ordnerstruktur
 resilientes-wuerzburg/
 ├── CLAUDE.md
+├── docs/
+│   └── Design-System.html
 ├── .env (nie committen – GEE_PROJECT_ID, etc.)
 ├── .gitignore
 ├── backend/

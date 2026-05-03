@@ -28,7 +28,8 @@
       "Bash(curl -s http://localhost:8000/api/trees)",
       "Bash(/c/Users/Marvi/miniconda3/python.exe -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Features: {len\\(d[\\\\\"features\\\\\"]\\)}'\\)\")",
       "Bash(/c/Users/Marvi/miniconda3/Scripts/pytest tests/ -v)",
-      "Bash(/c/Users/Marvi/miniconda3/python.exe -c ' *)"
+      "Bash(/c/Users/Marvi/miniconda3/python.exe -c ' *)",
+      "Bash(npm run *)"
     ]
   }
 }

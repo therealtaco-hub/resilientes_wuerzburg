@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Background & surfaces */
+  --bg-0: #0f1117;
+  --bg-1: #151823;
+  --bg-2: #1a1e2c;
+  --bg-3: #232838;
+  --border: #2a2f40;
+  --border-soft: #232838;
+
+  /* Text */
+  --text-0: #f4f5f8;
+  --text-1: #c8ccd6;
+  --text-2: #8a90a0;
+  --text-3: #5b6172;
+
+  /* Semantic accents */
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+
+  /* Radii */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-full: 999px;
+
+  /* Spacing (8px grid) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;
+  --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --s-8: 32px; --s-12: 48px;
+
+  /* Motion */
+  --d-fast: 150ms;
+  --d-base: 300ms;
+  --d-slow: 500ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Font stacks (for inline style use) */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Tailwind v4 theme tokens */
+@theme inline {
+  /* Colors → usable as bg-bg-0, text-fg-1, border-border, etc. */
+  --color-bg-0: #0f1117;
+  --color-bg-1: #151823;
+  --color-bg-2: #1a1e2c;
+  --color-bg-3: #232838;
+
+  --color-fg-0: #f4f5f8;
+  --color-fg-1: #c8ccd6;
+  --color-fg-2: #8a90a0;
+  --color-fg-3: #5b6172;
+
+  --color-border: #2a2f40;
+  --color-border-soft: #232838;
+
+  --color-accent-green: #22c55e;
+  --color-accent-green-dim: #16a34a;
+  --color-accent-amber: #f59e0b;
+  --color-accent-red: #ef4444;
+  --color-accent-blue: #3b82f6;
+  --color-accent-purple: #a855f7;
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+}
