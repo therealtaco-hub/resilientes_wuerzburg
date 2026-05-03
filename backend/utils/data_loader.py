@@ -17,6 +17,7 @@ Geplante Funktionen:
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
@@ -25,6 +26,8 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 _TREES_SOURCE = _DATA_DIR / "baumkataster_stadt_wuerzburg.parquet"  # Bulk-Export (alle 44.647 Records)
 _TREES_CACHE  = _DATA_DIR / "trees.parquet"                         # verarbeiteter Cache
 _ZENSUS_PARQUET_PATH = _DATA_DIR / "zensus.parquet"
+_LST_TIF = _DATA_DIR / "lst_wuerzburg.tif"
+_LST_CACHE = _DATA_DIR / "lst.parquet"
 _ZENSUS_ALTER_CSV = _DATA_DIR / "Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv"
 _ZENSUS_BEV_CSV = _DATA_DIR / "Zensus2022_Bevoelkerungszahl_100m-Gitter.csv"
 
@@ -84,4 +87,51 @@ def load_zensus(force_refresh: bool = False) -> gpd.GeoDataFrame:
     gdf = gdf.to_crs("EPSG:4326")
 
     gdf.to_parquet(_ZENSUS_PARQUET_PATH)
+    return gdf
+
+
+def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    if not force_refresh and _LST_CACHE.exists():
+        return gpd.read_parquet(_LST_CACHE)
+
+    if not _LST_TIF.exists():
+        raise FileNotFoundError(
+            "LST-Quelldatei nicht gefunden: backend/data/lst_wuerzburg.tif. "
+            "Bitte via Google Earth Engine exportieren und ablegen."
+        )
+
+    import rasterio
+    from rasterstats import zonal_stats
+
+    zensus_gdf = load_zensus()
+
+    with rasterio.open(_LST_TIF) as src:
+        tif_crs = src.crs
+
+    zones = zensus_gdf.to_crs(tif_crs)
+
+    stats = zonal_stats(
+        zones,
+        str(_LST_TIF),
+        stats=["mean", "min", "max"],
+        nodata=None,
+        geojson_out=False,
+    )
+
+    gdf = zensus_gdf.copy()
+    gdf["lst_mean"] = [s["mean"] for s in stats]
+    gdf["lst_min"]  = [s["min"]  for s in stats]
+    gdf["lst_max"]  = [s["max"]  for s in stats]
+
+    valid = gdf["lst_mean"].dropna()
+    if len(valid) > 0:
+        v_min, v_max = valid.min(), valid.max()
+        if v_max > v_min:
+            gdf["lst_norm"] = (gdf["lst_mean"] - v_min) / (v_max - v_min)
+        else:
+            gdf["lst_norm"] = 0.0
+    else:
+        gdf["lst_norm"] = np.nan
+
+    gdf.to_parquet(_LST_CACHE)
     return gdf
