@@ -12,6 +12,10 @@ const useAppStore = create((set) => ({
     layers: { ...s.layers, [key]: !s.layers[key] }
   })),
 
+  // Gewichte des HVI (nach erstem Fetch befüllt)
+  vulnWeights: null,
+  setVulnWeights: (weights) => set({ vulnWeights: weights }),
+
   // Simulationsparameter
   sim: {
     baeume: { anzahl: 500 },

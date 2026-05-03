@@ -163,6 +163,7 @@ resilientes-wuerzburg/
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `GITTER_ID_100m`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
 | `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~21.718 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
+| `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus`, `lst_norm`, `lst_celsius`, `Einwohner`. Formel konfigurierbar in `utils/vuln_formula.py`. `meta.weights` im Response. |
 | `GET /api/simulate/*` | ⏳ offen | Simulation Bäume / Entsiegelung. |
 
 ### `utils/data_loader.py`
@@ -184,7 +185,7 @@ resilientes-wuerzburg/
 |---|---|---|
 | Dashboard | `/` | ⏳ Shell only |
 | Hitzeatlas | `/hitzeatlas` | ✅ |
-| Vulnerabilität | `/vulnerabilitaet` | ⏳ Shell only |
+| Vulnerabilität | `/vulnerabilitaet` | ✅ |
 | Entsiegelung | `/entsiegelung` | ⏳ Shell only |
 | Simulation Bäume | `/simulation/baeume` | ⏳ Shell only |
 | Simulation Wasser | `/simulation/wasser` | ⏳ Shell only |
@@ -196,6 +197,7 @@ resilientes-wuerzburg/
 - `TreeLayer.jsx` – deck.gl ScatterplotLayer, 4px Punkte, grün 70% Opacity
 - `LayerPanel.jsx` – Toggles für heatmap + trees, Zustand-connected
 - `LSTLegend.jsx` – Gradient-Balken (160×8px) + drei `fmt.temp()`-Labels (min/median/max als Props); frosted-glass-Hintergrund
+- `VulnLayer.jsx` – deck.gl GeoJsonLayer, Lila-Gradient auf `hvi` (0→transparent, 1→rgba(168,85,247,220)), pickable, akzeptiert `onHover`-Prop
 - `Sidebar.jsx` – 220px, 2 Nav-Gruppen, active NavLink via react-router-dom
 - `Topbar.jsx` – 48px sticky, Breadcrumb via useLocation()
 
@@ -205,6 +207,8 @@ resilientes-wuerzburg/
 - `store/useAppStore.js` – `layers` (heatmap/trees/zensus/vulnerabilitaet) + sim-Parameter
 - `api/client.js` – `apiFetch()` mit `VITE_API_URL`
 - `api/trees.js`, `api/zensus.js`, `api/lst.js` – fetch-Wrapper
+- `api/vulnerability.js` – fetch-Wrapper, gibt FeatureCollection + `meta.weights` zurück
+- `store/useAppStore.js` erweitert um: `layers.vulnerabilitaet` (bool, default false), `vulnWeights` (null | object), `setVulnWeights()`
 
 ### Daten-Caching
 - Baumkataster: Quelldatei `baumkataster_stadt_wuerzburg.parquet` manuell in `backend/data/` ablegen (nicht im Git – siehe `.gitignore`). Bezugsquelle: opendata.wuerzburg.de → Export als GeoParquet.
@@ -259,7 +263,7 @@ resilientes-wuerzburg/
 
 - [x] `GET /api/lst` implementieren (LST aus GEE oder lokalem GeoTIFF).
 - [x] Frontend-Setup (React/Vite/deck.gl) noch nicht begonnen.
-- [ ] Vulnerabilitäts-Score: gewichtete Kombination aus LST + `anteil_65plus` (Formel kommt vom Nutzer).
+- [x] Vulnerabilitäts-Score: gewichtete Kombination aus LST + `anteil_65plus` (Formel in `utils/vuln_formula.py`, Gewichte 0.6/0.4).
 - [ ] ATKIS/OSM-Endpoint für Entsiegelungs-Layer.
 - [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
 - [ ] CI-Integration der Test-Suite (aktuell nur lokal ausführbar).

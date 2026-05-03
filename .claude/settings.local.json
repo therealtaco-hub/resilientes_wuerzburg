@@ -37,7 +37,9 @@
       "Bash(py -)",
       "Bash(py -c \"import sys; print\\(sys.path\\)\")",
       "Bash(py -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")",
-      "Bash(conda run *)"
+      "Bash(conda run *)",
+      "Bash(curl -s http://localhost:8000/api/vulnerability)",
+      "Bash(npx vite *)"
     ]
   }
 }

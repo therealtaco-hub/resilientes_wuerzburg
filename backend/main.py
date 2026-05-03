@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-from routers import trees, lst, simulate, zensus
+from routers import trees, lst, simulate, zensus, vulnerability
 
 load_dotenv()
 
@@ -23,6 +23,7 @@ app.include_router(trees.router, prefix="/api/trees", tags=["trees"])
 app.include_router(lst.router, prefix="/api/lst", tags=["lst"])
 app.include_router(simulate.router, prefix="/api/simulate", tags=["simulate"])
 app.include_router(zensus.router, prefix="/api/zensus", tags=["zensus"])
+app.include_router(vulnerability.router, prefix="/api/vulnerability", tags=["vulnerability"])
 
 
 @app.get("/")
