@@ -1,23 +1,12 @@
 import json
-import math
 
 from fastapi import APIRouter, HTTPException
+from shapely.geometry import mapping
 from utils.data_loader import load_lst
 
 router = APIRouter()
 
 _cache = None
-
-
-def _safe(value):
-    if value is None:
-        return None
-    try:
-        if isinstance(value, float) and math.isnan(value):
-            return None
-    except (TypeError, ValueError):
-        pass
-    return value
 
 
 @router.get("")
@@ -33,21 +22,17 @@ def get_lst(refresh: bool = False):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LST konnte nicht geladen werden: {exc}")
 
-    features = []
-    for _, row in gdf.iterrows():
-        features.append({
+    features = [
+        {
             "type": "Feature",
-            "geometry": json.loads(json.dumps(row.geometry.__geo_interface__)),
+            "geometry": mapping(row.geometry),
             "properties": {
-                "GITTER_ID_100m":      row["GITTER_ID_100m"],
-                "lst_mean":            _safe(row["lst_mean"]),
-                "lst_min":             _safe(row["lst_min"]),
-                "lst_max":             _safe(row["lst_max"]),
-                "lst_norm":            _safe(row["lst_norm"]),
-                "anteil_65plus":       _safe(row["anteil_65plus"]),
-                "Einwohner":           _safe(row["Einwohner"]),
+                "lst_celsius": float(row["lst_celsius"]),
+                "lst_norm":    float(row["lst_norm"]),
             },
-        })
+        }
+        for _, row in gdf.iterrows()
+    ]
 
     _cache = {"type": "FeatureCollection", "features": features}
     return _cache

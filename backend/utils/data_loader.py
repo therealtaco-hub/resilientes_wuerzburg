@@ -101,37 +101,75 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
         )
 
     import rasterio
-    from rasterstats import zonal_stats
-
-    zensus_gdf = load_zensus()
+    from rasterio.enums import Resampling
+    from rasterio.transform import Affine
+    from shapely.geometry import box
 
     with rasterio.open(_LST_TIF) as src:
-        tif_crs = src.crs
+        transform = src.transform
+        crs = src.crs
+        nodata = src.nodata
+        src_w, src_h = src.width, src.height
 
-    zones = zensus_gdf.to_crs(tif_crs)
+        # Resample from ~30m to ~100m: 1° lat ≈ 111 320m → 100m ≈ 0.000899°
+        pix_deg = abs(transform.e)
+        scale = (100 / 111_320) / pix_deg
+        out_w = max(1, round(src_w / scale))
+        out_h = max(1, round(src_h / scale))
 
-    stats = zonal_stats(
-        zones,
-        str(_LST_TIF),
-        stats=["mean", "min", "max"],
-        nodata=None,
-        geojson_out=False,
+        raw = src.read(
+            1,
+            out_shape=(out_h, out_w),
+            resampling=Resampling.average,
+        )
+
+    # New transform: same origin, larger pixels
+    new_transform = Affine(
+        transform.a * src_w / out_w,
+        transform.b,
+        transform.c,
+        transform.d,
+        transform.e * src_h / out_h,
+        transform.f,
     )
 
-    gdf = zensus_gdf.copy()
-    gdf["lst_mean"] = [s["mean"] for s in stats]
-    gdf["lst_min"]  = [s["min"]  for s in stats]
-    gdf["lst_max"]  = [s["max"]  for s in stats]
+    # GEE exports ST_B10 already converted to °C — values are directly usable
+    celsius = raw.astype(np.float64)
 
-    valid = gdf["lst_mean"].dropna()
-    if len(valid) > 0:
-        v_min, v_max = valid.min(), valid.max()
-        if v_max > v_min:
-            gdf["lst_norm"] = (gdf["lst_mean"] - v_min) / (v_max - v_min)
-        else:
-            gdf["lst_norm"] = 0.0
-    else:
-        gdf["lst_norm"] = np.nan
+    # Build validity mask
+    mask = np.isfinite(celsius) & (celsius > -10) & (celsius < 70)
+    if nodata is not None:
+        mask &= raw != nodata
+
+    valid_vals = celsius[mask]
+    if valid_vals.size == 0:
+        raise ValueError("Keine validen LST-Pixelwerte im GeoTIFF.")
+
+    # Rank-based (quantile) normalisation: equal colour distribution across the full range
+    from scipy.stats import rankdata
+    ranks = rankdata(valid_vals, method="average")
+    norm = np.full_like(celsius, np.nan)
+    norm[mask] = (ranks - 1) / (ranks.max() - 1) if ranks.max() > 1 else 0.0
+
+    # Vectorised polygon bounding boxes per resampled pixel
+    rows, cols = np.where(mask)
+    a, e = new_transform.a, new_transform.e   # pixel width (+), pixel height (-)
+    west  = new_transform.c + cols       * a
+    east  = new_transform.c + (cols + 1) * a
+    north = new_transform.f + rows       * e
+    south = new_transform.f + (rows + 1) * e   # south < north because e < 0
+
+    geometries = [box(w, s, e_, n) for w, s, e_, n in zip(west, south, east, north)]
+    lst_c  = np.round(celsius[mask], 1)
+    lst_n  = np.round(norm[mask],    4)
+
+    gdf = gpd.GeoDataFrame(
+        {"lst_celsius": lst_c, "lst_norm": lst_n},
+        geometry=geometries,
+        crs=crs,
+    )
+    if gdf.crs.to_epsg() != 4326:
+        gdf = gdf.to_crs("EPSG:4326")
 
     gdf.to_parquet(_LST_CACHE)
     return gdf

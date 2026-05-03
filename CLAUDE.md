@@ -94,7 +94,7 @@ pyarrow                  → GeoParquet (schnelles I/O)
 ### Frontend (JavaScript)
 ```
 React + Vite             → App-Framework
-deck.gl + react-map-gl   → Interaktive Geo-Karten (HeatmapLayer, GeoJsonLayer)
+deck.gl + react-map-gl   → Interaktive Geo-Karten (GeoJsonLayer, ScatterplotLayer)
 Recharts oder Nivo       → Charts & Simulation-Outputs
 Tailwind CSS + shadcn/ui → Styling & UI-Komponenten
 Zustand                  → State (aktive Layer, Simulation-Parameter)
@@ -106,7 +106,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 
 ```
 / Dashboard         → Übersicht: Karte + KPIs (heißeste Zone, vulnerabelster Bezirk)
-/hitzeatlas         → LST-Heatmap + Baumkataster-Overlay (deck.gl HeatmapLayer)
+/hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende
 /vulnerabilitaet    → Choropleth: gewichteter Index aus LST + Senioren-Anteil
 /entsiegelung       → ATKIS/OSM-Layer, versiegelte Flächen, Potenzial-Score
 /simulation/baeume  → Slider: Anzahl Neupflanzungen → Δ Temperatur + CO₂
@@ -139,7 +139,7 @@ resilientes-wuerzburg/
 └── frontend/
 ├── src/
 │ ├── components/
-│ │ ├── maps/
+│ │ ├── map/               ← MapSurface, DeckOverlay, HeatLayer, TreeLayer, LayerPanel, LSTLegend
 │ │ └── charts/
 │ ├── pages/
 │ ├── store/ (Zustand State)
@@ -162,12 +162,49 @@ resilientes-wuerzburg/
 |---|---|---|
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `GITTER_ID_100m`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
-| `GET /api/lst` | ⏳ offen | LST-Raster aus GEE/GeoTIFF, vermutlich als aggregierte Zonenwerte pro 100m-Gitterzelle. |
+| `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~21.718 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
 | `GET /api/simulate/*` | ⏳ offen | Simulation Bäume / Entsiegelung. |
 
 ### `utils/data_loader.py`
 - `load_tree_cadastre(force_refresh=False)` – liest lokalen Bulk-Export `backend/data/baumkataster_stadt_wuerzburg.parquet` (alle 44.647 Records), schreibt verarbeiteten Cache nach `backend/data/trees.parquet`. Kein Netzwerkzugriff. Wirft `FileNotFoundError` wenn Quelldatei fehlt.
 - `load_zensus(force_refresh=False)` – merged Alter- + Bevölkerungs-CSV, filtert Würzburg-Bbox, baut 100×100m-Quadratzellen. Berechnet `anteil_65plus` mit `.clip(0, 1)` gegen Geheimhaltungsrundung.
+- `load_lst(force_refresh=False)` – liest `lst_wuerzburg.tif` direkt mit rasterio, resampelt auf ~100m (`Resampling.average`), erstellt Polygon-Bounding-Box pro Pixel. `lst_celsius` direkt aus GeoTIFF (GEE exportiert bereits °C). `lst_norm` via `scipy.stats.rankdata` (Rang-Normierung 0–1, gleichmäßige Farbverteilung). Cache: `backend/data/lst.parquet`.
+
+### Frontend-Setup
+- Framework: Vite + React 18, Plain JSX, Tailwind v4
+- **Tailwind v4 Hinweis:** kein `tailwind.config.js` – Tokens im `@theme`-Block in `src/app/theme.css`. Klassen: `bg-bg-0`, `text-fg-1`, `bg-accent-green` etc.
+- Karten: MapLibre GL + react-map-gl (MapLibre-Adapter) + deck.gl
+- Basemap: CartoCDN dark-matter (kein Token nötig)
+- **deck.gl Integration:** `MapboxOverlay` + `useControl` (nicht `DeckGL` direkt) – einzig korrekte Methode für Kamera-Synchronisation mit MapLibre
+- State: Zustand (`useAppStore.js`)
+- Routing: React Router v6, alle 6 Routen als Lazy-Chunks
+
+#### Fertige Seiten
+| Seite | Route | Status |
+|---|---|---|
+| Dashboard | `/` | ⏳ Shell only |
+| Hitzeatlas | `/hitzeatlas` | ✅ |
+| Vulnerabilität | `/vulnerabilitaet` | ⏳ Shell only |
+| Entsiegelung | `/entsiegelung` | ⏳ Shell only |
+| Simulation Bäume | `/simulation/baeume` | ⏳ Shell only |
+| Simulation Wasser | `/simulation/wasser` | ⏳ Shell only |
+
+#### Fertige Komponenten
+- `MapSurface.jsx` – MapLibre-Wrapper, initialViewState Würzburg (9.932, 49.794, zoom 12)
+- `DeckOverlay.jsx` – MapboxOverlay + useControl Wrapper; akzeptiert `...rest`-Props (z. B. `onHover`) und leitet sie an `setProps` weiter
+- `HeatLayer.jsx` – deck.gl **GeoJsonLayer** (Choropleth), `getFillColor` interpoliert `lst_norm` über Drei-Punkt-Gradient grün→amber→rot, Alpha 180, `pickable: true`, akzeptiert `onHover`-Prop
+- `TreeLayer.jsx` – deck.gl ScatterplotLayer, 4px Punkte, grün 70% Opacity
+- `LayerPanel.jsx` – Toggles für heatmap + trees, Zustand-connected
+- `LSTLegend.jsx` – Gradient-Balken (160×8px) + drei `fmt.temp()`-Labels (min/median/max als Props); frosted-glass-Hintergrund
+- `Sidebar.jsx` – 220px, 2 Nav-Gruppen, active NavLink via react-router-dom
+- `Topbar.jsx` – 48px sticky, Breadcrumb via useLocation()
+
+#### Fertige Utils / Store / API
+- `utils/format.js` – `fmt.num/temp/dT/pct/area/index` (de-DE Locale)
+- `utils/colors.js` – `COLORS`-Map (green/amber/red/blue/purple)
+- `store/useAppStore.js` – `layers` (heatmap/trees/zensus/vulnerabilitaet) + sim-Parameter
+- `api/client.js` – `apiFetch()` mit `VITE_API_URL`
+- `api/trees.js`, `api/zensus.js`, `api/lst.js` – fetch-Wrapper
 
 ### Daten-Caching
 - Baumkataster: Quelldatei `baumkataster_stadt_wuerzburg.parquet` manuell in `backend/data/` ablegen (nicht im Git – siehe `.gitignore`). Bezugsquelle: opendata.wuerzburg.de → Export als GeoParquet.
@@ -196,6 +233,19 @@ resilientes-wuerzburg/
 - Geometriespalte heißt `geo_punkt` (nicht `geometry`). Extraspalten: `json_featuretype`, `category`, `city`.
 - Hinweis API-Constraint (historisch): Die REST-API erlaubt nur `offset + limit ≤ 10.000` → max. 10.000 von 44.647 Records erreichbar. Deshalb Umstieg auf Bulk-Export.
 
+### lst_wuerzburg.tif (GEE Export)
+- Quelle: Google Earth Engine, `LANDSAT/LC09/C02/T1_L2`
+- Zeitraum: Juni–August (Sommer-Median-Komposit, < 20% Wolken)
+- ⚠️ Skalierung: GEE exportiert bereits fertige °C-Werte — Formel NICHT anwenden.
+  `raw DN × 0.00341802 + 149.0 − 273.15` gilt nur für rohe DN-Downloads, nicht für GEE-Exporte.
+- CRS Export: EPSG:4326, 30m Auflösung, Cloud-Optimized GeoTIFF
+- Ablageort: `backend/data/lst_wuerzburg.tif` (nicht im Git)
+- Backend liest mit `rasterio`, resampelt auf ~100m (`Resampling.average`), ~21.718 valide Features
+- `lst_celsius`: direkt aus GeoTIFF, kein weiteres Scaling nötig (GEE exportiert fertige °C-Werte)
+- `lst_norm`: **Rang-basierte Normierung** via `scipy.stats.rankdata` (0.0–1.0) — sorgt für gleichmäßige Farbverteilung über grün/amber/rot unabhängig von °C-Clustering
+- `GDAL_DATA` Warning beim Start ist harmlos – kein Einfluss auf Berechnungen
+- ⚠️ `rasterstats` wird **nicht** mehr für LST eingesetzt — Zensus-Zellen-Bindung wurde aufgegeben, GeoTIFF deckt gesamte Stadtfläche ab (direktes Raster-zu-Polygon via rasterio)
+
 ### Geheimhaltungsrundung Zensus 2022 (§ 16 BStatG)
 - Destatis rundet kleine Gitterzellen (< 5 Einwohner) stochastisch.
 - Altersklassen und Gesamtbevölkerung stammen aus getrennten CSVs → nach Merge kann `a65undaelter > Einwohner` entstehen → `anteil_65plus > 1.0`.
@@ -207,9 +257,9 @@ resilientes-wuerzburg/
 
 ## Offene TODOs
 
-- [ ] `GET /api/lst` implementieren (LST aus GEE oder lokalem GeoTIFF).
+- [x] `GET /api/lst` implementieren (LST aus GEE oder lokalem GeoTIFF).
+- [x] Frontend-Setup (React/Vite/deck.gl) noch nicht begonnen.
 - [ ] Vulnerabilitäts-Score: gewichtete Kombination aus LST + `anteil_65plus` (Formel kommt vom Nutzer).
 - [ ] ATKIS/OSM-Endpoint für Entsiegelungs-Layer.
 - [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
-- [ ] Frontend-Setup (React/Vite/deck.gl) noch nicht begonnen.
 - [ ] CI-Integration der Test-Suite (aktuell nur lokal ausführbar).
