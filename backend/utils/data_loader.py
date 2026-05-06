@@ -34,6 +34,12 @@ _ZENSUS_BEV_CSV = _DATA_DIR / "Zensus2022_Bevoelkerungszahl_100m-Gitter.csv"
 _WUE_X_MIN, _WUE_X_MAX = 4_300_000, 4_325_000
 _WUE_Y_MIN, _WUE_Y_MAX = 2_960_000, 2_985_000
 
+_ATKIS_ZIP          = _DATA_DIR / "bkg_shape_712.zip"
+_ENTSIEGELUNG_CACHE = _DATA_DIR / "entsiegelung.parquet"
+
+# Würzburg BBox in EPSG:25832 (UTM Zone 32N) für ATKIS-BBox-Filter
+_WUE_ATKIS_BBOX = (540000, 5505000, 580000, 5540000)  # großzügiger Vorfilter, .cx macht Präzisfilter
+
 _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -172,4 +178,82 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
         gdf = gdf.to_crs("EPSG:4326")
 
     gdf.to_parquet(_LST_CACHE)
+    return gdf
+
+
+def load_entsiegelung(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    if not force_refresh and _ENTSIEGELUNG_CACHE.exists():
+        return gpd.read_parquet(_ENTSIEGELUNG_CACHE)
+
+    if not _ATKIS_ZIP.exists():
+        raise FileNotFoundError(
+            "ATKIS-Quelldatei nicht gefunden: backend/data/bkg_shape_712.zip."
+        )
+
+    import re
+    import osmnx as ox
+
+    def _make_label(txt: str) -> str:
+        s = str(txt).removeprefix("AX_")
+        return re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
+
+    # --- ATKIS: sie02_f.shp + ver01_f.shp (alle Features, kein Filter) ---
+    atkis_parts = []
+    for shp_name in ["sie02_f.shp", "ver01_f.shp"]:
+        vsizip_path = f"/vsizip/{_ATKIS_ZIP}/{shp_name}"
+        try:
+            chunk = gpd.read_file(vsizip_path, bbox=_WUE_ATKIS_BBOX)
+        except Exception:
+            continue
+        if chunk.empty:
+            continue
+        atkis_parts.append(chunk[["OBJART_TXT", "geometry"]].copy())
+
+    if not atkis_parts:
+        raise ValueError("Keine ATKIS-Features für Würzburg gefunden.")
+
+    atkis_gdf = gpd.GeoDataFrame(pd.concat(atkis_parts, ignore_index=True), crs="EPSG:25832")
+    atkis_gdf["type_key"] = atkis_gdf["OBJART_TXT"]
+    atkis_gdf["area_m2"]  = atkis_gdf.geometry.area.round(1)  # in EPSG:25832 → m²
+    atkis_gdf = atkis_gdf.to_crs("EPSG:4326").cx[9.87:10.01, 49.75:49.83].copy()
+    atkis_gdf["source"] = "atkis"
+    atkis_gdf["label"]  = atkis_gdf["type_key"].map(_make_label)
+
+    # --- OSM: parking + square (nur Polygone) ---
+    OSM_QUERIES = [
+        ("osm_parking", {"amenity": "parking"}, "Parkplatz"),
+        ("osm_square",  {"place": "square"},    "Platz"),
+    ]
+
+    osm_parts = []
+    for type_key, tags, label in OSM_QUERIES:
+        try:
+            feats = ox.features_from_place("Würzburg, Germany", tags=tags)
+        except Exception:
+            continue
+        polys = feats[feats.geometry.geom_type.isin(["Polygon", "MultiPolygon"])][["geometry"]].copy()
+        if polys.empty:
+            continue
+        polys["type_key"] = type_key
+        polys["label"]    = label
+        polys["area_m2"]  = polys.to_crs("EPSG:25832").geometry.area.round(1)
+        osm_parts.append(polys)
+
+    if osm_parts:
+        osm_gdf = gpd.GeoDataFrame(pd.concat(osm_parts, ignore_index=True), crs="EPSG:4326")
+        osm_gdf["source"] = "osm"
+    else:
+        osm_gdf = gpd.GeoDataFrame(
+            columns=["source", "type_key", "label", "area_m2", "geometry"],
+            crs="EPSG:4326",
+        )
+
+    # --- Zusammenführen ---
+    cols = ["source", "type_key", "label", "area_m2", "geometry"]
+    gdf = gpd.GeoDataFrame(
+        pd.concat([atkis_gdf[cols], osm_gdf[cols]], ignore_index=True),
+        crs="EPSG:4326",
+    )
+
+    gdf.to_parquet(_ENTSIEGELUNG_CACHE)
     return gdf

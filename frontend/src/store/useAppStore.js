@@ -7,6 +7,8 @@ const useAppStore = create((set) => ({
     trees:           false,
     zensus:          false,
     vulnerabilitaet: false,
+    entsiegelung_atkis: true,
+    entsiegelung_osm:   true,
   },
   toggleLayer: (key) => set((s) => ({
     layers: { ...s.layers, [key]: !s.layers[key] }
