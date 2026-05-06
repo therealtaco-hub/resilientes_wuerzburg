@@ -10,8 +10,9 @@ const ATKIS_ENTRIES = [
 ]
 
 const OSM_ENTRIES = [
-  { typeKey: 'osm_parking', color: 'rgb(245,158,11)', label: 'Parkplatz (OSM)' },
-  { typeKey: 'osm_square',  color: 'rgb(59,130,246)', label: 'Platz (OSM)' },
+  { typeKey: 'osm_parking',              color: 'rgb(245,158,11)',   label: 'Parkplatz (OSM)' },
+  { typeKey: 'osm_square',               color: 'rgb(59,130,246)',   label: 'Platz (OSM)' },
+  { typeKey: 'osm_flat_roof_industrial', color: 'rgb(134,239,172)',  label: 'Flachdach / Gewerbebau' },
 ]
 
 function LegendRow({ color, label }) {

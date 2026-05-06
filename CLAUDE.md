@@ -108,7 +108,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 / Dashboard         → Übersicht: Karte + KPIs (heißeste Zone, vulnerabelster Bezirk)
 /hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende
 /vulnerabilitaet    → Choropleth: gewichteter Index aus LST + Senioren-Anteil
-/entsiegelung       → ATKIS/OSM-Layer, versiegelte Flächen, Potenzial-Score
+/entsiegelung       → ATKIS/OSM-Layer, Flächenarten nach Kategorie eingefärbt, kein Score
 /simulation/baeume  → Slider: Anzahl Neupflanzungen → Δ Temperatur + CO₂
 /simulation/wasser  → Slider: Entsiegelungsfläche (m²) → m³ Versickerung/Jahr
 ```
@@ -129,6 +129,7 @@ resilientes-wuerzburg/
 │ │ ├── trees.py
 │ │ ├── zensus.py
 │ │ ├── lst.py
+│ │ ├── entsiegelung.py
 │ │ └── simulate.py
 │ ├── utils/
 │ │ ├── data_loader.py
@@ -139,7 +140,8 @@ resilientes-wuerzburg/
 └── frontend/
 ├── src/
 │ ├── components/
-│ │ ├── map/               ← MapSurface, DeckOverlay, HeatLayer, TreeLayer, LayerPanel, LSTLegend
+│ │ ├── map/               ← MapSurface, LSTLegend, EntsiegelungLegend
+│ │ │   └── overlays/      ← DeckOverlay, HeatLayer, TreeLayer, VulnLayer, EntsiegelungLayer
 │ │ └── charts/
 │ ├── pages/
 │ ├── store/ (Zustand State)
@@ -164,12 +166,16 @@ resilientes-wuerzburg/
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `GITTER_ID_100m`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
 | `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~21.718 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
 | `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus`, `lst_norm`, `lst_celsius`, `Einwohner`. Formel konfigurierbar in `utils/vuln_formula.py`. `meta.weights` im Response. |
+| `GET /api/entsiegelung` | ✅ | ATKIS + OSM-Flächen als GeoJSON FeatureCollection. Properties: `source` (`"atkis"`/`"osm"`), `type_key` (OBJART_TXT as-is / `"osm_parking"` / `"osm_square"` / `"osm_flat_roof_industrial"`), `label`, `area_m2`. `meta`: `atkis_count`, `osm_count`, `total_count`. Cache: `backend/data/entsiegelung.parquet`. `?refresh=true` erzwingt Neuberechnung. Kein Score, kein seal_rate. |
+| `GET /api/stadtbezirke` | ✅ | 13 Würzburger Stadtbezirke als GeoJSON FeatureCollection mit aggregierten Kennzahlen. Quelle: opendata.wuerzburg.de API (`stadtbezirke`-Datensatz). Properties: `name`, `nummer`, `lst_max`, `lst_median`, `lst_mean`, `hvi_max`, `hvi_mean`, `einwohner` (Σ aus Zensus-sjoin), `entsiegelung_m2` (Σ ATKIS+OSM-Flächen), `tree_count`. Spatial Joins gegen LST-Pixel, HVI-Zellen, Entsiegelung-Polygone, Baumkataster. `meta.total_count`. Cache: `backend/data/stadtbezirke.parquet`. `?refresh=true` lädt API neu. |
 | `GET /api/simulate/*` | ⏳ offen | Simulation Bäume / Entsiegelung. |
 
 ### `utils/data_loader.py`
 - `load_tree_cadastre(force_refresh=False)` – liest lokalen Bulk-Export `backend/data/baumkataster_stadt_wuerzburg.parquet` (alle 44.647 Records), schreibt verarbeiteten Cache nach `backend/data/trees.parquet`. Kein Netzwerkzugriff. Wirft `FileNotFoundError` wenn Quelldatei fehlt.
 - `load_zensus(force_refresh=False)` – merged Alter- + Bevölkerungs-CSV, filtert Würzburg-Bbox, baut 100×100m-Quadratzellen. Berechnet `anteil_65plus` mit `.clip(0, 1)` gegen Geheimhaltungsrundung.
 - `load_lst(force_refresh=False)` – liest `lst_wuerzburg.tif` direkt mit rasterio, resampelt auf ~100m (`Resampling.average`), erstellt Polygon-Bounding-Box pro Pixel. `lst_celsius` direkt aus GeoTIFF (GEE exportiert bereits °C). `lst_norm` via `scipy.stats.rankdata` (Rang-Normierung 0–1, gleichmäßige Farbverteilung). Cache: `backend/data/lst.parquet`.
+- `load_stadtbezirke(force_refresh=False)` – ruft opendata.wuerzburg.de `stadtbezirke`-API ab (13 Records, Polygon-Geometrien). Properties: `name`, `nummer`. Cache: `backend/data/stadtbezirke.parquet`. Nutzt `httpx`, parst Records via `shapely.geometry.shape`.
+- `load_entsiegelung(force_refresh=False)` – liest `sie02_f.shp` + `ver01_f.shp` aus `bkg_shape_712.zip` (EPSG:25832, Würzburg-BBox-Vorfilter `_WUE_ATKIS_BBOX` + `.cx`-Präzisfilter nach Reprojektierung). `type_key = OBJART_TXT as-is`. `label` via Regex: AX_-Prefix entfernt, CamelCase → Leerzeichen. `area_m2` in EPSG:25832 vor Reprojektierung. OSM: `amenity=parking` + `place=square` + Gebäude (`building=*`) gefiltert auf `roof:shape=flat` ODER `building ∈ {industrial, commercial, supermarket, retail}`, ausgeschlossen sind bereits begrünte Dächer (`roof:material=grass` / `roof:surface=green`) → `type_key="osm_flat_roof_industrial"`, `label="Flachdach / Gewerbebau"`. Nur Polygon-Geometrien. Kein Score, kein seal_rate. Cache: `backend/data/entsiegelung.parquet`.
 
 ### Frontend-Setup
 - Framework: Vite + React 18, Plain JSX, Tailwind v4
@@ -183,10 +189,10 @@ resilientes-wuerzburg/
 #### Fertige Seiten
 | Seite | Route | Status |
 |---|---|---|
-| Dashboard | `/` | ⏳ Shell only |
-| Hitzeatlas | `/hitzeatlas` | ✅ |
+| Dashboard | `/` | ✅ KPI-Strip (4 Kacheln) + Top-3-Listen pro KPI (4×1-Grid) |
+| Hitzeatlas | `/hitzeatlas` | ✅ inkl. Stadtbezirks-Choropleth-Layer + Bezirks-Hover-Tooltip |
 | Vulnerabilität | `/vulnerabilitaet` | ✅ |
-| Entsiegelung | `/entsiegelung` | ⏳ Shell only |
+| Entsiegelung | `/entsiegelung` | ✅ |
 | Simulation Bäume | `/simulation/baeume` | ⏳ Shell only |
 | Simulation Wasser | `/simulation/wasser` | ⏳ Shell only |
 
@@ -195,24 +201,31 @@ resilientes-wuerzburg/
 - `DeckOverlay.jsx` – MapboxOverlay + useControl Wrapper; akzeptiert `...rest`-Props (z. B. `onHover`) und leitet sie an `setProps` weiter
 - `HeatLayer.jsx` – deck.gl **GeoJsonLayer** (Choropleth), `getFillColor` interpoliert `lst_norm` über Drei-Punkt-Gradient grün→amber→rot, Alpha 180, `pickable: true`, akzeptiert `onHover`-Prop
 - `TreeLayer.jsx` – deck.gl ScatterplotLayer, 4px Punkte, grün 70% Opacity
-- `LayerPanel.jsx` – Toggles für heatmap + trees, Zustand-connected
+- `LayerPanel.jsx` – Toggles für heatmap + trees + stadtbezirke, Zustand-connected
+- `StadtbezirkeLayer.jsx` (`overlays/`) – deck.gl GeoJsonLayer-Choropleth auf `lst_max`. Frontend normiert min/max aus den 13 Bezirken, Drei-Punkt-Gradient grün→amber→rot bei Alpha 140 (transparent genug, damit ein darunter liegender LST-Pixel-Layer sichtbar bleibt). 1.5px-weiße Outlines (`getLineColor: [255,255,255,200]`), `pickable: true`, akzeptiert `onHover`-Prop.
 - `LSTLegend.jsx` – Gradient-Balken (160×8px) + drei `fmt.temp()`-Labels (min/median/max als Props); frosted-glass-Hintergrund
 - `VulnLayer.jsx` – deck.gl GeoJsonLayer, Lila-Gradient auf `hvi` (0→transparent, 1→rgba(168,85,247,220)), pickable, akzeptiert `onHover`-Prop
+- `EntsiegelungLayer.jsx` (`overlays/`) – **ein** GeoJsonLayer für alle Features; `getFillColor` switcht per `type_key` auf feste RGBA-Farbe (Alpha 170); Filterung per `showAtkis`/`showOsm` vor Layer-Erstellung. Kein seal_rate. OSM-Cases: `osm_parking`, `osm_square`, `osm_flat_roof_industrial` (hellgrün `[134,239,172,170]`).
+- `EntsiegelungLegend.jsx` – Kategorie-Legende; eine Zeile pro Flächenart (12×12px Farbquadrat + Label); ATKIS-Block / HR-Trennlinie / OSM-Block (inkl. „Flachdach / Gewerbebau"); frosted-glass-Hintergrund wie LSTLegend.
 - `Sidebar.jsx` – 220px, 2 Nav-Gruppen, active NavLink via react-router-dom
 - `Topbar.jsx` – 48px sticky, Breadcrumb via useLocation()
+- `ui/KpiCard.jsx` – KPI-Card nach Design System § KPI Card. Props: `{ label, value, unit, sub?, color, icon }`. 11px-uppercase-Label, 32px-mono-Value mit Akzentfarbe aus `COLORS`, 14px-mono-Unit, optionaler 12px-Sub. 36×36 Icon-Tile mit getöntem Background + Border (Alpha aus `COLORS`-Map).
+- `ui/Spinner.jsx` – 12×12px grüner Kreis-Spinner, 800ms linear infinite (Design System § Empty & Loading). `@keyframes spin` ist global in `App.css` definiert.
+- `dashboard/TopList.jsx` – Top-N-Card im KPI-Frame (bg-bg-2, border, rounded 10px, p-5). Props: `{ title, sub?, color, items }` mit `items = [{ name, value, valueSub? }]`. #1-Eintrag in Akzentfarbe, andere Ränge in `text-fg-3`/`text-fg-1`. Optionaler `valueSub` rendert eine 10px-mono-Zeile unter dem Hauptwert (z. B. für ⌀ Mean).
 
 #### Fertige Utils / Store / API
 - `utils/format.js` – `fmt.num/temp/dT/pct/area/index` (de-DE Locale)
 - `utils/colors.js` – `COLORS`-Map (green/amber/red/blue/purple)
-- `store/useAppStore.js` – `layers` (heatmap/trees/zensus/vulnerabilitaet) + sim-Parameter
+- `store/useAppStore.js` – `layers`: `heatmap` (default true), `trees`, `zensus`, `vulnerabilitaet`, `entsiegelung_atkis` (default true), `entsiegelung_osm` (default true), `stadtbezirke`; `vulnWeights` (null | object), `setVulnWeights()`; `sim`-Parameter (baeume/wasser)
 - `api/client.js` – `apiFetch()` mit `VITE_API_URL`
-- `api/trees.js`, `api/zensus.js`, `api/lst.js` – fetch-Wrapper
-- `api/vulnerability.js` – fetch-Wrapper, gibt FeatureCollection + `meta.weights` zurück
-- `store/useAppStore.js` erweitert um: `layers.vulnerabilitaet` (bool, default false), `vulnWeights` (null | object), `setVulnWeights()`
+- `api/trees.js`, `api/zensus.js`, `api/lst.js`, `api/vulnerability.js`, `api/entsiegelung.js`, `api/stadtbezirke.js` – fetch-Wrapper
 
 ### Daten-Caching
 - Baumkataster: Quelldatei `baumkataster_stadt_wuerzburg.parquet` manuell in `backend/data/` ablegen (nicht im Git – siehe `.gitignore`). Bezugsquelle: opendata.wuerzburg.de → Export als GeoParquet.
 - Zensus: Erste Requests parsen CSVs und schreiben `backend/data/zensus.parquet`. Folge-Requests lesen direkt aus Parquet.
+- Entsiegelung: Erste Requests lesen ATKIS-ZIP + OSM-Abfrage und schreiben `backend/data/entsiegelung.parquet`. Cache mit `?refresh=true` neu bauen.
+- Stadtbezirke: Erste Requests ziehen 13 Polygone live von opendata.wuerzburg.de und schreiben `backend/data/stadtbezirke.parquet`. Aggregate (LST/HVI/Entsiegelung/Bäume) werden im Router live berechnet und in einem In-Memory-Cache gehalten (Reset bei Backend-Restart).
+- LST-Tausch: Wenn `lst_wuerzburg.tif` ausgetauscht wird, **muss `backend/data/lst.parquet` gelöscht** oder `?refresh=true` gerufen werden, sonst liefert der Endpoint die alten Daten. Backend-Restart leert zusätzlich die In-Memory-Caches von `/api/vulnerability` und `/api/stadtbezirke`, die per Spatial-Join auf der LST aufsetzen.
 - `*.parquet` ist global in `.gitignore`.
 
 ---
@@ -250,6 +263,14 @@ resilientes-wuerzburg/
 - `GDAL_DATA` Warning beim Start ist harmlos – kein Einfluss auf Berechnungen
 - ⚠️ `rasterstats` wird **nicht** mehr für LST eingesetzt — Zensus-Zellen-Bindung wurde aufgegeben, GeoTIFF deckt gesamte Stadtfläche ab (direktes Raster-zu-Polygon via rasterio)
 
+### ATKIS Basis-DLM (bkg_shape_712.zip)
+- Datei enthält u. a. `sie02_f.shp` (Siedlungsflächen) und `ver01_f.shp` (Verkehrsflächen).
+- CRS: EPSG:25832 (UTM Zone 32N). Würzburg-Vorfilter: `_WUE_ATKIS_BBOX = (540000, 5505000, 580000, 5540000)` als `bbox=`-Argument bei `gpd.read_file()`. Danach `.cx[9.87:10.01, 49.75:49.83]`-Präzisfilter in EPSG:4326.
+- `type_key = OBJART_TXT as-is` (kein FKT-Split, kein Whitelist-Filter).
+- `label`: AX_-Prefix entfernt + CamelCase → Leerzeichen via `re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)`.
+- `area_m2` wird in EPSG:25832 berechnet, bevor `to_crs("EPSG:4326")` aufgerufen wird.
+- Kein `seal_rate`-Score — reine Flächenart-Visualisierung.
+
 ### Geheimhaltungsrundung Zensus 2022 (§ 16 BStatG)
 - Destatis rundet kleine Gitterzellen (< 5 Einwohner) stochastisch.
 - Altersklassen und Gesamtbevölkerung stammen aus getrennten CSVs → nach Merge kann `a65undaelter > Einwohner` entstehen → `anteil_65plus > 1.0`.
@@ -264,6 +285,11 @@ resilientes-wuerzburg/
 - [x] `GET /api/lst` implementieren (LST aus GEE oder lokalem GeoTIFF).
 - [x] Frontend-Setup (React/Vite/deck.gl) noch nicht begonnen.
 - [x] Vulnerabilitäts-Score: gewichtete Kombination aus LST + `anteil_65plus` (Formel in `utils/vuln_formula.py`, Gewichte 0.6/0.4).
-- [ ] ATKIS/OSM-Endpoint für Entsiegelungs-Layer.
+- [x] ATKIS/OSM-Endpoint für Entsiegelungs-Layer (`GET /api/entsiegelung`, Kategorie-Farben, kein Score).
+- [x] Stadtbezirks-Endpoint (`GET /api/stadtbezirke`) inkl. Spatial-Join-Aggregaten (LST/HVI/Entsiegelung/Bäume).
+- [x] Dashboard-Seite (`/`) mit KPI-Strip + Top-3-Listen pro KPI.
+- [x] Stadtbezirks-Choropleth-Layer auf der Hitzeatlas-Seite (`StadtbezirkeLayer.jsx`).
+- [ ] Stadtbezirks-Choropleth auf der Vulnerabilitäts-Seite (analog, aber auf `hvi_max`).
+- [ ] Multi-Year-LST (zweiter GEE-Export) für Trend-Indikator in KPI-Cards (`↑ +X°C vs. <Jahr>`).
 - [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
 - [ ] CI-Integration der Test-Suite (aktuell nur lokal ausführbar).

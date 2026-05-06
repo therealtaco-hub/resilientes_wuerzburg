@@ -12,6 +12,7 @@ const TYPE_COLORS = {
   AX_FlaecheBesondererFunktionalerPraegung: [ 85, 100, 130, 170],
   osm_parking:                               [245, 158,  11, 170],
   osm_square:                                [ 59, 130, 246, 170],
+  osm_flat_roof_industrial:                  [134, 239, 172, 170],
 }
 const DEFAULT_COLOR = [100, 100, 110, 170]
 

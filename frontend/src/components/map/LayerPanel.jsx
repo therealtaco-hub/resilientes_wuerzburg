@@ -13,6 +13,12 @@ const LAYER_CONFIG = [
     sub: '44.647 Bäume · Stadt Würzburg',
     color: 'var(--green)',
   },
+  {
+    key: 'stadtbezirke',
+    label: 'Stadtbezirke',
+    sub: '13 Bezirke · LST Max-Choropleth',
+    color: 'var(--blue)',
+  },
 ]
 
 export default function LayerPanel() {

@@ -2,11 +2,13 @@ import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import TreeLayer from '../components/map/overlays/TreeLayer'
+import StadtbezirkeLayer from '../components/map/overlays/StadtbezirkeLayer'
 import LayerPanel from '../components/map/LayerPanel'
 import LSTLegend from '../components/map/LSTLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
+import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fmt } from '../utils/format'
 
 const HINTS = [
@@ -73,15 +75,18 @@ export default function Hitzeatlas() {
   const { layers } = useAppStore()
   const [lstData, setLstData]       = useState(null)
   const [treeData, setTreeData]     = useState(null)
+  const [bezirkeData, setBezirkeData] = useState(null)
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [hoveredCell, setHoveredCell] = useState(null)
+  const [hoveredBezirk, setHoveredBezirk] = useState(null)
 
   useEffect(() => {
-    Promise.all([fetchLst(), fetchTrees()])
-      .then(([lst, trees]) => {
+    Promise.all([fetchLst(), fetchTrees(), fetchStadtbezirke()])
+      .then(([lst, trees, bezirke]) => {
         setLstData(lst)
         setTreeData(trees)
+        setBezirkeData(bezirke)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -102,6 +107,9 @@ export default function Hitzeatlas() {
 
   const handleHover = ({ object, x, y }) =>
     setHoveredCell(object ? { object, x, y } : null)
+
+  const handleBezirkHover = ({ object, x, y }) =>
+    setHoveredBezirk(object ? { object, x, y } : null)
 
   return (
     <div className="flex flex-col h-[calc(100vh-48px)]">
@@ -132,8 +140,9 @@ export default function Hitzeatlas() {
         {/* Karte */}
         <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface>
-            {layers.heatmap && <HeatLayer data={lstData} onHover={handleHover} />}
-            {layers.trees   && <TreeLayer data={treeData} />}
+            {layers.heatmap      && <HeatLayer data={lstData} onHover={handleHover} />}
+            {layers.trees        && <TreeLayer data={treeData} />}
+            {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} onHover={handleBezirkHover} />}
           </MapSurface>
         </div>
 
@@ -184,6 +193,30 @@ export default function Hitzeatlas() {
           }}
         >
           {fmt.temp(hoveredCell.object.properties.lst_celsius)}
+        </div>
+      )}
+
+      {hoveredBezirk && (
+        <div
+          className="bg-bg-2 border border-border rounded-md px-3 py-2 shadow-xl"
+          style={{
+            position: 'fixed',
+            left: hoveredBezirk.x + 12,
+            top:  hoveredBezirk.y + 12,
+            pointerEvents: 'none',
+            minWidth: 180,
+          }}
+        >
+          <div className="text-fg-0 text-[13px] font-medium mb-1.5">
+            {hoveredBezirk.object.properties.name}
+          </div>
+          <div className="text-fg-2 text-[11px] font-mono space-y-0.5">
+            <div>LST Max · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
+            <div>LST Median · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_median)}</span></div>
+            <div>HVI Max · <span className="text-fg-0">{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
+            <div>Einwohner · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
+            <div>Bäume · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.tree_count)}</span></div>
+          </div>
         </div>
       )}
     </div>

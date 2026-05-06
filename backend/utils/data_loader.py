@@ -37,6 +37,12 @@ _WUE_Y_MIN, _WUE_Y_MAX = 2_960_000, 2_985_000
 _ATKIS_ZIP          = _DATA_DIR / "bkg_shape_712.zip"
 _ENTSIEGELUNG_CACHE = _DATA_DIR / "entsiegelung.parquet"
 
+_STADTBEZIRKE_CACHE = _DATA_DIR / "stadtbezirke.parquet"
+_STADTBEZIRKE_URL   = (
+    "https://opendata.wuerzburg.de/api/explore/v2.1/"
+    "catalog/datasets/stadtbezirke/records?limit=20"
+)
+
 # Würzburg BBox in EPSG:25832 (UTM Zone 32N) für ATKIS-BBox-Filter
 _WUE_ATKIS_BBOX = (540000, 5505000, 580000, 5540000)  # großzügiger Vorfilter, .cx macht Präzisfilter
 
@@ -178,6 +184,37 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
         gdf = gdf.to_crs("EPSG:4326")
 
     gdf.to_parquet(_LST_CACHE)
+    return gdf
+
+
+def load_stadtbezirke(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    """13 Stadtbezirk-Polygone von opendata.wuerzburg.de.
+    Properties: name (str), nummer (str)."""
+    if not force_refresh and _STADTBEZIRKE_CACHE.exists():
+        return gpd.read_parquet(_STADTBEZIRKE_CACHE)
+
+    import httpx
+    from shapely.geometry import shape
+
+    resp = httpx.get(_STADTBEZIRKE_URL, timeout=30.0)
+    resp.raise_for_status()
+    records = resp.json().get("results", [])
+    if not records:
+        raise ValueError("Stadtbezirke-API lieferte keine Records.")
+
+    rows = []
+    for r in records:
+        geom = r.get("geometry", {}).get("geometry") or r.get("geometry")
+        if not geom:
+            continue
+        rows.append({
+            "name": r.get("name") or r.get("stadtbezir"),
+            "nummer": r.get("nummer"),
+            "geometry": shape(geom),
+        })
+
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:4326")
+    gdf.to_parquet(_STADTBEZIRKE_CACHE)
     return gdf
 
 
