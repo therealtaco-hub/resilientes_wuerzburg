@@ -239,6 +239,44 @@ def load_entsiegelung(force_refresh: bool = False) -> gpd.GeoDataFrame:
         polys["area_m2"]  = polys.to_crs("EPSG:25832").geometry.area.round(1)
         osm_parts.append(polys)
 
+    # --- OSM: potenzielle Dachbegrünung ---
+    # Flachdächer (roof:shape=flat) ODER geeignete Gebäudetypen (industrial/commercial/...).
+    # Bereits begrünte Dächer werden ausgeschlossen.
+    try:
+        green_candidates = ox.features_from_place(
+            "Würzburg, Germany",
+            tags={"building": True},
+        )
+    except Exception:
+        green_candidates = None
+
+    if green_candidates is not None and not green_candidates.empty:
+        polys = green_candidates[
+            green_candidates.geometry.geom_type.isin(["Polygon", "MultiPolygon"])
+        ].copy()
+
+        roof_shape    = polys["roof:shape"]    if "roof:shape"    in polys.columns else pd.Series(index=polys.index, dtype=object)
+        building      = polys["building"]      if "building"      in polys.columns else pd.Series(index=polys.index, dtype=object)
+        roof_material = polys["roof:material"] if "roof:material" in polys.columns else pd.Series(index=polys.index, dtype=object)
+        roof_surface  = polys["roof:surface"]  if "roof:surface"  in polys.columns else pd.Series(index=polys.index, dtype=object)
+
+        suitable_types = {"industrial", "commercial", "supermarket", "retail"}
+        is_flat        = roof_shape.astype(str).str.lower() == "flat"
+        is_suitable    = building.astype(str).str.lower().isin(suitable_types)
+        already_green  = (
+            (roof_material.astype(str).str.lower() == "grass")
+            | (roof_surface.astype(str).str.lower() == "green")
+        )
+
+        keep = (is_flat | is_suitable) & ~already_green
+        green_polys = polys[keep][["geometry"]].copy()
+
+        if not green_polys.empty:
+            green_polys["type_key"] = "osm_flat_roof_industrial"
+            green_polys["label"]    = "Flachdach / Gewerbebau"
+            green_polys["area_m2"]  = green_polys.to_crs("EPSG:25832").geometry.area.round(1)
+            osm_parts.append(green_polys)
+
     if osm_parts:
         osm_gdf = gpd.GeoDataFrame(pd.concat(osm_parts, ignore_index=True), crs="EPSG:4326")
         osm_gdf["source"] = "osm"
