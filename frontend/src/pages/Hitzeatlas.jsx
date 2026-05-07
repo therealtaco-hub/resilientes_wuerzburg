@@ -184,12 +184,13 @@ export default function Hitzeatlas() {
 
       {hoveredCell && (
         <div
-          className="bg-bg-2 border border-border text-fg-0 font-mono text-xs px-2 py-1 rounded-md"
+          className="bg-bg-2 border border-border text-fg-0 font-mono text-[11px] px-3 py-2 rounded-md"
           style={{
             position: 'fixed',
-            left: hoveredCell.x + 12,
-            top:  hoveredCell.y + 12,
+            left: hoveredCell.x + 14,
+            top:  hoveredCell.y + 14,
             pointerEvents: 'none',
+            zIndex: 9999,
           }}
         >
           {fmt.temp(hoveredCell.object.properties.lst_celsius)}
@@ -198,13 +199,14 @@ export default function Hitzeatlas() {
 
       {hoveredBezirk && (
         <div
-          className="bg-bg-2 border border-border rounded-md px-3 py-2 shadow-xl"
+          className="bg-bg-2 border border-border font-mono text-[11px] rounded-md px-3 py-2 space-y-0.5"
           style={{
             position: 'fixed',
-            left: hoveredBezirk.x + 12,
-            top:  hoveredBezirk.y + 12,
+            left: hoveredBezirk.x + 14,
+            top:  hoveredBezirk.y + 14,
             pointerEvents: 'none',
             minWidth: 180,
+            zIndex: 9999,
           }}
         >
           <div className="text-fg-0 text-[13px] font-medium mb-1.5">

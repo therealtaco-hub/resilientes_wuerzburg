@@ -40,7 +40,8 @@
       "Bash(conda run *)",
       "Bash(curl -s http://localhost:8000/api/vulnerability)",
       "Bash(npx vite *)",
-      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from routers import stadtbezirke; print\\('import ok'\\)\")"
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from routers import stadtbezirke; print\\('import ok'\\)\")",
+      "Bash(uvicorn main:app --reload)"
     ]
   }
 }
