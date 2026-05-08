@@ -6,7 +6,7 @@ import StadtbezirkeLayer from '../components/map/overlays/StadtbezirkeLayer'
 import LayerPanel from '../components/map/LayerPanel'
 import LSTLegend from '../components/map/LSTLegend'
 import useAppStore from '../store/useAppStore'
-import { fetchLst } from '../api/lst'
+import { fetchLst, fetchLstDelta } from '../api/lst'
 import { fetchTrees } from '../api/trees'
 import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fetchHotspots } from '../api/hotspots'
@@ -188,6 +188,11 @@ export default function Hitzeatlas() {
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
 
+  const [lstMode, setLstMode]             = useState('absolute')
+  const [deltaData, setDeltaData]         = useState(null)
+  const [loadingDelta, setLoadingDelta]   = useState(false)
+  const [deltaError, setDeltaError]       = useState(null)
+
   const [hoveredCell, setHoveredCell]     = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
   const [hoveredRank, setHoveredRank]     = useState(null)
@@ -232,6 +237,30 @@ export default function Hitzeatlas() {
     return m
   }, [hotspotData])
 
+  const { deltaMin, deltaMax } = useMemo(() => {
+    if (!deltaData) return {}
+    if (deltaData.meta?.delta_min != null && deltaData.meta?.delta_max != null) {
+      return { deltaMin: deltaData.meta.delta_min, deltaMax: deltaData.meta.delta_max }
+    }
+    const vals = deltaData.features
+      .map(f => f.properties.lst_delta)
+      .filter(v => v != null && isFinite(v))
+      .sort((a, b) => a - b)
+    return { deltaMin: vals[0], deltaMax: vals[vals.length - 1] }
+  }, [deltaData])
+
+  const handleModeChange = (mode) => {
+    setLstMode(mode)
+    if (mode === 'delta' && deltaData === null && !loadingDelta) {
+      setLoadingDelta(true)
+      setDeltaError(null)
+      fetchLstDelta()
+        .then(setDeltaData)
+        .catch((e) => setDeltaError(e.message))
+        .finally(() => setLoadingDelta(false))
+    }
+  }
+
   const handleHover = ({ object, x, y }) => {
     setHoveredCell(object ? { object, x, y } : null)
     if (object) {
@@ -268,19 +297,48 @@ export default function Hitzeatlas() {
             Hitzeatlas
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Land Surface Temperature · Landsat 9 · Sommer 2024
+            {lstMode === 'absolute'
+              ? 'Land Surface Temperature · Landsat 9 · Sommer 2024'
+              : 'Temperaturentwicklung · Δ 2014–2016 → 2023–2025'}
           </p>
         </div>
-        {loading && (
-          <span className="text-[11px] text-accent-green font-mono animate-pulse">
-            Lade Daten …
-          </span>
-        )}
-        {error && (
-          <span className="text-[11px] text-accent-red font-mono">
-            ● Backend nicht erreichbar – {error}
-          </span>
-        )}
+
+        <div className="flex items-center gap-3">
+          {/* Mode toggle */}
+          <div
+            className="flex gap-1 p-1 rounded-lg"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+          >
+            {[
+              { key: 'absolute', label: 'Absolut' },
+              { key: 'delta',    label: 'Δ Entwicklung' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handleModeChange(key)}
+                className="px-3 py-1 rounded-md font-mono text-[12px] transition-all duration-150"
+                style={{
+                  background: lstMode === key ? 'rgba(34,197,94,0.15)' : 'transparent',
+                  color:      lstMode === key ? 'var(--green)' : 'var(--text-2)',
+                  border:     lstMode === key ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {(loading || loadingDelta) && (
+            <span className="text-[11px] text-accent-green font-mono animate-pulse">
+              Lade Daten …
+            </span>
+          )}
+          {(error || deltaError) && (
+            <span className="text-[11px] text-accent-red font-mono">
+              ● {error || deltaError}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Map + Right Rail */}
@@ -288,9 +346,11 @@ export default function Hitzeatlas() {
         {/* Karte */}
         <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface ref={mapRef}>
-            {layers.heatmap      && (
+            {layers.heatmap && (
               <HeatLayer
                 data={lstData}
+                deltaData={deltaData}
+                mode={lstMode}
                 hotspots={hotspotData}
                 hoveredRank={hoveredRank}
                 onHover={handleHover}
@@ -306,7 +366,9 @@ export default function Hitzeatlas() {
           <LayerPanel />
 
           {layers.heatmap && (
-            <LSTLegend min={lstMin} median={lstMedian} max={lstMax} />
+            lstMode === 'absolute'
+              ? <LSTLegend min={lstMin} median={lstMedian} max={lstMax} />
+              : <LSTLegend mode="delta" deltaMin={deltaMin} deltaMax={deltaMax} />
           )}
 
           <Top5HitzeCard
@@ -333,7 +395,10 @@ export default function Hitzeatlas() {
             zIndex: 9999,
           }}
         >
-          {fmt.temp(hoveredCell.object.properties.lst_celsius)}
+          {lstMode === 'delta'
+            ? fmt.dT(hoveredCell.object.properties.lst_delta ?? 0)
+            : fmt.temp(hoveredCell.object.properties.lst_celsius)
+          }
         </div>
       )}
 

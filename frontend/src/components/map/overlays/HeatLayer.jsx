@@ -5,6 +5,8 @@ import DeckOverlay from './DeckOverlay'
 const GREEN = [34, 197, 94]
 const AMBER = [245, 158, 11]
 const RED   = [239, 68,  68]
+const BLUE  = [59,  130, 246]
+const WHITE = [255, 255, 255]
 
 function lerp(a, b, t) {
   return [
@@ -20,6 +22,20 @@ function heatColor(norm) {
   return [...rgb, 180]
 }
 
+// 3-point asymmetric scale: actualMin → BLUE, 0 → WHITE, actualMax → RED
+function deltaColor(delta, actualMin, actualMax) {
+  if (delta == null || !isFinite(delta)) return [128, 128, 128, 160]
+  let rgb
+  if (delta <= 0) {
+    const t = actualMin < 0 ? delta / actualMin : 0   // 0 at zero, 1 at actualMin
+    rgb = lerp(WHITE, BLUE, Math.max(0, Math.min(1, t)))
+  } else {
+    const t = actualMax > 0 ? delta / actualMax : 0   // 0 at zero, 1 at actualMax
+    rgb = lerp(WHITE, RED, Math.max(0, Math.min(1, t)))
+  }
+  return [...rgb, 180]
+}
+
 // Centroid key of a rectangular bounding-box polygon (shapely box layout).
 // Coordinates: [[w,s],[e,s],[e,n],[w,n],[w,s]]
 function centroidKey(f) {
@@ -29,7 +45,7 @@ function centroidKey(f) {
   return `${lon}_${lat}`
 }
 
-export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
+export default function HeatLayer({ data, deltaData, mode = 'absolute', hotspots, hoveredRank, onHover }) {
   // Build centroid-key → rank lookup (empty Map when hotspots not yet loaded)
   const hotspotMap = useMemo(() => {
     if (!hotspots) return new Map()
@@ -59,9 +75,45 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     }))
   }, [hotspots])
 
+  // Actual min/max from meta (preferred) or feature scan (fallback)
+  const { deltaActualMin, deltaActualMax } = useMemo(() => {
+    if (!deltaData) return { deltaActualMin: -1, deltaActualMax: 1 }
+    if (deltaData.meta?.delta_min != null && deltaData.meta?.delta_max != null) {
+      return { deltaActualMin: deltaData.meta.delta_min, deltaActualMax: deltaData.meta.delta_max }
+    }
+    const vals = deltaData.features
+      .map(f => f.properties.lst_delta)
+      .filter(v => v != null && isFinite(v))
+    if (!vals.length) return { deltaActualMin: -1, deltaActualMax: 1 }
+    return { deltaActualMin: Math.min(...vals), deltaActualMax: Math.max(...vals) }
+  }, [deltaData])
+
+  // ── Delta mode ────────────────────────────────────────────────────────────
+  if (mode === 'delta') {
+    if (!deltaData) return null
+
+    const deltaLayer = new GeoJsonLayer({
+      id: 'lst-delta-choropleth',
+      data: deltaData,
+      stroked: true,
+      filled: true,
+      pickable: true,
+      getFillColor: (f) => deltaColor(f.properties.lst_delta, deltaActualMin, deltaActualMax),
+      getLineColor: [255, 255, 255, 18],
+      getLineWidth: 1,
+      lineWidthUnits: 'pixels',
+      lineWidthMinPixels: 0,
+      updateTriggers: {
+        getFillColor: [deltaData, deltaActualMin, deltaActualMax],
+      },
+    })
+
+    return <DeckOverlay layers={[deltaLayer]} onHover={onHover} />
+  }
+
+  // ── Absolute mode (original) ──────────────────────────────────────────────
   if (!data) return null
 
-  // ── Layer 1: LST choropleth with hotspot pixel outlines ──────────────────
   const geoJsonLayer = new GeoJsonLayer({
     id: 'lst-choropleth',
     data,
@@ -91,7 +143,6 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     transitions: { getFillColor: 300 },
   })
 
-  // ── Layer 2: Outer ring — fixed 200 m radius matches the focal-mean search radius ──
   const ringLayer = new ScatterplotLayer({
     id: 'hotspot-ring',
     data: hotspotPoints,
@@ -109,7 +160,6 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     updateTriggers: { getLineWidth: hoveredRank },
   })
 
-  // ── Layer 3: Inner dot — 20 m radius as precise centre marker ────────────
   const dotLayer = new ScatterplotLayer({
     id: 'hotspot-dot',
     data: hotspotPoints,
@@ -124,7 +174,6 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     updateTriggers: { getFillColor: hoveredRank },
   })
 
-  // ── Layer 4: Rank label above each marker ─────────────────────────────────
   const labelLayer = new TextLayer({
     id: 'hotspot-labels',
     data: hotspotPoints,

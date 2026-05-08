@@ -26,8 +26,11 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 _TREES_SOURCE = _DATA_DIR / "baumkataster_stadt_wuerzburg.parquet"  # Bulk-Export (alle 44.647 Records)
 _TREES_CACHE  = _DATA_DIR / "trees.parquet"                         # verarbeiteter Cache
 _ZENSUS_PARQUET_PATH = _DATA_DIR / "zensus.parquet"
-_LST_TIF = _DATA_DIR / "lst_wuerzburg.tif"
-_LST_CACHE = _DATA_DIR / "lst.parquet"
+_LST_TIF          = _DATA_DIR / "lst_wuerzburg_current_2023_2025.tif"
+_LST_CACHE        = _DATA_DIR / "lst.parquet"
+_LST_CURRENT_TIF  = _DATA_DIR / "lst_wuerzburg_current_2023_2025.tif"
+_LST_BASELINE_TIF = _DATA_DIR / "lst_wuerzburg_baseline_2014_2016.tif"
+_LST_DELTA_CACHE  = _DATA_DIR / "lst_delta.parquet"
 _ZENSUS_ALTER_CSV = _DATA_DIR / "Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv"
 _ZENSUS_BEV_CSV = _DATA_DIR / "Zensus2022_Bevoelkerungszahl_100m-Gitter.csv"
 
@@ -336,4 +339,108 @@ def load_entsiegelung(force_refresh: bool = False) -> gpd.GeoDataFrame:
     )
 
     gdf.to_parquet(_ENTSIEGELUNG_CACHE)
+    return gdf
+
+
+def load_lst_delta(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    """Pixel-Delta (current – baseline) für den Temperatur-Trend-Layer.
+
+    Lädt beide 3-Jahres-Komposit-GeoTIFFs, resampelt beide unabhängig auf
+    ~100 m (identische Logik wie load_lst), reprojects das Baseline-Raster
+    auf das Current-Gitter und berechnet die Differenz. Nur Pixel, die in
+    beiden Kompositen gültig sind, werden ausgegeben.
+    """
+    if not force_refresh and _LST_DELTA_CACHE.exists():
+        return gpd.read_parquet(_LST_DELTA_CACHE)
+
+    if not _LST_CURRENT_TIF.exists():
+        raise FileNotFoundError(
+            "LST current nicht gefunden: backend/data/lst_wuerzburg_current_2023_2025.tif"
+        )
+    if not _LST_BASELINE_TIF.exists():
+        raise FileNotFoundError(
+            "LST baseline nicht gefunden: backend/data/lst_wuerzburg_baseline_2014_2016.tif"
+        )
+
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.transform import Affine
+    from rasterio.warp import reproject
+    from shapely.geometry import box
+
+    _SENTINEL = -9999.0
+
+    def _resample(path):
+        with rasterio.open(path) as src:
+            t = src.transform
+            w, h = src.width, src.height
+            crs = src.crs
+            lat_c = t.f + t.e * h / 2
+            cos_l = np.cos(np.radians(lat_c))
+            scale_y = (100 / 111_320) / abs(t.e)
+            scale_x = (100 / (111_320 * cos_l)) / abs(t.a)
+            out_h = max(1, round(h / scale_y))
+            out_w = max(1, round(w / scale_x))
+            # masked=True: rasterio respects the GeoTIFF nodata value *before*
+            # averaging — nodata pixels are excluded from each 100m mean instead
+            # of being averaged in and replaced with _SENTINEL afterwards.
+            arr_masked = src.read(
+                1, out_shape=(out_h, out_w), resampling=Resampling.average, masked=True
+            )
+            new_t = Affine(t.a * w / out_w, t.b, t.c, t.d, t.e * h / out_h, t.f)
+
+        data = arr_masked.filled(_SENTINEL).astype(np.float64)
+
+        # GEE fills Landsat swath-edge pixels with 0.0 and does not always write
+        # a nodata value into the GeoTIFF metadata.  0 °C is physically impossible
+        # for a summer LST composite → treat as nodata before any arithmetic.
+        data[data == 0.0] = _SENTINEL
+        data[~np.isfinite(data)] = _SENTINEL
+        return data, new_t, crs
+
+    curr_arr, curr_t, curr_crs = _resample(_LST_CURRENT_TIF)
+    base_arr, base_t, base_crs = _resample(_LST_BASELINE_TIF)
+
+    # Warp baseline onto the current grid so arrays are pixel-aligned
+    aligned = np.full(curr_arr.shape, _SENTINEL, dtype=np.float64)
+    reproject(
+        source=base_arr,
+        destination=aligned,
+        src_transform=base_t,
+        src_crs=base_crs,
+        dst_transform=curr_t,
+        dst_crs=curr_crs,
+        resampling=Resampling.bilinear,
+        src_nodata=_SENTINEL,
+        dst_nodata=_SENTINEL,
+    )
+
+    # Summer LST must be positive; anything ≤ 0 °C is a fill/sensor artefact
+    curr_valid = (curr_arr != _SENTINEL) & (curr_arr > 0.0) & (curr_arr < 70.0)
+    base_valid = (aligned  != _SENTINEL) & (aligned  > 0.0) & (aligned  < 70.0)
+    valid = curr_valid & base_valid
+
+    if not valid.any():
+        raise ValueError(
+            "Keine überlappenden validen Pixel zwischen baseline- und current-GeoTIFF."
+        )
+
+    delta = np.where(valid, curr_arr - aligned, np.nan)
+    rows, cols = np.where(valid)
+    a, e = curr_t.a, curr_t.e
+    west  = curr_t.c + cols       * a
+    east  = curr_t.c + (cols + 1) * a
+    north = curr_t.f + rows       * e
+    south = curr_t.f + (rows + 1) * e
+
+    geometries = [box(w, s, e_, n) for w, s, e_, n in zip(west, south, east, north)]
+    gdf = gpd.GeoDataFrame(
+        {"lst_delta": np.round(delta[valid], 2)},
+        geometry=geometries,
+        crs=curr_crs,
+    )
+    if gdf.crs.to_epsg() != 4326:
+        gdf = gdf.to_crs("EPSG:4326")
+
+    gdf.to_parquet(_LST_DELTA_CACHE)
     return gdf
