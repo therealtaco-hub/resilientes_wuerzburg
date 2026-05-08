@@ -161,10 +161,12 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
       </div>
       <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-soft)' }}>
         <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Jeder Spot ist das heißeste Zentrum eines Stadtgebiets. Die angezeigte Temperatur
-          ist der Durchschnitt aller Rasterzellen im <span style={{ color: 'var(--text-1)' }}>200&thinsp;m Umkreis</span> – das glättet
-          einzelne Sensor-Ausreißer (z.&thinsp;B. ein einzelnes Metalldach).
-          Zwischen zwei Spots liegen immer mindestens <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span>,
+          Die Hotspots markieren die fünf stärksten Hitzezentren im erfassten Stadtgebiet. 
+          Die angezeigte Temperatur ist der Durchschnittswert im Umkreis von <span style={{ color: 'var(--text-1)' }}>200&thinsp;m</span>, 
+          um kleinteilige Ausreißer (z. B. einzelne Blechdächer) auszufiltern. 
+          Ein Mindestabstand von <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span> zwischen den Markierungen verhindert, dass sich 
+          großflächige Hitzeinseln mehrfach im Ranking wiederholen. 
+          Zwischen zwei Spots liegen immer mindestens ,
           damit verschiedene Stadtteile repräsentiert werden.
         </p>
         <p className="text-[10px] font-mono mt-2" style={{ color: 'var(--text-3)' }}>

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import VulnLayer from '../components/map/overlays/VulnLayer'
+import LSTLegend from '../components/map/LSTLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchVulnerability } from '../api/vulnerability'
 import { fetchLst } from '../api/lst'
@@ -125,6 +126,26 @@ function VulnLayerPanel({ vulnCount, lstCount }) {
           </div>
         </button>
       ))}
+    </div>
+  )
+}
+
+// ── Grid Hint ─────────────────────────────────────────────────────────────────
+
+function GridHint() {
+  return (
+    <div className="bg-bg-1 border border-border rounded-xl p-4 flex gap-3">
+      <svg className="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="var(--text-3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <p className="text-fg-3 text-[11px] leading-[1.55]">
+        Die leichte Versetzung zwischen HVI- und LST-Zellen entsteht durch den
+        unterschiedlichen Ursprung der beiden Gittersysteme (Zensus: EPSG:3035,
+        Landsat: EPSG:4326).
+      </p>
     </div>
   )
 }
@@ -262,6 +283,13 @@ export default function Vulnerabilitaet() {
       .finally(() => setLoading(false))
   }, [])
 
+  const lstStats = useMemo(() => {
+    if (!lstData) return {}
+    const vals = lstData.features.map(f => f.properties.lst_celsius).filter(v => v != null).sort((a, b) => a - b)
+    if (!vals.length) return {}
+    return { min: vals[0], median: vals[Math.floor(vals.length / 2)], max: vals[vals.length - 1] }
+  }, [lstData])
+
   const { maxHvi, affectedPop } = useMemo(() => {
     if (!vulnData) return {}
     const features = vulnData.features ?? []
@@ -343,10 +371,13 @@ export default function Vulnerabilitaet() {
           <VulnLayerPanel vulnCount={vulnCount} lstCount={lstCount} />
 
           {layers.vulnerabilitaet && <HviLegend />}
+          {layers.heatmap && <LSTLegend {...lstStats} />}
 
           <InterpretationBox />
 
           <FormelCard weights={vulnWeights} />
+
+          <GridHint />
         </div>
       </div>
 

@@ -73,13 +73,13 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
       const k = centroidKey(f)
       if (k === hoveredKey) return [255, 255, 255, 255]
       if (hotspotMap.has(k))  return [200, 230, 255, 200]
-      return [0, 0, 0, 0]
+      return [255, 255, 255, 18]
     },
     getLineWidth: (f) => {
       const k = centroidKey(f)
       if (k === hoveredKey) return 4
       if (hotspotMap.has(k))  return 2
-      return 0
+      return 1
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,

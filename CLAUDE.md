@@ -164,7 +164,7 @@ resilientes-wuerzburg/
 |---|---|---|
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `GITTER_ID_100m`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
-| `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~21.718 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
+| `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~13.900 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
 | `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus`, `lst_norm`, `lst_celsius`, `Einwohner`. Formel konfigurierbar in `utils/vuln_formula.py`. `meta.weights` im Response. |
 | `GET /api/entsiegelung` | ✅ | ATKIS + OSM-Flächen als GeoJSON FeatureCollection. Properties: `source` (`"atkis"`/`"osm"`), `type_key` (OBJART_TXT as-is / `"osm_parking"` / `"osm_square"` / `"osm_flat_roof_industrial"`), `label`, `area_m2`. `meta`: `atkis_count`, `osm_count`, `total_count`. Cache: `backend/data/entsiegelung.parquet`. `?refresh=true` erzwingt Neuberechnung. Kein Score, kein seal_rate. |
 | `GET /api/stadtbezirke` | ✅ | 13 Würzburger Stadtbezirke als GeoJSON FeatureCollection mit aggregierten Kennzahlen. Quelle: opendata.wuerzburg.de API (`stadtbezirke`-Datensatz). Properties: `name`, `nummer`, `lst_max`, `lst_median`, `lst_mean`, `hvi_max`, `hvi_mean`, `einwohner` (Σ aus Zensus-sjoin), `entsiegelung_m2` (Σ ATKIS+OSM-Flächen), `tree_count`. Spatial Joins gegen LST-Pixel, HVI-Zellen, Entsiegelung-Polygone, Baumkataster. `meta.total_count`. Cache: `backend/data/stadtbezirke.parquet`. `?refresh=true` lädt API neu. |
@@ -173,7 +173,7 @@ resilientes-wuerzburg/
 ### `utils/data_loader.py`
 - `load_tree_cadastre(force_refresh=False)` – liest lokalen Bulk-Export `backend/data/baumkataster_stadt_wuerzburg.parquet` (alle 44.647 Records), schreibt verarbeiteten Cache nach `backend/data/trees.parquet`. Kein Netzwerkzugriff. Wirft `FileNotFoundError` wenn Quelldatei fehlt.
 - `load_zensus(force_refresh=False)` – merged Alter- + Bevölkerungs-CSV, filtert Würzburg-Bbox, baut 100×100m-Quadratzellen. Berechnet `anteil_65plus` mit `.clip(0, 1)` gegen Geheimhaltungsrundung.
-- `load_lst(force_refresh=False)` – liest `lst_wuerzburg.tif` direkt mit rasterio, resampelt auf ~100m (`Resampling.average`), erstellt Polygon-Bounding-Box pro Pixel. `lst_celsius` direkt aus GeoTIFF (GEE exportiert bereits °C). `lst_norm` via `scipy.stats.rankdata` (Rang-Normierung 0–1, gleichmäßige Farbverteilung). Cache: `backend/data/lst.parquet`.
+- `load_lst(force_refresh=False)` – liest `lst_wuerzburg.tif` direkt mit rasterio, resampelt auf ~100m (`Resampling.average`), erstellt Polygon-Bounding-Box pro Pixel. `lst_celsius` direkt aus GeoTIFF (GEE exportiert bereits °C). `lst_norm` via `scipy.stats.rankdata` (Rang-Normierung 0–1, gleichmäßige Farbverteilung). Cache: `backend/data/lst.parquet`. ⚠️ Resample-Scale wird **separat für X und Y** berechnet mit `cos(lat)`-Korrektur (`scale_x = (100 / (111_320 * cos_lat)) / pix_lon`), damit Zellen physisch ~100×100m sind (GEE exportiert quadratische Grad-Pixel, ohne Korrektur wären Zellen nur ~64m breit).
 - `load_stadtbezirke(force_refresh=False)` – ruft opendata.wuerzburg.de `stadtbezirke`-API ab (13 Records, Polygon-Geometrien). Properties: `name`, `nummer`. Cache: `backend/data/stadtbezirke.parquet`. Nutzt `httpx`, parst Records via `shapely.geometry.shape`.
 - `load_entsiegelung(force_refresh=False)` – liest `sie02_f.shp` + `ver01_f.shp` aus `bkg_shape_712.zip` (EPSG:25832, Würzburg-BBox-Vorfilter `_WUE_ATKIS_BBOX` + `.cx`-Präzisfilter nach Reprojektierung). `type_key = OBJART_TXT as-is`. `label` via Regex: AX_-Prefix entfernt, CamelCase → Leerzeichen. `area_m2` in EPSG:25832 vor Reprojektierung. OSM: `amenity=parking` + `place=square` + Gebäude (`building=*`) gefiltert auf `roof:shape=flat` ODER `building ∈ {industrial, commercial, supermarket, retail}`, ausgeschlossen sind bereits begrünte Dächer (`roof:material=grass` / `roof:surface=green`) → `type_key="osm_flat_roof_industrial"`, `label="Flachdach / Gewerbebau"`. Nur Polygon-Geometrien. Kein Score, kein seal_rate. Cache: `backend/data/entsiegelung.parquet`.
 
@@ -191,7 +191,7 @@ resilientes-wuerzburg/
 |---|---|---|
 | Dashboard | `/` | ✅ KPI-Strip (4 Kacheln) + Top-3-Listen pro KPI (4×1-Grid) |
 | Hitzeatlas | `/hitzeatlas` | ✅ inkl. Stadtbezirks-Choropleth-Layer + Bezirks-Hover-Tooltip |
-| Vulnerabilität | `/vulnerabilitaet` | ✅ |
+| Vulnerabilität | `/vulnerabilitaet` | ✅ inkl. HVI-Legende + LST-Legende + Hinweis zu Gitter-Diskrepanz |
 | Entsiegelung | `/entsiegelung` | ✅ |
 | Simulation Bäume | `/simulation/baeume` | ⏳ Shell only |
 | Simulation Wasser | `/simulation/wasser` | ⏳ Shell only |
@@ -199,12 +199,12 @@ resilientes-wuerzburg/
 #### Fertige Komponenten
 - `MapSurface.jsx` – MapLibre-Wrapper, initialViewState Würzburg (9.932, 49.794, zoom 12)
 - `DeckOverlay.jsx` – MapboxOverlay + useControl Wrapper; akzeptiert `...rest`-Props (z. B. `onHover`) und leitet sie an `setProps` weiter
-- `HeatLayer.jsx` – deck.gl **GeoJsonLayer** (Choropleth), `getFillColor` interpoliert `lst_norm` über Drei-Punkt-Gradient grün→amber→rot, Alpha 180, `pickable: true`, akzeptiert `onHover`-Prop
+- `HeatLayer.jsx` – deck.gl **GeoJsonLayer** (Choropleth), `getFillColor` interpoliert `lst_norm` über Drei-Punkt-Gradient grün→amber→rot, Alpha 180, `pickable: true`, akzeptiert `onHover`-Prop. Subtile weiße Zell-Outlines (Alpha 18, 1px) für Abgrenzung beim Reinzoomen; Hotspot-Pixel bekommen hellblaue 2px-Outline, gehoverter Hotspot weiße 4px-Outline.
 - `TreeLayer.jsx` – deck.gl ScatterplotLayer, 4px Punkte, grün 70% Opacity
 - `LayerPanel.jsx` – Toggles für heatmap + trees + stadtbezirke, Zustand-connected
 - `StadtbezirkeLayer.jsx` (`overlays/`) – deck.gl GeoJsonLayer-Choropleth auf `lst_max`. Frontend normiert min/max aus den 13 Bezirken, Drei-Punkt-Gradient grün→amber→rot bei Alpha 140 (transparent genug, damit ein darunter liegender LST-Pixel-Layer sichtbar bleibt). 1.5px-weiße Outlines (`getLineColor: [255,255,255,200]`), `pickable: true`, akzeptiert `onHover`-Prop.
 - `LSTLegend.jsx` – Gradient-Balken (160×8px) + drei `fmt.temp()`-Labels (min/median/max als Props); frosted-glass-Hintergrund
-- `VulnLayer.jsx` – deck.gl GeoJsonLayer, Lila-Gradient auf `hvi` (0→transparent, 1→rgba(168,85,247,220)), pickable, akzeptiert `onHover`-Prop
+- `VulnLayer.jsx` – deck.gl GeoJsonLayer, Lila-Gradient auf `hvi` (0→transparent, 1→rgba(168,85,247,220)), pickable, akzeptiert `onHover`-Prop. Subtile weiße Zell-Outlines (Alpha 18, 1px, max 1px) für Abgrenzung beim Reinzoomen.
 - `EntsiegelungLayer.jsx` (`overlays/`) – **ein** GeoJsonLayer für alle Features; `getFillColor` switcht per `type_key` auf feste RGBA-Farbe (Alpha 170); Filterung per `showAtkis`/`showOsm` vor Layer-Erstellung. Kein seal_rate. OSM-Cases: `osm_parking`, `osm_square`, `osm_flat_roof_industrial` (hellgrün `[134,239,172,170]`).
 - `EntsiegelungLegend.jsx` – Kategorie-Legende; eine Zeile pro Flächenart (12×12px Farbquadrat + Label); ATKIS-Block / HR-Trennlinie / OSM-Block (inkl. „Flachdach / Gewerbebau"); frosted-glass-Hintergrund wie LSTLegend.
 - `Sidebar.jsx` – 220px, 2 Nav-Gruppen, active NavLink via react-router-dom
@@ -257,7 +257,7 @@ resilientes-wuerzburg/
   `raw DN × 0.00341802 + 149.0 − 273.15` gilt nur für rohe DN-Downloads, nicht für GEE-Exporte.
 - CRS Export: EPSG:4326, 30m Auflösung, Cloud-Optimized GeoTIFF
 - Ablageort: `backend/data/lst_wuerzburg.tif` (nicht im Git)
-- Backend liest mit `rasterio`, resampelt auf ~100m (`Resampling.average`), ~21.718 valide Features
+- Backend liest mit `rasterio`, resampelt auf ~100m (`Resampling.average`), ~13.900 valide Features (nach cos(lat)-Korrektur des Resample-Scale)
 - `lst_celsius`: direkt aus GeoTIFF, kein weiteres Scaling nötig (GEE exportiert fertige °C-Werte)
 - `lst_norm`: **Rang-basierte Normierung** via `scipy.stats.rankdata` (0.0–1.0) — sorgt für gleichmäßige Farbverteilung über grün/amber/rot unabhängig von °C-Clustering
 - `GDAL_DATA` Warning beim Start ist harmlos – kein Einfluss auf Berechnungen
@@ -270,6 +270,11 @@ resilientes-wuerzburg/
 - `label`: AX_-Prefix entfernt + CamelCase → Leerzeichen via `re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)`.
 - `area_m2` wird in EPSG:25832 berechnet, bevor `to_crs("EPSG:4326")` aufgerufen wird.
 - Kein `seal_rate`-Score — reine Flächenart-Visualisierung.
+
+### Gitter-Diskrepanz LST vs. Zensus/HVI
+- LST-Zellen und Zensus/HVI-Zellen sind beide ~100m, aber **strukturell versetzt**: LST hat EPSG:4326-Ursprung (GEE-Export), Zensus hat EPSG:3035-Ursprung (Destatis-Gitter).
+- Die Zellen überlappen nie pixel-genau. Im Vulnerability-Endpoint wird der `lst_celsius`-Tooltip-Wert als **Median aller LST-Pixel berechnet, die die jeweilige Zensus-Zelle schneiden** (typisch 1–4 Pixel via `intersects`-sjoin).
+- Eine Homogenisierung auf ein gemeinsames Gitter ist nicht geplant. Hinweis zur Diskrepanz ist auf der Vulnerabilitäts-Seite am Ende der Right Rail sichtbar.
 
 ### Geheimhaltungsrundung Zensus 2022 (§ 16 BStatG)
 - Destatis rundet kleine Gitterzellen (< 5 Einwohner) stochastisch.

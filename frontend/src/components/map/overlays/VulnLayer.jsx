@@ -28,10 +28,13 @@ export default function VulnLayer({ data, onHover }) {
   const layer = new GeoJsonLayer({
     id: 'vuln-layer',
     data,
-    stroked: false,
+    stroked: true,
     filled: true,
     pickable: true,
-    lineWidthMinPixels: 0,
+    getLineColor: [255, 255, 255, 18],
+    getLineWidth: 1,
+    lineWidthUnits: 'pixels',
+    lineWidthMaxPixels: 1,
     getFillColor: (f) => vulnColor(f.properties.hvi),
     updateTriggers: {
       getFillColor: data,

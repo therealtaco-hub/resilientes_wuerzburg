@@ -123,11 +123,16 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
         nodata = src.nodata
         src_w, src_h = src.width, src.height
 
-        # Resample from ~30m to ~100m: 1° lat ≈ 111 320m → 100m ≈ 0.000899°
-        pix_deg = abs(transform.e)
-        scale = (100 / 111_320) / pix_deg
-        out_w = max(1, round(src_w / scale))
-        out_h = max(1, round(src_h / scale))
+        # Resample to ~100×100m: separate scale for each axis to account for
+        # longitude compression at Würzburg's latitude (~49.8°N, cos≈0.644).
+        lat_center = transform.f + transform.e * src_h / 2
+        cos_lat = np.cos(np.radians(lat_center))
+        pix_lat = abs(transform.e)   # °/pixel N–S
+        pix_lon = abs(transform.a)   # °/pixel E–W
+        scale_y = (100 / 111_320) / pix_lat
+        scale_x = (100 / (111_320 * cos_lat)) / pix_lon
+        out_h = max(1, round(src_h / scale_y))
+        out_w = max(1, round(src_w / scale_x))
 
         raw = src.read(
             1,
