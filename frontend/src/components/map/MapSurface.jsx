@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import Map from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -10,9 +11,10 @@ const WUERZBURG_VIEW = {
   zoom: 12,
 }
 
-export default function MapSurface({ children, style, ...props }) {
+const MapSurface = forwardRef(function MapSurface({ children, style, ...props }, ref) {
   return (
     <Map
+      ref={ref}
       initialViewState={WUERZBURG_VIEW}
       style={{ width: '100%', height: '100%', ...style }}
       mapStyle={MAP_STYLE}
@@ -21,4 +23,6 @@ export default function MapSurface({ children, style, ...props }) {
       {children}
     </Map>
   )
-}
+})
+
+export default MapSurface

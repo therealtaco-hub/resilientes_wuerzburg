@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import TreeLayer from '../components/map/overlays/TreeLayer'
@@ -9,7 +9,9 @@ import useAppStore from '../store/useAppStore'
 import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
 import { fetchStadtbezirke } from '../api/stadtbezirke'
+import { fetchHotspots } from '../api/hotspots'
 import { fmt } from '../utils/format'
+import { COLORS } from '../utils/colors'
 
 const HINTS = [
   {
@@ -71,15 +73,113 @@ function HinweisBox() {
   )
 }
 
+function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
+  if (!hotspots) {
+    return (
+      <div className="bg-bg-2 border border-border rounded-xl p-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
+          Top 5 Hitzespots
+        </div>
+        <div className="flex items-center gap-2 text-fg-3 text-[12px]">
+          <span
+            className="shrink-0"
+            style={{
+              width: 10, height: 10, borderRadius: '50%',
+              border: '2px solid var(--green)', borderTopColor: 'transparent',
+              display: 'inline-block', animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          Berechne Hitzespots …
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-bg-2 border border-border rounded-xl p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
+        Top 5 Hitzespots
+      </div>
+      <div className="flex flex-col gap-0">
+        {hotspots.features.map((f) => {
+          const { rank, lst_celsius, lst_celsius_smooth } = f.properties
+          const isHovered = hoveredRank === rank
+          return (
+            <div
+              key={rank}
+              className="flex items-center gap-2 py-2 rounded-lg px-2 cursor-default transition-colors duration-150"
+              style={{
+                background: isHovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+              }}
+              onMouseEnter={() => onHoverRank(rank)}
+              onMouseLeave={() => onHoverRank(null)}
+            >
+              {/* Rank */}
+              <span
+                className="font-mono text-[11px] shrink-0 w-5 text-center"
+                style={{ color: isHovered ? 'var(--text-0)' : 'var(--text-3)' }}
+              >
+                #{rank}
+              </span>
+
+              {/* Temperature */}
+              <div className="flex-1 min-w-0">
+                <span
+                  className="font-mono tabular-nums text-[15px] font-medium"
+                  style={{ color: COLORS.red.fg }}
+                >
+                  {fmt.temp(lst_celsius_smooth)}
+                </span>
+                <span
+                  className="font-mono text-[10px] ml-1.5"
+                  style={{ color: 'var(--text-3)' }}
+                >
+                  Ø 150m
+                </span>
+              </div>
+
+              {/* FlyTo button */}
+              <button
+                title="Zu diesem Ort springen"
+                onClick={() => onFlyTo(f)}
+                className="shrink-0 flex items-center justify-center rounded-md transition-colors duration-150"
+                style={{
+                  width: 26, height: 26,
+                  background: isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--border)',
+                  color: isHovered ? 'var(--text-0)' : 'var(--text-3)',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+                </svg>
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-[10px] font-mono mt-3 pt-3" style={{ color: 'var(--text-3)', borderTop: '1px solid var(--border-soft)' }}>
+        Focal Mean 150 m · NMS 500 m
+      </p>
+    </div>
+  )
+}
+
 export default function Hitzeatlas() {
   const { layers } = useAppStore()
-  const [lstData, setLstData]       = useState(null)
-  const [treeData, setTreeData]     = useState(null)
+  const mapRef = useRef(null)
+
+  const [lstData, setLstData]         = useState(null)
+  const [treeData, setTreeData]       = useState(null)
   const [bezirkeData, setBezirkeData] = useState(null)
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
-  const [hoveredCell, setHoveredCell] = useState(null)
+  const [hotspotData, setHotspotData] = useState(null)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(null)
+
+  const [hoveredCell, setHoveredCell]     = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
+  const [hoveredRank, setHoveredRank]     = useState(null)
 
   useEffect(() => {
     Promise.all([fetchLst(), fetchTrees(), fetchStadtbezirke()])
@@ -90,6 +190,11 @@ export default function Hitzeatlas() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
+
+    // Hotspots load independently — algorithm can take a moment
+    fetchHotspots()
+      .then(setHotspotData)
+      .catch(() => {}) // silent fail; card stays in loading state
   }, [])
 
   const { lstMin, lstMedian, lstMax } = useMemo(() => {
@@ -105,11 +210,43 @@ export default function Hitzeatlas() {
     }
   }, [lstData])
 
-  const handleHover = ({ object, x, y }) =>
+  // Centroid-key → rank for detecting hotspot hover on the map
+  const hotspotKeyMap = useMemo(() => {
+    if (!hotspotData) return new Map()
+    const m = new Map()
+    for (const f of hotspotData.features) {
+      const key = `${f.properties.lon.toFixed(5)}_${f.properties.lat.toFixed(5)}`
+      m.set(key, f.properties.rank)
+    }
+    return m
+  }, [hotspotData])
+
+  const handleHover = ({ object, x, y }) => {
     setHoveredCell(object ? { object, x, y } : null)
+    if (object) {
+      // Detect if the hovered LST pixel is one of the hotspot pixels
+      const ring = object.geometry.coordinates[0]
+      const lon = ((ring[0][0] + ring[1][0]) / 2).toFixed(5)
+      const lat = ((ring[0][1] + ring[2][1]) / 2).toFixed(5)
+      setHoveredRank(hotspotKeyMap.get(`${lon}_${lat}`) ?? null)
+    } else {
+      setHoveredRank(null)
+    }
+  }
 
   const handleBezirkHover = ({ object, x, y }) =>
     setHoveredBezirk(object ? { object, x, y } : null)
+
+  // FlyTo: uses MapLibre's native flyTo via react-map-gl ref
+  const handleFlyToSpot = (feature) => {
+    const { lon, lat } = feature.properties
+    mapRef.current?.getMap()?.flyTo({
+      center: [lon, lat],
+      zoom: 15,
+      duration: 1000,
+      essential: true,
+    })
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-48px)]">
@@ -139,20 +276,34 @@ export default function Hitzeatlas() {
       <div className="flex flex-1 gap-4 px-8 pb-8 min-h-0">
         {/* Karte */}
         <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
-          <MapSurface>
-            {layers.heatmap      && <HeatLayer data={lstData} onHover={handleHover} />}
+          <MapSurface ref={mapRef}>
+            {layers.heatmap      && (
+              <HeatLayer
+                data={lstData}
+                hotspots={hotspotData}
+                hoveredRank={hoveredRank}
+                onHover={handleHover}
+              />
+            )}
             {layers.trees        && <TreeLayer data={treeData} />}
             {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} onHover={handleBezirkHover} />}
           </MapSurface>
         </div>
 
         {/* Right Rail */}
-        <div className="w-[280px] flex flex-col gap-4 flex-shrink-0">
+        <div className="w-[280px] flex flex-col gap-4 flex-shrink-0 overflow-y-auto">
           <LayerPanel />
 
           {layers.heatmap && (
             <LSTLegend min={lstMin} median={lstMedian} max={lstMax} />
           )}
+
+          <Top5HitzeCard
+            hotspots={hotspotData}
+            hoveredRank={hoveredRank}
+            onHoverRank={setHoveredRank}
+            onFlyTo={handleFlyToSpot}
+          />
 
           {/* Hinweisbox */}
           <HinweisBox />
