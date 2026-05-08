@@ -159,9 +159,18 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
           )
         })}
       </div>
-      <p className="text-[10px] font-mono mt-3 pt-3" style={{ color: 'var(--text-3)', borderTop: '1px solid var(--border-soft)' }}>
-        Focal Mean 150 m · NMS 500 m
-      </p>
+      <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-soft)' }}>
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
+          Jeder Spot ist das heißeste Zentrum eines Stadtgebiets. Die angezeigte Temperatur
+          ist der Durchschnitt aller Rasterzellen im <span style={{ color: 'var(--text-1)' }}>200&thinsp;m Umkreis</span> – das glättet
+          einzelne Sensor-Ausreißer (z.&thinsp;B. ein einzelnes Metalldach).
+          Zwischen zwei Spots liegen immer mindestens <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span>,
+          damit verschiedene Stadtteile repräsentiert werden.
+        </p>
+        <p className="text-[10px] font-mono mt-2" style={{ color: 'var(--text-3)' }}>
+          Focal Mean 200 m · NMS 600 m
+        </p>
+      </div>
     </div>
   )
 }
@@ -307,28 +316,6 @@ export default function Hitzeatlas() {
 
           {/* Hinweisbox */}
           <HinweisBox />
-
-          {/* Interpretation */}
-          <div className="bg-bg-2 border border-border rounded-xl p-4 flex gap-3">
-            <div
-              className="w-1 rounded-full flex-shrink-0 self-stretch"
-              style={{ background: 'var(--amber)' }}
-            />
-            <div>
-              <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-2">
-                Interpretation
-              </p>
-              <p className="text-fg-1 text-[13px] italic leading-relaxed">
-                Die heißesten 10 % der Stadtfläche konzentrieren sich auf
-                versiegelte Gewerbegebiete im Norden sowie die dicht bebaute
-                Innenstadt. Grünflächen wie der Ringpark und die Mainufer sind
-                deutlich kühler.
-              </p>
-              <p className="text-fg-3 text-[10px] font-mono mt-2">
-                Quelle: Landsat 9 · Sommer 2024
-              </p>
-            </div>
-          </div>
 
         </div>
       </div>
