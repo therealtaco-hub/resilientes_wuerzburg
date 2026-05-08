@@ -134,7 +134,7 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
                   className="font-mono text-[10px] ml-1.5"
                   style={{ color: 'var(--text-3)' }}
                 >
-                  Ø 150m
+                  Ø 200m
                 </span>
               </div>
 
