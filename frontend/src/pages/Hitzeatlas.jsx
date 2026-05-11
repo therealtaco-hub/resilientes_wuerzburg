@@ -5,6 +5,7 @@ import TreeLayer from '../components/map/overlays/TreeLayer'
 import StadtbezirkeLayer from '../components/map/overlays/StadtbezirkeLayer'
 import LayerPanel from '../components/map/LayerPanel'
 import LSTLegend from '../components/map/LSTLegend'
+import StadtbezirkeLegend from '../components/map/StadtbezirkeLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
@@ -208,6 +209,19 @@ export default function Hitzeatlas() {
       .catch(() => {}) // silent fail; card stays in loading state
   }, [])
 
+  const { bezirkMin, bezirkMedian, bezirkMax } = useMemo(() => {
+    if (!bezirkeData) return {}
+    const vals = bezirkeData.features
+      .map(f => f.properties.lst_max)
+      .filter(v => v != null && Number.isFinite(v))
+      .sort((a, b) => a - b)
+    return {
+      bezirkMin:    vals[0],
+      bezirkMedian: vals[Math.floor(vals.length / 2)],
+      bezirkMax:    vals[vals.length - 1],
+    }
+  }, [bezirkeData])
+
   const { lstMin, lstMedian, lstMax } = useMemo(() => {
     if (!lstData) return {}
     const vals = lstData.features
@@ -307,6 +321,10 @@ export default function Hitzeatlas() {
 
           {layers.heatmap && (
             <LSTLegend min={lstMin} median={lstMedian} max={lstMax} />
+          )}
+
+          {layers.stadtbezirke && (
+            <StadtbezirkeLegend min={bezirkMin} median={bezirkMedian} max={bezirkMax} />
           )}
 
           <Top5HitzeCard
