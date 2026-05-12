@@ -6,7 +6,7 @@ const useAppStore = create((set) => ({
     heatmap:         true,
     trees:           false,
     zensus:          false,
-    vulnerabilitaet: false,
+    vulnerabilitaet: true,
     entsiegelung_atkis: true,
     entsiegelung_osm:   true,
     stadtbezirke:    false,

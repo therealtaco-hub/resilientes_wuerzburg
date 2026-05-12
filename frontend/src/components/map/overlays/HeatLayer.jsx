@@ -83,6 +83,7 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
+    parameters: { depthTest: false, blend: true },
     updateTriggers: {
       getFillColor: data,
       getLineColor: [hotspotMap, hoveredKey],

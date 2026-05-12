@@ -1,9 +1,8 @@
 import { GeoJsonLayer } from '@deck.gl/layers'
 import DeckOverlay from './DeckOverlay'
 
-const PURPLE_LO  = [168, 85, 247,   0]
-const PURPLE_MID = [168, 85, 247,  90]
-const PURPLE_HI  = [168, 85, 247, 180]
+const BLUE_LO = [219, 234, 254, 160]
+const BLUE_HI = [30,   58, 138, 160]
 
 function lerp4(a, b, t) {
   return [
@@ -14,19 +13,16 @@ function lerp4(a, b, t) {
   ]
 }
 
-// hvi ist auf der 1–10-Skala → auf 0–1 normieren
-function vulnColor(hvi) {
-  const v = Math.max(0, Math.min(1, ((hvi ?? 1) - 1) / 9))
-  return v <= 0.5
-    ? lerp4(PURPLE_LO, PURPLE_MID, v * 2)
-    : lerp4(PURPLE_MID, PURPLE_HI, (v - 0.5) * 2)
+function demografieColor(anteil) {
+  const v = Math.max(0, Math.min(1, anteil ?? 0))
+  return lerp4(BLUE_LO, BLUE_HI, v)
 }
 
-export default function VulnLayer({ data, onHover }) {
+export default function DemografieLayer({ data, onHover }) {
   if (!data) return null
 
   const layer = new GeoJsonLayer({
-    id: 'vuln-layer',
+    id: 'demografie-layer',
     data,
     stroked: true,
     filled: true,
@@ -35,13 +31,10 @@ export default function VulnLayer({ data, onHover }) {
     getLineWidth: 1,
     lineWidthUnits: 'pixels',
     lineWidthMaxPixels: 1,
-    getFillColor: (f) => vulnColor(f.properties.hvi),
+    getFillColor: (f) => demografieColor(f.properties.anteil_65plus),
     parameters: { depthTest: false, blend: true },
     updateTriggers: {
       getFillColor: data,
-    },
-    transitions: {
-      getFillColor: 300,
     },
   })
 
