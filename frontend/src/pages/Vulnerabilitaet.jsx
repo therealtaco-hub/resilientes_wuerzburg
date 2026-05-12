@@ -213,9 +213,11 @@ function InterpretationBox() {
 
 // ── Formula Card ──────────────────────────────────────────────────────────────
 
-function FormelCard({ weights }) {
-  const lst = weights?.lst_norm ?? 0.6
-  const alt = weights?.anteil_65plus ?? 0.4
+function FormelCard({ weights, meta }) {
+  const lst    = weights?.lst_norm ?? 0.6
+  const alt    = weights?.anteil_65plus ?? 0.4
+  const nPrior = meta?.n_prior ?? 50
+  const g65    = meta?.global_65_rate != null ? fmt.pct(meta.global_65_rate * 100) : '—'
   return (
     <div className="bg-bg-1 border border-border rounded-xl p-4">
       <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">Formel</p>
@@ -227,6 +229,14 @@ function FormelCard({ weights }) {
         <p className="font-mono text-[12px] text-fg-1">
           Alter 65+-Gewicht:&nbsp;
           <span style={{ color: 'var(--amber)' }}>{alt.toFixed(2)}</span>
+        </p>
+        <p className="font-mono text-[12px] text-fg-1">
+          N-Prior:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <span style={{ color: 'var(--amber)' }}>{nPrior}</span>
+        </p>
+        <p className="font-mono text-[12px] text-fg-1">
+          Stadt-Ø 65+:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <span className="text-fg-2">{g65}</span>
         </p>
       </div>
       <p className="text-fg-3 text-[10px] font-mono mt-3">
@@ -255,7 +265,8 @@ function Tooltip({ cell }) {
       <p className="text-fg-3 text-[10px] mb-1 uppercase tracking-widest">Zensus-Zelle</p>
       {p.hvi       != null && <p className="text-fg-0">HVI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--purple)' }}>{fmt.index(p.hvi)}</span></p>}
       {p.lst_celsius != null && <p className="text-fg-1">LST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--amber)' }}>{fmt.temp(p.lst_celsius)}</span></p>}
-      {p.anteil_65plus != null && <p className="text-fg-1">Anteil 65+&nbsp;&nbsp;<span className="text-fg-0">{fmt.pct(p.anteil_65plus * 100)}</span></p>}
+      {p.anteil_65plus != null && <p className="text-fg-1">Anteil 65+&nbsp;&nbsp;<span className="text-fg-0">{fmt.pct(p.anteil_65plus * 100)}</span><span className="text-fg-3">&nbsp;(roh)</span></p>}
+      {p.anteil_65plus_adj != null && <p className="text-fg-1">65+ korr.&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--purple)' }}>{fmt.pct(p.anteil_65plus_adj * 100)}</span></p>}
       {p.Einwohner != null && <p className="text-fg-2">Einwohner&nbsp;&nbsp;&nbsp;<span className="text-fg-1">{fmt.num(p.Einwohner)}</span></p>}
     </div>
   )
@@ -375,7 +386,7 @@ export default function Vulnerabilitaet() {
 
           <InterpretationBox />
 
-          <FormelCard weights={vulnWeights} />
+          <FormelCard weights={vulnWeights} meta={vulnData?.meta} />
 
           <GridHint />
         </div>

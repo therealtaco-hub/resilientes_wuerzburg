@@ -12,7 +12,7 @@ from utils.data_loader import (
     load_tree_cadastre,
     load_zensus,
 )
-from utils.vuln_formula import compute_hvi
+from utils.analysis import build_hvi_geodataframe
 
 router = APIRouter()
 
@@ -61,30 +61,8 @@ async def get_stadtbezirke(refresh: bool = False):
         columns={"max": "lst_max", "median": "lst_median", "mean": "lst_mean"}
     )
 
-    # --- HVI per Stadtbezirk (aus Zensus + LST sjoin, analog zum vulnerability-Endpoint) ---
-    vuln_join = gpd.sjoin(
-        zensus[["anteil_65plus", "Einwohner", "geometry"]],
-        lst[["lst_norm", "geometry"]],
-        how="left",
-        predicate="intersects",
-    )
-    vuln_join = (
-        vuln_join.groupby(vuln_join.index)
-        .agg({
-            "anteil_65plus": "first",
-            "Einwohner":     "first",
-            "lst_norm":      "median",
-            "geometry":      "first",
-        })
-    )
-    vuln_gdf = gpd.GeoDataFrame(vuln_join, geometry="geometry", crs=zensus.crs)
-    vuln_gdf["hvi"] = vuln_gdf.apply(
-        lambda r: compute_hvi({
-            "lst_norm": _safe(r.get("lst_norm")),
-            "anteil_65plus": _safe(r.get("anteil_65plus")),
-        }),
-        axis=1,
-    )
+    # --- HVI per Stadtbezirk ---
+    vuln_gdf, _ = build_hvi_geodataframe(zensus, lst)
 
     vuln_bz = gpd.sjoin(
         vuln_gdf[["hvi", "Einwohner", "geometry"]].dropna(subset=["hvi"]),

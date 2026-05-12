@@ -8,6 +8,27 @@ WEIGHTS = {
 
 assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "Gewichte müssen sich zu 1.0 summieren"
 
+# Bayesian-Shrinkage-Parameter:
+# Formel: adjusted = (n * observed + N_PRIOR * global_mean) / (n + N_PRIOR)
+# n=3,   observed=1.0, global=0.22 → adjusted ≈ 0.24  (kleine Zelle: stark zur Stadtmittelrate geschrumpft)
+# n=200, observed=0.30, global=0.22 → adjusted ≈ 0.28 (große Zelle: kaum verändert)
+# Bei n == N_PRIOR liegt die Glaubwürdigkeit bei exakt 50 %.
+N_PRIOR = 50
+
+
+def shrink_senior_rate(
+    observed: float,
+    n: float,
+    global_mean: float,
+    n_prior: float = N_PRIOR,
+) -> float:
+    """Credibility-Schätzer (Empirical Bayes) für den Seniorenanteil einer Rasterzelle.
+
+    Kleine Zellen werden zur bevölkerungsgewichteten Stadtmittelrate gezogen;
+    große Zellen behalten im Wesentlichen ihren beobachteten Wert.
+    """
+    return (n * observed + n_prior * global_mean) / (n + n_prior)
+
 
 def compute_hvi(row: dict) -> float | None:
     lst = row.get("lst_norm")

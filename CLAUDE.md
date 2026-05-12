@@ -129,13 +129,17 @@ resilientes-wuerzburg/
 │ │ ├── trees.py
 │ │ ├── zensus.py
 │ │ ├── lst.py
+│ │ ├── vulnerability.py
 │ │ ├── entsiegelung.py
+│ │ ├── stadtbezirke.py
 │ │ └── simulate.py
 │ ├── utils/
 │ │ ├── data_loader.py
-│ │ └── analysis.py
+│ │ ├── analysis.py      ← build_hvi_geodataframe() — einzige HVI-Berechnung
+│ │ └── vuln_formula.py  ← WEIGHTS, N_PRIOR, shrink_senior_rate(), compute_hvi()
 │ ├── tests/
-│ │ └── test_trees.py
+│ │ ├── test_trees.py
+│ │ └── test_vuln_formula.py
 │ └── data/ (lokale Datendateien: GeoTIFF, GeoParquet, CSV)
 └── frontend/
 ├── src/
@@ -165,7 +169,7 @@ resilientes-wuerzburg/
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection (Properties: `GITTER_ID_100m`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`). `?refresh=true` ignoriert Parquet-Cache. |
 | `GET /api/lst` | ✅ | Natives GeoTIFF-Raster (`lst_wuerzburg.tif`), auf 100m resampelt (`Resampling.average`). ~13.900 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
-| `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus`, `lst_norm`, `lst_celsius`, `Einwohner`. Formel konfigurierbar in `utils/vuln_formula.py`. `meta.weights` im Response. |
+| `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus` (Rohwert), `anteil_65plus_adj` (Bayesian-Shrinkage-korrigiert), `lst_norm`, `lst_celsius`, `Einwohner`. Formel + Shrinkage in `utils/vuln_formula.py`. `meta`: `weights`, `n_prior` (50), `global_65_rate` (bevölkerungsgewichteter Stadtmittelwert). Kein Parquet-Cache — nur In-Memory (`_cache`), reset bei Backend-Restart oder `?refresh=true`. |
 | `GET /api/entsiegelung` | ✅ | ATKIS + OSM-Flächen als GeoJSON FeatureCollection. Properties: `source` (`"atkis"`/`"osm"`), `type_key` (OBJART_TXT as-is / `"osm_parking"` / `"osm_square"` / `"osm_flat_roof_industrial"`), `label`, `area_m2`. `meta`: `atkis_count`, `osm_count`, `total_count`. Cache: `backend/data/entsiegelung.parquet`. `?refresh=true` erzwingt Neuberechnung. Kein Score, kein seal_rate. |
 | `GET /api/stadtbezirke` | ✅ | 13 Würzburger Stadtbezirke als GeoJSON FeatureCollection mit aggregierten Kennzahlen. Quelle: opendata.wuerzburg.de API (`stadtbezirke`-Datensatz). Properties: `name`, `nummer`, `lst_max`, `lst_median`, `lst_mean`, `hvi_max`, `hvi_mean`, `einwohner` (Σ aus Zensus-sjoin), `entsiegelung_m2` (Σ ATKIS+OSM-Flächen), `tree_count`. Spatial Joins gegen LST-Pixel, HVI-Zellen, Entsiegelung-Polygone, Baumkataster. `meta.total_count`. Cache: `backend/data/stadtbezirke.parquet`. `?refresh=true` lädt API neu. |
 | `GET /api/simulate/*` | ⏳ offen | Simulation Bäume / Entsiegelung. |
@@ -176,6 +180,15 @@ resilientes-wuerzburg/
 - `load_lst(force_refresh=False)` – liest `lst_wuerzburg.tif` direkt mit rasterio, resampelt auf ~100m (`Resampling.average`), erstellt Polygon-Bounding-Box pro Pixel. `lst_celsius` direkt aus GeoTIFF (GEE exportiert bereits °C). `lst_norm` via `scipy.stats.rankdata` (Rang-Normierung 0–1, gleichmäßige Farbverteilung). Cache: `backend/data/lst.parquet`. ⚠️ Resample-Scale wird **separat für X und Y** berechnet mit `cos(lat)`-Korrektur (`scale_x = (100 / (111_320 * cos_lat)) / pix_lon`), damit Zellen physisch ~100×100m sind (GEE exportiert quadratische Grad-Pixel, ohne Korrektur wären Zellen nur ~64m breit).
 - `load_stadtbezirke(force_refresh=False)` – ruft opendata.wuerzburg.de `stadtbezirke`-API ab (13 Records, Polygon-Geometrien). Properties: `name`, `nummer`. Cache: `backend/data/stadtbezirke.parquet`. Nutzt `httpx`, parst Records via `shapely.geometry.shape`.
 - `load_entsiegelung(force_refresh=False)` – liest `sie02_f.shp` + `ver01_f.shp` aus `bkg_shape_712.zip` (EPSG:25832, Würzburg-BBox-Vorfilter `_WUE_ATKIS_BBOX` + `.cx`-Präzisfilter nach Reprojektierung). `type_key = OBJART_TXT as-is`. `label` via Regex: AX_-Prefix entfernt, CamelCase → Leerzeichen. `area_m2` in EPSG:25832 vor Reprojektierung. OSM: `amenity=parking` + `place=square` + Gebäude (`building=*`) gefiltert auf `roof:shape=flat` ODER `building ∈ {industrial, commercial, supermarket, retail}`, ausgeschlossen sind bereits begrünte Dächer (`roof:material=grass` / `roof:surface=green`) → `type_key="osm_flat_roof_industrial"`, `label="Flachdach / Gewerbebau"`. Nur Polygon-Geometrien. Kein Score, kein seal_rate. Cache: `backend/data/entsiegelung.parquet`.
+
+### `utils/vuln_formula.py`
+- `WEIGHTS` – `{"lst_norm": 0.6, "anteil_65plus": 0.4}`. Assert sum == 1.0.
+- `N_PRIOR = 50` – Credibility-Schwelle für Bayesian Shrinkage: Eine Zelle braucht ~50 Einwohner, um 50 % Glaubwürdigkeit gegenüber der Stadtmittelrate zu erreichen.
+- `shrink_senior_rate(observed, n, global_mean, n_prior=N_PRIOR)` – Empirical-Bayes-Schätzer: `(n * observed + n_prior * global_mean) / (n + n_prior)`. Löst das Small-Numbers-Problem (Zellen mit 3 Einwohnern, alle 65+, erhalten sonst HVI = 10).
+- `compute_hvi(row)` – Nimmt bereits adjustierten `anteil_65plus`-Wert entgegen. Gibt `None` bei NaN/None-Inputs zurück. Skaliert auf 1–10: `raw * 9 + 1`.
+
+### `utils/analysis.py`
+- `build_hvi_geodataframe(zensus, lst)` – **Einzige Stelle** für die HVI-Berechnung auf Zellebene. Führt Spatial Join (Zensus × LST), berechnet bevölkerungsgewichteten `global_65_rate`, wendet Bayesian Shrinkage an, ruft `compute_hvi()` auf. Gibt `(GeoDataFrame, global_65_rate)` zurück. Spalten im GeoDataFrame: `hvi`, `anteil_65plus`, `anteil_65plus_adj`, `lst_celsius`, `lst_norm`, `Einwohner`, `geometry`. Wird von `routers/vulnerability.py` und `routers/stadtbezirke.py` aufgerufen — nirgendwo sonst HVI berechnen.
 
 ### Frontend-Setup
 - Framework: Vite + React 18, Plain JSX, Tailwind v4
@@ -294,6 +307,7 @@ resilientes-wuerzburg/
 - [x] Stadtbezirks-Endpoint (`GET /api/stadtbezirke`) inkl. Spatial-Join-Aggregaten (LST/HVI/Entsiegelung/Bäume).
 - [x] Dashboard-Seite (`/`) mit KPI-Strip + Top-3-Listen pro KPI.
 - [x] Stadtbezirks-Choropleth-Layer auf der Hitzeatlas-Seite (`StadtbezirkeLayer.jsx`).
+- [x] HVI Small-Numbers-Problem behoben: Bayesian Shrinkage in `utils/vuln_formula.py` (`shrink_senior_rate`, `N_PRIOR=50`), zentrale HVI-Berechnung in `utils/analysis.py` (`build_hvi_geodataframe`).
 - [ ] Stadtbezirks-Choropleth auf der Vulnerabilitäts-Seite (analog, aber auf `hvi_max`).
 - [ ] Multi-Year-LST (zweiter GEE-Export) für Trend-Indikator in KPI-Cards (`↑ +X°C vs. <Jahr>`).
 - [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
