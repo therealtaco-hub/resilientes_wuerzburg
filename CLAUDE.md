@@ -231,6 +231,7 @@ resilientes-wuerzburg/
 #### Fertige Utils / Store / API
 - `utils/format.js` – `fmt.num/temp/dT/pct/area/index` (de-DE Locale)
 - `utils/colors.js` – `COLORS`-Map (green/amber/red/blue/purple)
+- `utils/sources.js` – zentrale Datenbeschriftungen: `LST_SENSOR` (`'Landsat 8+9'`), `LST_PERIOD` (`'Sommer 2023–2025'`), `LST_LABEL` (`LST_SENSOR · LST_PERIOD`). Wird in `Hitzeatlas.jsx`, `Vulnerabilitaet.jsx` und `LayerPanel.jsx` importiert — Änderung hier wirkt überall gleichzeitig.
 - `store/useAppStore.js` – `layers`: `heatmap` (default true), `trees`, `zensus` (default false — Demografie-Layer auf `/vulnerabilitaet`), `vulnerabilitaet`, `entsiegelung_atkis` (default true), `entsiegelung_osm` (default true), `stadtbezirke`; `vulnWeights` (null | object), `setVulnWeights()`; `sim`-Parameter (baeume/wasser)
 - `api/client.js` – `apiFetch()` mit `VITE_API_URL`
 - `api/trees.js`, `api/zensus.js`, `api/lst.js`, `api/vulnerability.js`, `api/entsiegelung.js`, `api/stadtbezirke.js` – fetch-Wrapper
@@ -297,6 +298,7 @@ resilientes-wuerzburg/
 - Fix: `.clip(0, 1)` in `data_loader.py`; NaN (maskierte Zellen) bleibt erhalten.
 - Betroffene Zellen werden mit `anteil_65plus_clamped: true` markiert (bool-Feld im GeoJSON).
 - Typisch < 2% aller Würzburger Gitterzellen.
+- **Sonderfall:** `Einwohner` kann vorhanden sein, während `anteil_65plus` trotzdem `null` ist — Destatis maskiert Altersklassen und Gesamtbevölkerung aus getrennten CSVs **unabhängig** voneinander. Eine Zelle mit z. B. 44 Einwohnern aber 0–2 Personen in einer Altersklasse bekommt keine Altersaufschlüsselung → kein `anteil_65plus` → kein HVI. Der Tooltip zeigt in diesem Fall `⚠ Altersstruktur nicht verfügbar (Datenschutz)`.
 
 ---
 

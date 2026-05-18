@@ -13,6 +13,7 @@ import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fetchHotspots } from '../api/hotspots'
 import { fmt } from '../utils/format'
 import { COLORS } from '../utils/colors'
+import { LST_LABEL } from '../utils/sources'
 
 const HINTS = [
   {
@@ -282,7 +283,7 @@ export default function Hitzeatlas() {
             Hitzeatlas
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Land Surface Temperature · Landsat 8 + 9 · Sommer 2023–2025
+            Land Surface Temperature · {LST_LABEL}
           </p>
         </div>
         {loading && (

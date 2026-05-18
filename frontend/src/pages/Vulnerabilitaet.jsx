@@ -10,6 +10,7 @@ import { fetchVulnerability } from '../api/vulnerability'
 import { fetchLst } from '../api/lst'
 import { fetchZensus } from '../api/zensus'
 import { fmt } from '../utils/format'
+import { LST_SENSOR } from '../utils/sources'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
     {
       key: 'vulnerabilitaet',
       label: 'Vulnerabilitäts-Index',
-      sub: 'HVI · Zensus 2022 + Landsat 8+9',
+      sub: `HVI · Zensus 2022 + ${LST_SENSOR}`,
       color: 'var(--purple)',
       count: vulnCount,
     },
@@ -195,7 +196,7 @@ function InterpretationBox() {
           für Baumpflanzungen und Entsiegelungsmaßnahmen.
         </p>
         <p className="text-fg-3 text-[10px] font-mono mt-2">
-          Zensus 2022 · Landsat 8+9 · Modell: HVI v1
+          Zensus 2022 · {LST_SENSOR} · Modell: HVI v1
         </p>
       </div>
     </div>
@@ -331,6 +332,9 @@ function Tooltip({ cell }) {
       {p.anteil_65plus_clamped && (
         <p className="text-fg-3 text-[10px] mt-0.5">⚠ Zensus-Rundung (§ 16 BStatG)</p>
       )}
+      {p.anteil_65plus == null && p.Einwohner != null && (
+        <p className="text-fg-3 text-[10px] mt-0.5">⚠ Altersstruktur nicht verfügbar (Datenschutz)</p>
+      )}
     </div>
   )
 }
@@ -395,7 +399,7 @@ export default function Vulnerabilitaet() {
             Vulnerabilität
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Heat Vulnerability Index · Zensus 2022 · Landsat 8+9
+            Heat Vulnerability Index · Zensus 2022 · {LST_SENSOR}
           </p>
         </div>
         {loading && (

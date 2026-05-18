@@ -1,10 +1,17 @@
 import numpy as np
 from fastapi import APIRouter, HTTPException
 from shapely.geometry import mapping
-from utils.data_loader import load_lst
+from shapely.ops import unary_union
+from utils.data_loader import load_lst, load_stadtbezirke
 
 router = APIRouter()
 _cache = None
+
+# Nur diese Stadtbezirke werden für Hotspot-Kandidaten berücksichtigt.
+_ALLOWED_BEZIRKE = {
+    "Grombühl", "Sanderau", "Zellerau", "Frauenland",
+    "Heidingsfeld", "Altstadt", "Steinbachtal", "Heuchelhof",
+}
 
 
 @router.get("")
@@ -19,6 +26,15 @@ def get_hotspots(refresh: bool = False):
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LST konnte nicht geladen werden: {exc}")
+
+    try:
+        bezirke = load_stadtbezirke()
+        allowed = bezirke[bezirke["name"].isin(_ALLOWED_BEZIRKE)]
+        if not allowed.empty:
+            mask = unary_union(allowed.geometry.values)
+            gdf = gdf[gdf.geometry.centroid.within(mask)].copy()
+    except Exception:
+        pass  # Fallback: gesamtes Stadtgebiet, falls Stadtbezirke nicht verfügbar
 
     features = _compute_hotspots(gdf)
     _cache = {
@@ -39,8 +55,8 @@ def _compute_hotspots(gdf, radius_m: float = 200.0, min_dist_m: float = 600.0, n
     # EPSG:4326 centroids for output lon/lat
     centroids_wgs84 = gdf.geometry.centroid
 
-    # Project to metric CRS for accurate distance computation
-    gdf_m = gdf.to_crs("EPSG:25832")
+    # Project to EPSG:3035 (native LST CRS) for metric distance computation
+    gdf_m = gdf.to_crs("EPSG:3035")
     centroids_m = gdf_m.geometry.centroid
     coords = np.array([[c.x, c.y] for c in centroids_m])
 

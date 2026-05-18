@@ -1,10 +1,11 @@
 import useAppStore from '../../store/useAppStore'
+import { LST_SENSOR } from '../../utils/sources'
 
 const LAYER_CONFIG = [
   {
     key: 'heatmap',
     label: 'Hitzeinsel (LST)',
-    sub: 'Landsat 8+9',
+    sub: LST_SENSOR,
     color: 'var(--amber)',
   },
   {
