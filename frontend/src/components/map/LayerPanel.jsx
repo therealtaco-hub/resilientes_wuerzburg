@@ -4,7 +4,7 @@ const LAYER_CONFIG = [
   {
     key: 'heatmap',
     label: 'Hitzeinsel (LST)',
-    sub: 'Landsat 9 · Sommer 2024',
+    sub: 'Landsat 8+9',
     color: 'var(--amber)',
   },
   {

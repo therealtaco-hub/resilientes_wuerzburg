@@ -282,7 +282,7 @@ export default function Hitzeatlas() {
             Hitzeatlas
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Land Surface Temperature · Landsat 9 · Sommer 2024
+            Land Surface Temperature · Landsat 8 + 9 · Sommer 2023–2025
           </p>
         </div>
         {loading && (

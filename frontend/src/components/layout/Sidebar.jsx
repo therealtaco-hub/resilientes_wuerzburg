@@ -142,12 +142,6 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer Badge */}
-      <div className="px-4 py-4 shrink-0">
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] text-fg-3 bg-bg-3">
-          Daten: Sommer 2024
-        </span>
-      </div>
     </aside>
   )
 }

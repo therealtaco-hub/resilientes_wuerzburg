@@ -43,31 +43,19 @@ def build_hvi_geodataframe(
 ) -> tuple[gpd.GeoDataFrame, float]:
     """Berechnet HVI für jede Zensus-Zelle mit Bayesian Shrinkage.
 
-    Zensus (EPSG:3035-Ursprung) und LST (EPSG:4326-Ursprung) nutzen
-    unterschiedliche Gittersysteme — beide ~100 m, aber versetzt. Eine
-    Zensus-Zelle schneidet typischerweise 1–4 LST-Pixel; der zugewiesene
-    lst_celsius- bzw. lst_norm-Wert ist der Median dieser Pixel.
+    LST und Zensus teilen dasselbe Destatis-100m-Gitter (EPSG:3035) — der
+    Merge erfolgt direkt über die Integer-Mittelpunktkoordinaten x_mp_100m /
+    y_mp_100m, kein Spatial Join nötig.
 
     Returns:
         gdf: GeoDataFrame mit Spalten hvi, anteil_65plus, anteil_65plus_adj,
              lst_celsius, lst_norm, Einwohner, geometry (NaN-Zeilen bleiben erhalten)
         global_65_rate: bevölkerungsgewichtete Stadtmittelrate der 65+-Jährigen
     """
-    joined = gpd.sjoin(
-        zensus[["anteil_65plus", "Einwohner", "geometry"]],
-        lst[["lst_norm", "lst_celsius", "geometry"]],
+    joined = zensus[["anteil_65plus", "Einwohner", "x_mp_100m", "y_mp_100m", "geometry"]].merge(
+        lst[["x_mp_100m", "y_mp_100m", "lst_norm", "lst_celsius"]],
+        on=["x_mp_100m", "y_mp_100m"],
         how="left",
-        predicate="intersects",
-    )
-    joined = (
-        joined.groupby(joined.index)
-        .agg({
-            "anteil_65plus": "first",
-            "Einwohner":     "first",
-            "lst_norm":      "median",
-            "lst_celsius":   "median",
-            "geometry":      "first",
-        })
     )
     joined = gpd.GeoDataFrame(joined, geometry="geometry", crs=zensus.crs)
 

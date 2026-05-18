@@ -44,7 +44,13 @@
       "Bash(uvicorn main:app --reload)",
       "Bash(python -m pip show pytest)",
       "Bash(python -m venv .venv)",
-      "Bash(.venv\\\\Scripts\\\\python.exe -m pip install pytest --quiet)"
+      "Bash(.venv\\\\Scripts\\\\python.exe -m pip install pytest --quiet)",
+      "Bash(curl -s \"http://localhost:8000/api/lst?refresh=true\")",
+      "Bash(curl -s \"http://localhost:8000/api/vulnerability?refresh=true\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Features:', len\\(d['features']\\)\\); print\\('Erste HVI:', d['features'][0]['properties'] if d['features'] else 'keine'\\)\")",
+      "Bash(curl -s \"http://localhost:8000/api/lst\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"http://localhost:8000/api/hotspots\")"
     ]
   }
 }

@@ -76,7 +76,7 @@ function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
     {
       key: 'vulnerabilitaet',
       label: 'Vulnerabilitäts-Index',
-      sub: 'HVI · Zensus 2022 + Landsat 9',
+      sub: 'HVI · Zensus 2022 + Landsat 8+9',
       color: 'var(--purple)',
       count: vulnCount,
     },
@@ -140,25 +140,6 @@ function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
   )
 }
 
-// ── Grid Hint ─────────────────────────────────────────────────────────────────
-
-function GridHint() {
-  return (
-    <div className="bg-bg-1 border border-border rounded-xl p-4 flex gap-3">
-      <svg className="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none"
-        stroke="var(--text-3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-      <p className="text-fg-3 text-[11px] leading-[1.55]">
-        Die leichte Versetzung zwischen HVI- und LST-Zellen entsteht durch den
-        unterschiedlichen Ursprung der beiden Gittersysteme (Zensus: EPSG:3035,
-        Landsat: EPSG:4326).
-      </p>
-    </div>
-  )
-}
 
 // ── HVI Legend ────────────────────────────────────────────────────────────────
 
@@ -214,7 +195,7 @@ function InterpretationBox() {
           für Baumpflanzungen und Entsiegelungsmaßnahmen.
         </p>
         <p className="text-fg-3 text-[10px] font-mono mt-2">
-          Zensus 2022 · Landsat 9 · Modell: HVI v1
+          Zensus 2022 · Landsat 8+9 · Modell: HVI v1
         </p>
       </div>
     </div>
@@ -414,7 +395,7 @@ export default function Vulnerabilitaet() {
             Vulnerabilität
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Heat Vulnerability Index · Zensus 2022 · Landsat 9
+            Heat Vulnerability Index · Zensus 2022 · Landsat 8+9
           </p>
         </div>
         {loading && (
@@ -475,7 +456,6 @@ export default function Vulnerabilitaet() {
 
           <FormelCard weights={vulnWeights} meta={vulnData?.meta} />
 
-          <GridHint />
         </div>
       </div>
 

@@ -26,7 +26,7 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 _TREES_SOURCE = _DATA_DIR / "baumkataster_stadt_wuerzburg.parquet"  # Bulk-Export (alle 44.647 Records)
 _TREES_CACHE  = _DATA_DIR / "trees.parquet"                         # verarbeiteter Cache
 _ZENSUS_PARQUET_PATH = _DATA_DIR / "zensus.parquet"
-_LST_TIF = _DATA_DIR / "lst_wuerzburg.tif"
+_LST_TIF = _DATA_DIR / "lst_wue_2023_2025_summer_median.tif"
 _LST_CACHE = _DATA_DIR / "lst.parquet"
 _ZENSUS_ALTER_CSV = _DATA_DIR / "Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv"
 _ZENSUS_BEV_CSV = _DATA_DIR / "Zensus2022_Bevoelkerungszahl_100m-Gitter.csv"
@@ -108,52 +108,24 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
     if not _LST_TIF.exists():
         raise FileNotFoundError(
-            "LST-Quelldatei nicht gefunden: backend/data/lst_wuerzburg.tif. "
+            f"LST-Quelldatei nicht gefunden: {_LST_TIF}. "
             "Bitte via Google Earth Engine exportieren und ablegen."
         )
 
     import rasterio
-    from rasterio.enums import Resampling
-    from rasterio.transform import Affine
     from shapely.geometry import box
+    from scipy.stats import rankdata
 
+    # GeoTIFF ist bereits in EPSG:3035, 100m-Pixel, auf Destatis-Gitter gesnappt —
+    # kein Resampling, keine cos(lat)-Korrektur nötig.
     with rasterio.open(_LST_TIF) as src:
         transform = src.transform
-        crs = src.crs
-        nodata = src.nodata
-        src_w, src_h = src.width, src.height
+        nodata    = src.nodata
+        raw       = src.read(1)   # Band 1 = LST_C in °C (GEE exportiert fertige °C)
+        crs       = src.crs
 
-        # Resample to ~100×100m: separate scale for each axis to account for
-        # longitude compression at Würzburg's latitude (~49.8°N, cos≈0.644).
-        lat_center = transform.f + transform.e * src_h / 2
-        cos_lat = np.cos(np.radians(lat_center))
-        pix_lat = abs(transform.e)   # °/pixel N–S
-        pix_lon = abs(transform.a)   # °/pixel E–W
-        scale_y = (100 / 111_320) / pix_lat
-        scale_x = (100 / (111_320 * cos_lat)) / pix_lon
-        out_h = max(1, round(src_h / scale_y))
-        out_w = max(1, round(src_w / scale_x))
-
-        raw = src.read(
-            1,
-            out_shape=(out_h, out_w),
-            resampling=Resampling.average,
-        )
-
-    # New transform: same origin, larger pixels
-    new_transform = Affine(
-        transform.a * src_w / out_w,
-        transform.b,
-        transform.c,
-        transform.d,
-        transform.e * src_h / out_h,
-        transform.f,
-    )
-
-    # GEE exports ST_B10 already converted to °C — values are directly usable
     celsius = raw.astype(np.float64)
 
-    # Build validity mask
     mask = np.isfinite(celsius) & (celsius > -10) & (celsius < 70)
     if nodata is not None:
         mask &= raw != nodata
@@ -162,28 +134,33 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     if valid_vals.size == 0:
         raise ValueError("Keine validen LST-Pixelwerte im GeoTIFF.")
 
-    # Rank-based (quantile) normalisation: equal colour distribution across the full range
-    from scipy.stats import rankdata
     ranks = rankdata(valid_vals, method="average")
-    norm = np.full_like(celsius, np.nan)
+    norm  = np.full_like(celsius, np.nan)
     norm[mask] = (ranks - 1) / (ranks.max() - 1) if ranks.max() > 1 else 0.0
 
-    # Vectorised polygon bounding boxes per resampled pixel
     rows, cols = np.where(mask)
-    a, e = new_transform.a, new_transform.e   # pixel width (+), pixel height (-)
-    west  = new_transform.c + cols       * a
-    east  = new_transform.c + (cols + 1) * a
-    north = new_transform.f + rows       * e
-    south = new_transform.f + (rows + 1) * e   # south < north because e < 0
+    a, e = transform.a, transform.e   # +100m, -100m in EPSG:3035
+
+    west  = transform.c + cols       * a
+    east  = transform.c + (cols + 1) * a
+    north = transform.f + rows       * e
+    south = transform.f + (rows + 1) * e
+
+    # Integer-Mittelpunkte = Merge-Schlüssel mit Zensus (identisches Destatis-Gitter)
+    x_mp = ((west + east)   / 2).astype(int)
+    y_mp = ((north + south) / 2).astype(int)
 
     geometries = [box(w, s, e_, n) for w, s, e_, n in zip(west, south, east, north)]
-    lst_c  = np.round(celsius[mask], 1)
-    lst_n  = np.round(norm[mask],    4)
 
     gdf = gpd.GeoDataFrame(
-        {"lst_celsius": lst_c, "lst_norm": lst_n},
+        {
+            "x_mp_100m":   x_mp,
+            "y_mp_100m":   y_mp,
+            "lst_celsius": np.round(celsius[mask], 1),
+            "lst_norm":    np.round(norm[mask], 4),
+        },
         geometry=geometries,
-        crs=crs,
+        crs=crs,   # EPSG:3035
     )
     if gdf.crs.to_epsg() != 4326:
         gdf = gdf.to_crs("EPSG:4326")
