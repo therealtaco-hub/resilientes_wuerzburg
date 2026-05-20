@@ -1,3 +1,11 @@
+"""
+GET /api/entsiegelung — Entsiegelungsflächen als GeoJSON FeatureCollection.
+
+Kombiniert ATKIS Basis-DLM (Flächenarten) und OSM (Parkplätze, Plätze,
+Flachdächer). Kein Seal-Rate-Score — reine Kategorienvisualisierung.
+meta enthält atkis_count / osm_count / total_count.
+"""
+
 import math
 
 from fastapi import APIRouter, HTTPException
@@ -7,7 +15,7 @@ from utils.data_loader import load_entsiegelung
 
 router = APIRouter()
 
-_cache = None
+_cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 @router.get("")

@@ -3,9 +3,11 @@ import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import TreeLayer from '../components/map/overlays/TreeLayer'
 import StadtbezirkeLayer from '../components/map/overlays/StadtbezirkeLayer'
+import NdviLayer from '../components/map/overlays/NdviLayer'
 import LayerPanel from '../components/map/LayerPanel'
 import LSTLegend from '../components/map/LSTLegend'
 import StadtbezirkeLegend from '../components/map/StadtbezirkeLegend'
+import NdviLegend from '../components/map/NdviLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
@@ -313,6 +315,7 @@ export default function Hitzeatlas() {
             )}
             {layers.trees        && <TreeLayer data={treeData} />}
             {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} onHover={handleBezirkHover} />}
+            {layers.ndvi         && <NdviLayer data={lstData} onHover={handleHover} />}
           </MapSurface>
         </div>
 
@@ -327,6 +330,8 @@ export default function Hitzeatlas() {
           {layers.stadtbezirke && (
             <StadtbezirkeLegend min={bezirkMin} median={bezirkMedian} max={bezirkMax} />
           )}
+
+          {layers.ndvi && <NdviLegend />}
 
           <Top5HitzeCard
             hotspots={hotspotData}
@@ -343,7 +348,7 @@ export default function Hitzeatlas() {
 
       {hoveredCell && (
         <div
-          className="bg-bg-2 border border-border text-fg-0 font-mono text-[11px] px-3 py-2 rounded-md"
+          className="bg-bg-2 border border-border text-fg-0 font-mono text-[11px] px-3 py-2 rounded-md space-y-0.5"
           style={{
             position: 'fixed',
             left: hoveredCell.x + 14,
@@ -352,7 +357,10 @@ export default function Hitzeatlas() {
             zIndex: 9999,
           }}
         >
-          {fmt.temp(hoveredCell.object.properties.lst_celsius)}
+          <div>LST&nbsp;&nbsp;<span className="text-fg-0">{fmt.temp(hoveredCell.object.properties.lst_celsius)}</span></div>
+          {hoveredCell.object.properties.ndvi != null && (
+            <div className="text-fg-2">NDVI <span className="text-fg-0">{hoveredCell.object.properties.ndvi.toFixed(3)}</span></div>
+          )}
         </div>
       )}
 

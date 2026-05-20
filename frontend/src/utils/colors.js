@@ -1,3 +1,5 @@
+// Zentrale Farbdefinitionen für KpiCard, TopList und Icons.
+// fg/bg/border referenzieren CSS-Variablen aus theme.css — kein Hardcoding von Hex-Werten.
 export const COLORS = {
   green:  { fg: 'var(--green)',  bg: 'rgba(34,197,94,0.10)',
             border: 'rgba(34,197,94,0.25)' },

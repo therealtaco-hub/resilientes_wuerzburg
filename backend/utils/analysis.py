@@ -1,23 +1,15 @@
 """
 Analyse- und Berechnungsfunktionen.
 
-Geplante Funktionen:
-    scale_lst: entfällt — GEE exportiert ST_B10 bereits als fertige °C-Werte,
-        keine weitere Skalierung nötig. Rohe DN-Formel (× 0.00341802 + 149.0 − 273.15)
-        gilt nur für direkte Landsat-Downloads, nicht für GEE-Exporte.
+Implementiert:
+    build_hvi_geodataframe() — HVI-Berechnung auf Zellebene; einzige Stelle
+    im Projekt, an der HVI berechnet wird. Routers (vulnerability, stadtbezirke)
+    rufen diese Funktion auf — nie direkt compute_hvi().
 
-    compute_vulnerability_index → umgesetzt als build_hvi_geodataframe() (siehe unten).
-
-    compute_sealing_potential(landuse: gpd.GeoDataFrame) -> gpd.GeoDataFrame
-        Bewertet Entsiegelungspotenzial je Fläche anhand ATKIS-Nutzungsklassen.
-
-    simulate_tree_cooling(n_trees: int) -> dict
-        Schätzt Temperaturreduktion und CO₂-Bindung für n neue Bäume
-        (Formel vom Nutzer vorzugeben).
-
-    simulate_infiltration(area_m2: float) -> dict
-        Berechnet Versickerungsvolumen nach Rational-Formel
-        (Koeffizienten vom Nutzer vorzugeben).
+Noch nicht implementiert (für Simulationsseiten):
+    compute_sealing_potential()  — Entsiegelungspotenzial je ATKIS-Fläche
+    simulate_tree_cooling()      — Δ°C + CO₂ für n Neupflanzungen
+    simulate_infiltration()      — m³ Versickerung nach Rational-Formel
 """
 
 import math

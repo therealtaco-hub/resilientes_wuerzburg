@@ -1,3 +1,5 @@
+// Lazy imports: jede Page wird erst beim ersten Besuch der Route geladen.
+// Das hält den initialen JS-Bundle klein und beschleunigt den App-Start.
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
@@ -5,8 +7,7 @@ const Dashboard      = lazy(() => import('../pages/Dashboard.jsx'))
 const Hitzeatlas     = lazy(() => import('../pages/Hitzeatlas.jsx'))
 const Vulnerabilitaet = lazy(() => import('../pages/Vulnerabilitaet.jsx'))
 const Entsiegelung   = lazy(() => import('../pages/Entsiegelung.jsx'))
-const SimBaeume      = lazy(() => import('../pages/SimBaeume.jsx'))
-const SimEntsiegeln  = lazy(() => import('../pages/SimEntsiegeln.jsx'))
+const Simulation     = lazy(() => import('../pages/Simulation.jsx'))
 
 export default function AppRoutes() {
   return (
@@ -16,8 +17,7 @@ export default function AppRoutes() {
         <Route path="/hitzeatlas"         element={<Hitzeatlas />} />
         <Route path="/vulnerabilitaet"    element={<Vulnerabilitaet />} />
         <Route path="/entsiegelung"       element={<Entsiegelung />} />
-        <Route path="/simulation/baeume"  element={<SimBaeume />} />
-        <Route path="/simulation/wasser"  element={<SimEntsiegeln />} />
+        <Route path="/simulation"          element={<Simulation />} />
       </Routes>
     </Suspense>
   )

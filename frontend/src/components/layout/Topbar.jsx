@@ -5,8 +5,7 @@ const ROUTE_LABELS = {
   '/hitzeatlas':         'Hitzeatlas',
   '/vulnerabilitaet':    'Vulnerabilität',
   '/entsiegelung':       'Entsiegelung',
-  '/simulation/baeume':  'Bäume pflanzen',
-  '/simulation/wasser':  'Flächen entsiegeln',
+  '/simulation':         'Baumpflanzung & Entsiegelung',
 }
 
 const CHEVRON = (
@@ -18,8 +17,6 @@ const CHEVRON = (
 export default function Topbar() {
   const { pathname } = useLocation()
   const pageLabel = ROUTE_LABELS[pathname] ?? pathname
-
-  const isSimulation = pathname.startsWith('/simulation')
 
   return (
     <header
@@ -34,12 +31,6 @@ export default function Topbar() {
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-[13px]">
         <span className="text-fg-2">Würzburg</span>
-        {isSimulation && (
-          <>
-            <span className="text-fg-3">{CHEVRON}</span>
-            <span className="text-fg-2">Simulation</span>
-          </>
-        )}
         <span className="text-fg-3">{CHEVRON}</span>
         <span className="text-fg-0 font-medium">{pageLabel}</span>
       </nav>

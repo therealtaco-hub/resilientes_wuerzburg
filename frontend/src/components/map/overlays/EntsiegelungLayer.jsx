@@ -1,6 +1,8 @@
 import { GeoJsonLayer } from '@deck.gl/layers'
 import DeckOverlay from './DeckOverlay'
 
+// Farben müssen mit den Einträgen in EntsiegelungLegend.jsx synchron bleiben —
+// beide Maps werden manuell gepflegt (kein gemeinsames Konfig-Objekt).
 const TYPE_COLORS = {
   AX_IndustrieUndGewerbeflaeche:            [220,  80,  20, 170],
   AX_Strassenverkehr:                        [ 55,  60,  72, 170],

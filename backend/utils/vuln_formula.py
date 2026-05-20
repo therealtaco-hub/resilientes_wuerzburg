@@ -1,3 +1,10 @@
+"""
+HVI-Berechnungslogik: Gewichte, Bayesian Shrinkage, Skalierung auf 1–10.
+
+Einzige autoritative Quelle für die Formel — Änderungen hier wirken
+auf /api/vulnerability und /api/stadtbezirke gleichzeitig.
+"""
+
 import math
 
 WEIGHTS = {

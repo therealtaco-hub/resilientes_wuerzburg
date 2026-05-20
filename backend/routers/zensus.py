@@ -1,3 +1,10 @@
+"""
+GET /api/zensus — Zensus-2022-Gitterzellen als GeoJSON FeatureCollection.
+
+Gibt nur Zellen zurück, die sich mit dem LST-Raster überschneiden,
+damit Demografie- und Hitze-Layer denselben geografischen Bereich abdecken.
+"""
+
 import json
 import math
 
@@ -7,10 +14,11 @@ from utils.data_loader import load_lst, load_zensus
 
 router = APIRouter()
 
-_cache = None
+_cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 def _safe(value):
+    # NaN- und None-Guard für JSON-Serialisierung — Zensus enthält maskierte Zellen.
     if value is None:
         return None
     try:

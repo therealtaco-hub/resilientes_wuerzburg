@@ -1,6 +1,8 @@
 import useAppStore from '../../store/useAppStore'
 import { LST_SENSOR } from '../../utils/sources'
 
+// Layer der Hitzeatlas-Seite. /vulnerabilitaet hat ein eigenes VulnLayerPanel
+// mit zusätzlichen Layern (HVI, Demografie).
 const LAYER_CONFIG = [
   {
     key: 'heatmap',
@@ -19,6 +21,12 @@ const LAYER_CONFIG = [
     label: 'Stadtbezirke',
     sub: '13 Bezirke · LST Max-Choropleth',
     color: 'var(--blue)',
+  },
+  {
+    key: 'ndvi',
+    label: 'Vegetationsindex (NDVI)',
+    sub: 'Landsat 8+9 · Sommer 2023–2025',
+    color: 'var(--green)',
   },
 ]
 

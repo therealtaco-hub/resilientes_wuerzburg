@@ -14,7 +14,8 @@ function lerp4(a, b, t) {
   ]
 }
 
-// hvi ist auf der 1–10-Skala → auf 0–1 normieren
+// HVI läuft auf der 1–10-Skala → auf 0–1 normieren für die Farbinterpolation.
+// Transparenz bei niedrigen Werten (Alpha 0) verhindert visuelle Überlagerung mit dem LST-Layer.
 function vulnColor(hvi) {
   const v = Math.max(0, Math.min(1, ((hvi ?? 1) - 1) / 9))
   return v <= 0.5

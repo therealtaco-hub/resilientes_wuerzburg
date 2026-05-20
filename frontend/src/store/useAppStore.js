@@ -1,7 +1,10 @@
+// Globaler App-Zustand via Zustand.
+// Jede Komponente, die Layer-Zustand lesen oder ändern will, importiert diesen Store —
+// kein Prop-Drilling durch die Komponentenhierarchie.
 import { create } from 'zustand'
 
 const useAppStore = create((set) => ({
-  // Aktive Karten-Layer
+  // Aktive Karten-Layer — true = sichtbar
   layers: {
     heatmap:         true,
     trees:           false,
@@ -10,6 +13,8 @@ const useAppStore = create((set) => ({
     entsiegelung_atkis: true,
     entsiegelung_osm:   true,
     stadtbezirke:    false,
+    ndvi:            false,
+    ndbi:            false,
   },
   toggleLayer: (key) => set((s) => ({
     layers: { ...s.layers, [key]: !s.layers[key] }

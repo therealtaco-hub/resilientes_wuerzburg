@@ -129,8 +129,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 /hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende
 /vulnerabilitaet    → Choropleth: gewichteter Index aus LST + Senioren-Anteil
 /entsiegelung       → ATKIS/OSM-Layer, Flächenarten nach Kategorie eingefärbt, kein Score
-/simulation/baeume  → Slider: Anzahl Neupflanzungen → Δ Temperatur + CO₂
-/simulation/wasser  → Slider: Entsiegelungsfläche (m²) → m³ Versickerung/Jahr
+/simulation         → Baumpflanzung & Entsiegelung: Slider Neupflanzungen (Δ Temperatur + CO₂) + Slider Entsiegelungsfläche (m³ Versickerung/Jahr)
 ```
 
 ---
@@ -226,8 +225,7 @@ resilientes-wuerzburg/
 | Hitzeatlas | `/hitzeatlas` | ✅ inkl. Stadtbezirks-Choropleth-Layer + Bezirks-Hover-Tooltip |
 | Vulnerabilität | `/vulnerabilitaet` | ✅ inkl. HVI-Legende + LST-Legende + Demografie-Legende |
 | Entsiegelung | `/entsiegelung` | ✅ |
-| Simulation Bäume | `/simulation/baeume` | ⏳ Shell only |
-| Simulation Wasser | `/simulation/wasser` | ⏳ Shell only |
+| Simulation | `/simulation` | ⏳ Shell only |
 
 #### Fertige Komponenten
 - `MapSurface.jsx` – MapLibre-Wrapper, initialViewState Würzburg (9.932, 49.794, zoom 12)
@@ -336,6 +334,7 @@ resilientes-wuerzburg/
 - [ ] Stadtbezirks-Choropleth auf der Vulnerabilitäts-Seite (analog, aber auf `hvi_max`).
 - [x] Hinweis zur Gitter-Diskrepanz auf `/vulnerabilitaet` (Right Rail) entfernt — Gitter sind harmonisiert.
 - [ ] Multi-Year-LST (zweiter GEE-Export) für Trend-Indikator in KPI-Cards (`↑ +X°C vs. <Jahr>`). Einzeljahres-GeoTIFFs sind bereits vorhanden: `lst_wue_2023_summer_median.tif`, `lst_wue_2024_summer_median.tif`, `lst_wue_2025_summer_median.tif` — alle in EPSG:3035, Zensus-aligned. Backend-Erweiterung: separater Endpoint oder optionaler `?year=`-Parameter auf `/api/lst`.
-- [ ] NDVI/NDBI aus den neuen GeoTIFFs (Band 2 / Band 3) als eigene Layer einbinden. Alle Jahres-TIFFs enthalten NDVI und NDBI. Backend: `src.read(2)` / `src.read(3)` in `load_lst()`, neuer Endpoint `/api/ndvi`. Frontend: eigener Layer z. B. für Vegetationskorrelation mit LST.
+- [x] NDVI/NDBI aus den neuen GeoTIFFs (Band 2 / Band 3) als eigene Layer einbinden. Backend: `load_lst()` liest Band 2+3, `/api/lst` liefert `ndvi`/`ndbi` als Properties. Frontend: `NdviLayer` auf `/hitzeatlas`, `NdbiLayer` auf `/entsiegelung`, je eigene Legende und Toggle.
+- [ ] NDVI/NDBI auf native Landsat-Auflösung von 30 m umstellen — aktuell 100 m (Destatis-Gitter) ist für Vegetations- und Versiegelungsanalyse zu grob. GEE-Re-Export mit `crsTransform=[30, 0, ..., 0, -30, ...]` in EPSG:3035, separater Endpoint oder eigenes GeoTIFF (`ndvi_wue_30m.tif`), da Geometrien nicht mehr mit dem LST/Zensus-Gitter übereinstimmen.
 - [ ] Simulationsendpoints (Bäume → Δ°C/CO₂; Entsiegelung → m³ Versickerung).
 - [ ] CI-Integration der Test-Suite (aktuell nur lokal ausführbar).

@@ -1,3 +1,10 @@
+"""
+GET /api/hotspots — Top-N Hitzezentren im Würzburger Stadtgebiet.
+
+Algorithmus: Focal Mean (200 m Radius) zur Glättung, danach Greedy
+Non-Maximum Suppression mit 600 m Mindestabstand zwischen den Spots.
+"""
+
 import numpy as np
 from fastapi import APIRouter, HTTPException
 from shapely.geometry import mapping
@@ -5,9 +12,10 @@ from shapely.ops import unary_union
 from utils.data_loader import load_lst, load_stadtbezirke
 
 router = APIRouter()
-_cache = None
+_cache = None  # einfacher In-Memory-Cache; wird bei Backend-Neustart geleert
 
-# Nur diese Stadtbezirke werden für Hotspot-Kandidaten berücksichtigt.
+# Nur innerstädtische Bezirke — Randlagen (Wald, Felder) würden sonst
+# die Rangliste dominieren, obwohl sie keine Hitzeinsel-Relevanz haben.
 _ALLOWED_BEZIRKE = {
     "Grombühl", "Sanderau", "Zellerau", "Frauenland",
     "Heidingsfeld", "Altstadt", "Steinbachtal", "Heuchelhof",
@@ -16,6 +24,12 @@ _ALLOWED_BEZIRKE = {
 
 @router.get("")
 def get_hotspots(refresh: bool = False):
+    """Top-5-Hitzespots als GeoJSON FeatureCollection.
+
+    Gibt gecachte Ergebnisse zurück, solange refresh=False und Backend läuft.
+    Die geografische Vorfilterung auf _ALLOWED_BEZIRKE passiert hier;
+    die eigentliche Spot-Berechnung delegiert an _compute_hotspots().
+    """
     global _cache
     if not refresh and _cache is not None:
         return _cache
@@ -46,9 +60,12 @@ def get_hotspots(refresh: bool = False):
 
 
 def _compute_hotspots(gdf, radius_m: float = 200.0, min_dist_m: float = 600.0, n: int = 5):
-    """
-    1. Focal mean: for each pixel, average lst_celsius of neighbours within radius_m.
-    2. Greedy non-maximum suppression: pick up to n peaks with ≥ min_dist_m separation.
+    """Berechnet die n heißesten Hitzezentren mittels Focal Mean + Greedy NMS.
+
+    radius_m:    Glättungsradius — filtert Einzel-Pixel-Ausreißer (z. B. Metalldächer) heraus.
+    min_dist_m:  Mindestabstand zwischen Spots — verhindert, dass eine große Hitzeinsel
+                 mehrere Plätze im Ranking belegt.
+    n:           Maximale Anzahl zurückgegebener Spots.
     """
     from scipy.spatial import cKDTree
 

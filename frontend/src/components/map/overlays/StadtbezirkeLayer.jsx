@@ -20,6 +20,8 @@ function heatColor(norm) {
   return rgb
 }
 
+// Normierung dynamisch aus den 13 Bezirkswerten berechnet (nicht absolut),
+// damit der volle Farbgradient immer ausgenutzt wird — unabhängig vom Temperaturjahr.
 export default function StadtbezirkeLayer({ data, onHover }) {
   const range = useMemo(() => {
     if (!data) return null

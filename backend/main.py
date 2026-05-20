@@ -1,3 +1,11 @@
+"""
+FastAPI-Anwendungsroot.
+
+Registriert alle Domain-Router unter /api/* und konfiguriert CORS,
+damit Vite-Dev-Server (localhost:5173) und Production-Frontend die API
+erreichen. Erlaubte Origins werden aus ALLOWED_ORIGINS gelesen.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv

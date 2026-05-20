@@ -47,21 +47,12 @@ const NAV_ANALYSE = [
 
 const NAV_SIMULATION = [
   {
-    to: '/simulation/baeume',
-    label: 'Bäume pflanzen',
+    to: '/simulation',
+    label: 'Baumpflanzung & Entsiegelung',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 19c0-8 6-14 16-14 0 10-6 16-14 16-1 0-2-1-2-2z" />
         <path d="M5 19c4-4 7-7 11-9" />
-      </svg>
-    ),
-  },
-  {
-    to: '/simulation/wasser',
-    label: 'Flächen entsiegeln',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2C6 9 4 13 4 16a8 8 0 0 0 16 0c0-3-2-7-8-14z" />
       </svg>
     ),
   },

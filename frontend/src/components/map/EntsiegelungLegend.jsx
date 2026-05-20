@@ -1,3 +1,4 @@
+// Farben und Labels müssen mit TYPE_COLORS in EntsiegelungLayer.jsx übereinstimmen.
 const ATKIS_ENTRIES = [
   { typeKey: 'AX_IndustrieUndGewerbeflaeche',            color: 'rgb(220,80,20)',   label: 'Industrie & Gewerbe' },
   { typeKey: 'AX_Strassenverkehr',                        color: 'rgb(55,60,72)',    label: 'Straßenverkehr' },

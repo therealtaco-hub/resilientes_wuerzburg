@@ -1,6 +1,8 @@
 import { GeoJsonLayer } from '@deck.gl/layers'
 import DeckOverlay from './DeckOverlay'
 
+// Alpha auf 160 gedeckelt — Layer liegt unter VulnLayer und soll bei Überlagerung
+// nicht den HVI-Gradienten verdecken.
 const BLUE_LO = [219, 234, 254, 160]
 const BLUE_HI = [30,   58, 138, 160]
 

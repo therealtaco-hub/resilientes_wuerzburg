@@ -1,3 +1,11 @@
+"""
+GET /api/stadtbezirke — 13 Würzburger Stadtbezirke mit aggregierten Kennzahlen.
+
+Führt vier Spatial Joins durch (LST, HVI, Entsiegelung, Bäume) und merged
+alle Aggregate auf die Bezirk-Polygone. Ergebnis wird gecacht — Folge-Requests
+lösen keine weiteren Spatial Joins aus.
+"""
+
 import math
 
 import geopandas as gpd
@@ -16,10 +24,11 @@ from utils.analysis import build_hvi_geodataframe
 
 router = APIRouter()
 
-_cache = None
+_cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 def _safe(val):
+    # NaN- und None-Guard für JSON-Serialisierung.
     if val is None:
         return None
     try:

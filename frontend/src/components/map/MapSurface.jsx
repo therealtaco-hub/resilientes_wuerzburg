@@ -2,6 +2,7 @@ import { forwardRef } from 'react'
 import Map from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
+// CartoCDN Dark Matter — öffentlich verfügbar, kein API-Token nötig.
 const MAP_STYLE =
   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 

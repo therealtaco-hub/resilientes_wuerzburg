@@ -1,9 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import EntsiegelungLayer from '../components/map/overlays/EntsiegelungLayer'
+import NdbiLayer from '../components/map/overlays/NdbiLayer'
 import EntsiegelungLegend from '../components/map/EntsiegelungLegend'
+import NdbiLegend from '../components/map/NdbiLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchEntsiegelung } from '../api/entsiegelung'
+import { fetchLst } from '../api/lst'
 import { fmt } from '../utils/format'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -77,6 +80,12 @@ const LAYER_ITEMS = [
     sub:   'OpenStreetMap · Amber / Blau',
     color: '#ff8c00',
   },
+  {
+    key:   'ndbi',
+    label: 'Versiegelungsindex (NDBI)',
+    sub:   'Landsat 8+9 · Sommer 2023–2025',
+    color: '#ea580c',
+  },
 ]
 
 function EntsiegelungLayerPanel({ meta }) {
@@ -136,6 +145,23 @@ function EntsiegelungLayerPanel({ meta }) {
 function Tooltip({ cell }) {
   if (!cell) return null
   const p = cell.object.properties
+
+  // NDBI-Pixel (aus LST-Daten) haben kein source-Feld
+  if (p.ndbi != null && p.source == null) {
+    return (
+      <div
+        className="bg-bg-2 border border-border font-mono text-[11px] rounded-md px-3 py-2 space-y-0.5"
+        style={{ position: 'fixed', left: cell.x + 14, top: cell.y + 14, pointerEvents: 'none', zIndex: 9999 }}
+      >
+        <p className="text-fg-3 text-[10px] uppercase tracking-widest mb-1">Versiegelungsindex</p>
+        <p className="text-fg-1">NDBI <span className="text-fg-0">{p.ndbi.toFixed(3)}</span></p>
+        {p.lst_celsius != null && (
+          <p className="text-fg-1">LST&nbsp;&nbsp; <span className="text-fg-0">{p.lst_celsius.toFixed(1)} °C</span></p>
+        )}
+      </div>
+    )
+  }
+
   const isAtkis = p.source === 'atkis'
   return (
     <div
@@ -200,6 +226,7 @@ function InterpretationBox() {
 export default function Entsiegelung() {
   const { layers } = useAppStore()
   const [data, setData]       = useState(null)
+  const [lstData, setLstData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [hovered, setHovered] = useState(null)
@@ -209,6 +236,9 @@ export default function Entsiegelung() {
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
+    // LST wird nur geladen wenn NDBI-Layer aktiviert wird — aber wir laden es eager
+    // im Hintergrund, damit kein Wartezeit beim ersten Toggle entsteht
+    fetchLst().then(setLstData).catch(() => {})
   }, [])
 
   const { totalCount, totalFlaeche } = useMemo(() => {
@@ -258,6 +288,7 @@ export default function Entsiegelung() {
               showOsm={layers.entsiegelung_osm}
               onHover={handleHover}
             />
+            {layers.ndbi && <NdbiLayer data={lstData} onHover={handleHover} />}
           </MapSurface>
         </div>
 
@@ -280,6 +311,8 @@ export default function Entsiegelung() {
           <EntsiegelungLayerPanel meta={data?.meta} />
 
           {(layers.entsiegelung_atkis || layers.entsiegelung_osm) && <EntsiegelungLegend />}
+
+          {layers.ndbi && <NdbiLegend />}
 
           <InterpretationBox />
         </div>

@@ -1,18 +1,17 @@
 """
 Datenlade-Funktionen für alle Quelldatensätze.
 
-Geplante Funktionen:
-    load_lst_raster(path: str) -> np.ndarray
-        Lädt GeoTIFF mit Landsat LST-Band, gibt Array + Transform zurück.
+Caching-Strategie: Jede Funktion schreibt beim ersten Aufruf ein Parquet-File nach
+backend/data/ und liest bei Folgeaufrufen daraus. force_refresh=True erzwingt
+Neuberechnung. In-Memory-Caches der Router werden dabei nicht automatisch
+zurückgesetzt — Backend-Neustart oder ?refresh=true am Endpoint ist nötig.
 
-    load_tree_cadastre() -> gpd.GeoDataFrame
-        Ruft Baumkataster-API (opendata.wuerzburg.de) ab und gibt GeoDataFrame zurück.
-
-    load_census_grid(path: str) -> gpd.GeoDataFrame
-        Lädt Zensus-2022-CSV (100m-Gitter), filtert auf Würzburger Gitter-IDs.
-
-    load_atkis_landuse(path: str) -> gpd.GeoDataFrame
-        Lädt ATKIS Basis-DLM Shapefile mit Flächennutzungs- und Versiegelungsklassen.
+Implementierte Funktionen:
+    load_tree_cadastre()   → 44.647 Stadtbäume aus lokalem Parquet-Export
+    load_zensus()          → Zensus-2022-100m-Gitter (Alter + Bevölkerung)
+    load_lst()             → Landsat LST-Raster aus GeoTIFF (EPSG:3035, 100m)
+    load_stadtbezirke()    → 13 Stadtbezirk-Polygone von opendata.wuerzburg.de
+    load_entsiegelung()    → ATKIS-Shapefiles + OSM-Flächen kombiniert
 """
 
 from pathlib import Path
@@ -50,6 +49,7 @@ _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 async def load_tree_cadastre(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    """Lädt den Baumkataster-Bulk-Export. Quelldatei muss manuell in backend/data/ abgelegt werden."""
     if _TREES_CACHE.exists() and not force_refresh:
         return gpd.read_parquet(_TREES_CACHE)
 
@@ -65,6 +65,7 @@ async def load_tree_cadastre(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
 
 def load_zensus(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    """Merged Altersklassen- und Bevölkerungs-CSV, filtert auf Würzburg, baut 100m-Quadrat-Geometrien."""
     if not force_refresh and _ZENSUS_PARQUET_PATH.exists():
         return gpd.read_parquet(_ZENSUS_PARQUET_PATH)
 
@@ -103,6 +104,8 @@ def load_zensus(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
 
 def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
+    """Liest LST-GeoTIFF (EPSG:3035, 100m, Destatis-Gitter), berechnet Rang-Normierung,
+    baut Pixel-Bounding-Boxes als Geometrien. Gibt GeoDataFrame in EPSG:4326 zurück."""
     if not force_refresh and _LST_CACHE.exists():
         return gpd.read_parquet(_LST_CACHE)
 
@@ -119,10 +122,12 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     # GeoTIFF ist bereits in EPSG:3035, 100m-Pixel, auf Destatis-Gitter gesnappt —
     # kein Resampling, keine cos(lat)-Korrektur nötig.
     with rasterio.open(_LST_TIF) as src:
-        transform = src.transform
-        nodata    = src.nodata
-        raw       = src.read(1)   # Band 1 = LST_C in °C (GEE exportiert fertige °C)
-        crs       = src.crs
+        transform  = src.transform
+        nodata     = src.nodata
+        raw        = src.read(1)   # Band 1 = LST_C in °C (GEE exportiert fertige °C)
+        ndvi_raw   = src.read(2) if src.count >= 2 else None  # Band 2 = NDVI
+        ndbi_raw   = src.read(3) if src.count >= 3 else None  # Band 3 = NDBI
+        crs        = src.crs
 
     celsius = raw.astype(np.float64)
 
@@ -152,16 +157,18 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
     geometries = [box(w, s, e_, n) for w, s, e_, n in zip(west, south, east, north)]
 
-    gdf = gpd.GeoDataFrame(
-        {
-            "x_mp_100m":   x_mp,
-            "y_mp_100m":   y_mp,
-            "lst_celsius": np.round(celsius[mask], 1),
-            "lst_norm":    np.round(norm[mask], 4),
-        },
-        geometry=geometries,
-        crs=crs,   # EPSG:3035
-    )
+    record = {
+        "x_mp_100m":   x_mp,
+        "y_mp_100m":   y_mp,
+        "lst_celsius": np.round(celsius[mask], 1),
+        "lst_norm":    np.round(norm[mask], 4),
+    }
+    if ndvi_raw is not None:
+        record["ndvi"] = np.round(ndvi_raw.astype(np.float64)[mask], 3)
+    if ndbi_raw is not None:
+        record["ndbi"] = np.round(ndbi_raw.astype(np.float64)[mask], 3)
+
+    gdf = gpd.GeoDataFrame(record, geometry=geometries, crs=crs)
     if gdf.crs.to_epsg() != 4326:
         gdf = gdf.to_crs("EPSG:4326")
 

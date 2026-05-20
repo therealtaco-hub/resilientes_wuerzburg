@@ -1,9 +1,11 @@
+"""GET /api/trees — Baumkataster als GeoJSON FeatureCollection (44.647 Stadtbäume)."""
+
 from fastapi import APIRouter, HTTPException
 from utils.data_loader import load_tree_cadastre
 
 router = APIRouter()
 
-_cache = None
+_cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 @router.get("")
