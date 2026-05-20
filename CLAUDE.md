@@ -12,6 +12,26 @@
 - Nach jedem Task kurz zusammenfassen, was erstellt wurde und was als 
   nächstes sinnvoll wäre
 
+---
+
+## Fachliche Wissensquelle (Wiki)
+
+Alle Simulationskoeffizienten und deren wissenschaftliche Herleitung sind dokumentiert im Wiki-Submodul:
+
+```
+urban-heat-wiki/wiki/
+```
+
+Schlüsselseiten:
+- `urban-heat-wiki/wiki/simulation-logic.md`         — Berechnungslogik beider Simulationsendpoints (autoritativ)
+- `urban-heat-wiki/wiki/kuehleffekte-vergleich.md`   — Alle quantitativen Kühleffekte im Vergleich
+- `urban-heat-wiki/wiki/methodischer-plan-wuerzburg.md` — Gesamtprojektplan, Phasen 1–5
+- `urban-heat-wiki/wiki/concepts/entsiegelung.md`    — Entsiegelungskoeffizient + Abflussbeiwerte
+- `urban-heat-wiki/wiki/sources/garcia-de-leon-lst-trees-munich.md` — Baum-Koeffizient −0,069/−0,083 °C/%
+
+**Koeffizienten-Datei:** `backend/simulation_params.py`
+Alle Simulationsparameter mit Quellverweisen. Keine Koeffizienten hardcoden — immer aus `simulation_params` importieren.
+
   ---
 
 ## Design
