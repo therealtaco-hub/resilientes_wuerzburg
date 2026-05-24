@@ -78,6 +78,8 @@ function HinweisBox() {
 }
 
 function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
+  const [infoOpen, setInfoOpen] = useState(false)
+
   if (!hotspots) {
     return (
       <div className="bg-bg-2 border border-border rounded-xl p-5">
@@ -163,19 +165,36 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
           )
         })}
       </div>
-      <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-soft)' }}>
-        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Die Hotspots markieren die fünf stärksten Hitzezentren im erfassten Stadtgebiet. 
-          Die angezeigte Temperatur ist der Durchschnittswert im Umkreis von <span style={{ color: 'var(--text-1)' }}>200&thinsp;m</span>, 
-          um kleinteilige Ausreißer (z. B. einzelne Blechdächer) auszufiltern. 
-          Ein Mindestabstand von <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span> zwischen den Markierungen verhindert, dass sich 
-          großflächige Hitzeinseln mehrfach im Ranking wiederholen. 
-          Zwischen zwei Spots liegen immer mindestens ,
-          damit verschiedene Stadtteile repräsentiert werden.
-        </p>
-        <p className="text-[10px] font-mono mt-2" style={{ color: 'var(--text-3)' }}>
-          Focal Mean 200 m · NMS 600 m
-        </p>
+      <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-soft)' }}>
+        <button
+          onClick={() => setInfoOpen(v => !v)}
+          className="flex items-center justify-center gap-1.5 w-full rounded-md py-1.5 text-[11px] font-medium transition-colors"
+          style={{
+            background: infoOpen ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border)',
+            color: infoOpen ? 'var(--text-1)' : 'var(--text-3)',
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Methodik {infoOpen ? 'ausblenden' : 'anzeigen'}
+        </button>
+
+        {infoOpen && (
+          <div className="mt-3">
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
+              Die Hotspots markieren die fünf stärksten Hitzezentren im erfassten Stadtgebiet.
+              Die angezeigte Temperatur ist der Durchschnittswert im Umkreis von <span style={{ color: 'var(--text-1)' }}>200&thinsp;m</span>,
+              um kleinteilige Ausreißer (z. B. einzelne Blechdächer) auszufiltern.
+              Ein Mindestabstand von <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span> zwischen den Markierungen verhindert, dass sich
+              großflächige Hitzeinseln mehrfach im Ranking wiederholen.
+            </p>
+            <p className="text-[10px] font-mono mt-2" style={{ color: 'var(--text-3)' }}>
+              Focal Mean 200 m · NMS 600 m
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -195,6 +214,7 @@ export default function Hitzeatlas() {
   const [hoveredCell, setHoveredCell]     = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
   const [hoveredRank, setHoveredRank]     = useState(null)
+  const [clickedTree, setClickedTree]     = useState(null)
 
   useEffect(() => {
     Promise.all([fetchLst(), fetchTrees(), fetchStadtbezirke()])
@@ -265,6 +285,16 @@ export default function Hitzeatlas() {
   const handleBezirkHover = ({ object, x, y }) =>
     setHoveredBezirk(object ? { object, x, y } : null)
 
+  const handleTreeClick = ({ object, x, y }) => {
+    if (object) setClickedTree({ object, x, y })
+  }
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setClickedTree(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // FlyTo: uses MapLibre's native flyTo via react-map-gl ref
   const handleFlyToSpot = (feature) => {
     const { lon, lat } = feature.properties
@@ -313,7 +343,7 @@ export default function Hitzeatlas() {
                 onHover={handleHover}
               />
             )}
-            {layers.trees        && <TreeLayer data={treeData} />}
+            {layers.trees        && <TreeLayer data={treeData} onTreeClick={handleTreeClick} />}
             {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} onHover={handleBezirkHover} />}
             {layers.ndvi         && <NdviLayer data={lstData} onHover={handleHover} />}
           </MapSurface>
@@ -363,6 +393,85 @@ export default function Hitzeatlas() {
           )}
         </div>
       )}
+
+      {clickedTree && (() => {
+        const p = clickedTree.object.properties
+        // clamp to viewport so popup doesn't go offscreen
+        const vw = window.innerWidth
+        const vh = window.innerHeight
+        const W = 240, H = 220
+        const left = Math.min(clickedTree.x + 14, vw - W - 16)
+        const top  = Math.min(clickedTree.y + 14, vh - H - 16)
+        return (
+          <div
+            className="bg-bg-2 border border-border rounded-xl shadow-lg"
+            style={{
+              position: 'fixed',
+              left,
+              top,
+              width: W,
+              pointerEvents: 'auto',
+              zIndex: 9999,
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between px-4 pt-4 pb-2 border-b border-border">
+              <div className="min-w-0">
+                <p className="text-fg-0 text-[13px] font-semibold leading-snug truncate">
+                  {p.baumart || '—'}
+                </p>
+                {p.baumart_la && (
+                  <p className="text-fg-3 text-[10px] italic leading-tight mt-0.5 truncate">
+                    {p.baumart_la}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setClickedTree(null)}
+                className="shrink-0 ml-2 mt-0.5 text-fg-3 hover:text-fg-0 transition-colors"
+                title="Schließen (ESC)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            {/* Properties */}
+            <div className="px-4 py-3 space-y-1.5 font-mono text-[11px]">
+              {p.baumtyp && (
+                <div className="flex justify-between">
+                  <span className="text-fg-3">Typ</span>
+                  <span className="text-fg-1">{p.baumtyp}</span>
+                </div>
+              )}
+              {p.baumhoehe != null && (
+                <div className="flex justify-between">
+                  <span className="text-fg-3">Höhe</span>
+                  <span className="text-fg-0">{p.baumhoehe} m</span>
+                </div>
+              )}
+              {p.kronenbrei != null && (
+                <div className="flex justify-between">
+                  <span className="text-fg-3">Kronendurchm.</span>
+                  <span className="text-fg-0">{p.kronenbrei} m</span>
+                </div>
+              )}
+              {p.stammumfan != null && (
+                <div className="flex justify-between">
+                  <span className="text-fg-3">Stammumfang</span>
+                  <span className="text-fg-0">{p.stammumfan} cm</span>
+                </div>
+              )}
+              {p.source_id && (
+                <div className="flex justify-between pt-1 mt-1" style={{ borderTop: '1px solid var(--border-soft)' }}>
+                  <span className="text-fg-3">ID</span>
+                  <span className="text-fg-3">{p.source_id}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {hoveredBezirk && (
         <div
