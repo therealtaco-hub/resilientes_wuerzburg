@@ -52,7 +52,8 @@
       "Bash(python3 -c ' *)",
       "Bash(curl -s \"http://localhost:8000/api/hotspots\")",
       "Bash(curl -s \"http://localhost:8000/api/stadtbezirke\")",
-      "Bash(curl -s \"http://localhost:8000/api/hotspots?refresh=true\")"
+      "Bash(curl -s \"http://localhost:8000/api/hotspots?refresh=true\")",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

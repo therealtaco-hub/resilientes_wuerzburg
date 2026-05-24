@@ -3,12 +3,15 @@ import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import VulnLayer from '../components/map/overlays/VulnLayer'
 import DemografieLayer from '../components/map/overlays/DemografieLayer'
+import StadtbezirkeVulnLayer from '../components/map/overlays/StadtbezirkeVulnLayer'
 import LSTLegend from '../components/map/LSTLegend'
 import DemografieLegend from '../components/map/DemografieLegend'
+import StadtbezirkeHviLegend from '../components/map/StadtbezirkeHviLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchVulnerability } from '../api/vulnerability'
 import { fetchLst } from '../api/lst'
 import { fetchZensus } from '../api/zensus'
+import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fmt } from '../utils/format'
 import { LST_SENSOR } from '../utils/sources'
 
@@ -94,6 +97,13 @@ function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
       sub: 'Zensus 2022 · 100 m-Gitter',
       color: 'var(--blue)',
       count: zensusCount,
+    },
+    {
+      key: 'stadtbezirke',
+      label: 'Stadtbezirke (HVI)',
+      sub: '13 Bezirke · HVI max',
+      color: 'var(--purple)',
+      count: null,
     },
   ]
 
@@ -344,19 +354,22 @@ function Tooltip({ cell }) {
 export default function Vulnerabilitaet() {
   const { layers, vulnWeights, setVulnWeights } = useAppStore()
 
-  const [vulnData,   setVulnData]   = useState(null)
-  const [lstData,    setLstData]    = useState(null)
-  const [zensusData, setZensusData] = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState(null)
-  const [hovered,    setHovered]    = useState(null)
+  const [vulnData,    setVulnData]    = useState(null)
+  const [lstData,     setLstData]     = useState(null)
+  const [zensusData,  setZensusData]  = useState(null)
+  const [bezirkeData, setBezirkeData] = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState(null)
+  const [hovered,     setHovered]     = useState(null)
+  const [hoveredBezirk, setHoveredBezirk] = useState(null)
 
   useEffect(() => {
-    Promise.all([fetchVulnerability(), fetchLst(), fetchZensus()])
-      .then(([vuln, lst, zensus]) => {
+    Promise.all([fetchVulnerability(), fetchLst(), fetchZensus(), fetchStadtbezirke()])
+      .then(([vuln, lst, zensus, bezirke]) => {
         setVulnData(vuln)
         setLstData(lst)
         setZensusData(zensus)
+        setBezirkeData(bezirke)
         if (vuln.meta?.weights) setVulnWeights(vuln.meta.weights)
       })
       .catch((e) => setError(e.message))
@@ -383,8 +396,25 @@ export default function Vulnerabilitaet() {
     return { maxHvi, affectedPop }
   }, [vulnData])
 
+  const bezirkStats = useMemo(() => {
+    if (!bezirkeData) return {}
+    const vals = bezirkeData.features
+      .map(f => f.properties.hvi_max)
+      .filter(v => v != null && Number.isFinite(v))
+      .sort((a, b) => a - b)
+    if (!vals.length) return {}
+    return {
+      min:    vals[0],
+      median: vals[Math.floor(vals.length / 2)],
+      max:    vals[vals.length - 1],
+    }
+  }, [bezirkeData])
+
   const handleHover = ({ object, x, y }) =>
     setHovered(object ? { object, x, y } : null)
+
+  const handleBezirkHover = ({ object, x, y }) =>
+    setHoveredBezirk(object ? { object, x, y } : null)
 
   const vulnCount   = vulnData?.features?.length ?? null
   const lstCount    = lstData?.features?.length ?? null
@@ -424,9 +454,10 @@ export default function Vulnerabilitaet() {
         {/* Karte */}
         <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface>
-            {layers.heatmap         && <HeatLayer     data={lstData}    onHover={handleHover} />}
-            {layers.zensus          && <DemografieLayer data={zensusData} onHover={handleHover} />}
-            {layers.vulnerabilitaet && <VulnLayer     data={vulnData}   onHover={handleHover} />}
+            {layers.heatmap         && <HeatLayer          data={lstData}     onHover={handleHover} />}
+            {layers.zensus          && <DemografieLayer     data={zensusData}  onHover={handleHover} />}
+            {layers.vulnerabilitaet && <VulnLayer           data={vulnData}    onHover={handleHover} />}
+            {layers.stadtbezirke    && <StadtbezirkeVulnLayer data={bezirkeData} onHover={handleBezirkHover} />}
           </MapSurface>
 
         </div>
@@ -455,6 +486,7 @@ export default function Vulnerabilitaet() {
           {layers.vulnerabilitaet && <HviLegend />}
           {layers.heatmap && <LSTLegend {...lstStats} />}
           {layers.zensus && <DemografieLegend />}
+          {layers.stadtbezirke && <StadtbezirkeHviLegend {...bezirkStats} />}
 
           <InterpretationBox />
 
@@ -464,6 +496,33 @@ export default function Vulnerabilitaet() {
       </div>
 
       <Tooltip cell={hovered} />
+
+      {hoveredBezirk && (
+        <div
+          className="bg-bg-2 border border-border font-mono text-[11px] rounded-md px-3 py-2 space-y-0.5"
+          style={{
+            position: 'fixed',
+            left: hoveredBezirk.x + 14,
+            top:  hoveredBezirk.y + 14,
+            pointerEvents: 'none',
+            minWidth: 180,
+            zIndex: 9999,
+          }}
+        >
+          <div className="text-fg-0 text-[13px] font-medium mb-1.5">
+            {hoveredBezirk.object.properties.name}
+          </div>
+          <div className="text-fg-2 text-[11px] font-mono space-y-0.5">
+            <div>HVI Max · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
+            <div className="flex items-baseline gap-1">
+              <span>HVI Ø · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_mean ?? 0)}</span></span>
+              <span className="text-[9px] text-fg-3">ew-gew.</span>
+            </div>
+            <div>LST Max · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
+            <div>Einwohner · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

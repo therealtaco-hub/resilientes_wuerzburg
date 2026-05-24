@@ -126,7 +126,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 
 ```
 / Dashboard         → Übersicht: Karte + KPIs (heißeste Zone, vulnerabelster Bezirk)
-/hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende
+/hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende; Klick auf Baum öffnet Popup (Art, Höhe, Krone, Stamm, ID); Top-5-Hitzespots-Card mit ausklappbarer Methodik-Sektion
 /vulnerabilitaet    → Choropleth: gewichteter Index aus LST + Senioren-Anteil
 /entsiegelung       → ATKIS/OSM-Layer, Flächenarten nach Kategorie eingefärbt, kein Score
 /simulation         → Baumpflanzung & Entsiegelung: Slider Neupflanzungen (Δ Temperatur + CO₂) + Slider Entsiegelungsfläche (m³ Versickerung/Jahr)
@@ -180,6 +180,12 @@ resilientes-wuerzburg/
 
 ---
 
+## Code Review
+
+- Code-Review-Anleitung: `docs/code-review-skill.md` — immer prüfen nach neuen Features
+
+---
+
 ## Implementierungsstand
 
 ### Backend-Endpoints
@@ -222,7 +228,7 @@ resilientes-wuerzburg/
 | Seite | Route | Status |
 |---|---|---|
 | Dashboard | `/` | ✅ KPI-Strip (4 Kacheln) + Top-3-Listen pro KPI (4×1-Grid) |
-| Hitzeatlas | `/hitzeatlas` | ✅ inkl. Stadtbezirks-Choropleth-Layer + Bezirks-Hover-Tooltip |
+| Hitzeatlas | `/hitzeatlas` | ✅ inkl. Stadtbezirks-Choropleth-Layer + Bezirks-Hover-Tooltip + Baum-Klick-Popup + Methodik-Toggle in Top-5-Card |
 | Vulnerabilität | `/vulnerabilitaet` | ✅ inkl. HVI-Legende + LST-Legende + Demografie-Legende |
 | Entsiegelung | `/entsiegelung` | ✅ |
 | Simulation | `/simulation` | ⏳ Shell only |
@@ -231,7 +237,7 @@ resilientes-wuerzburg/
 - `MapSurface.jsx` – MapLibre-Wrapper, initialViewState Würzburg (9.932, 49.794, zoom 12)
 - `DeckOverlay.jsx` – MapboxOverlay + useControl Wrapper; akzeptiert `...rest`-Props (z. B. `onHover`) und leitet sie an `setProps` weiter
 - `HeatLayer.jsx` – deck.gl **GeoJsonLayer** (Choropleth), `getFillColor` interpoliert `lst_norm` über Drei-Punkt-Gradient grün→amber→rot, Alpha 180, `pickable: true`, akzeptiert `onHover`-Prop. Subtile weiße Zell-Outlines (Alpha 18, 1px) für Abgrenzung beim Reinzoomen; Hotspot-Pixel bekommen hellblaue 2px-Outline, gehoverter Hotspot weiße 4px-Outline. `parameters: { depthTest: false, blend: true }` am GeoJsonLayer gesetzt (Maler-Algorithmus bei Überlagerung mit anderen transparenten Layern).
-- `TreeLayer.jsx` – deck.gl ScatterplotLayer, 4px Punkte, grün 70% Opacity
+- `TreeLayer.jsx` – deck.gl ScatterplotLayer, `radiusUnits: 'meters'`, Radius = `max(3, kronenbrei / 2)` (halber Kronendurchmesser, min 3 m → Dots skalieren mit Zoom). Farbe: Laubbaum grün `[34,197,94,190]`, Nadelbaum türkis `[20,184,166,190]`. `pickable: true`, akzeptiert `onTreeClick`-Prop → onClick auf Feature-Ebene. Baumkataster-Felder im Parquet: `baumart`, `baumart_la`, `baumtyp`, `baumhoehe`, `kronenbrei`, `stammumfan`, `source_id` — kein `pflanzjahr`/`alter`.
 - `LayerPanel.jsx` – Toggles für heatmap + trees + stadtbezirke, Zustand-connected
 - `StadtbezirkeLayer.jsx` (`overlays/`) – deck.gl GeoJsonLayer-Choropleth auf `lst_max`. Frontend normiert min/max aus den 13 Bezirken, Drei-Punkt-Gradient grün→amber→rot bei Alpha 140 (transparent genug, damit ein darunter liegender LST-Pixel-Layer sichtbar bleibt). 1.5px-weiße Outlines (`getLineColor: [255,255,255,200]`), `pickable: true`, akzeptiert `onHover`-Prop.
 - `LSTLegend.jsx` – Gradient-Balken (160×8px) + drei `fmt.temp()`-Labels (min/median/max als Props); frosted-glass-Hintergrund

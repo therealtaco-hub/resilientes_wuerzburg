@@ -79,10 +79,22 @@ async def get_stadtbezirke(refresh: bool = False):
         how="inner",
         predicate="intersects",
     )
-    hvi_agg = vuln_bz.groupby("bz_idx").agg(
-        hvi_max=("hvi", "max"),
-        hvi_mean=("hvi", "mean"),
-        einwohner=("Einwohner", "sum"),
+
+    def _weighted_hvi(g):
+        """Bevölkerungsgewichteter HVI-Durchschnitt: Σ(hvi_i × ew_i) / Σ(ew_i).
+        Fallback auf ungewichteten Mean wenn alle Einwohner-Werte 0 oder NaN sind."""
+        ew = g["Einwohner"].fillna(0)
+        total = ew.sum()
+        if total > 0:
+            return (g["hvi"] * ew).sum() / total
+        return g["hvi"].mean()
+
+    hvi_agg = vuln_bz.groupby("bz_idx").apply(
+        lambda g: pd.Series({
+            "hvi_max":  g["hvi"].max(),
+            "hvi_mean": _weighted_hvi(g),
+            "einwohner": g["Einwohner"].sum(),
+        })
     )
 
     # --- Entsiegelungspotenzial per Stadtbezirk ---
