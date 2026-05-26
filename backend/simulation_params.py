@@ -57,5 +57,22 @@ RUNOFF_COEFFICIENTS: dict[str, float] = {
 }
 
 # ── HYDROLOGIE ────────────────────────────────────────────────────────────────
-# Source: CLAUDE.md (DWD Station Würzburg) — bereits in Projektdokumentation
-ANNUAL_RAINFALL_WUERZBURG_M = 0.60  # Meter/Jahr (~600 mm/Jahr)
+# Source: DWD Climate Data Center
+#   Station: Würzburg, ID 05705 (49.7704°N, 9.9576°E, 268 m ü. NN)
+#   Datei:   monatswerte_KL_05705_18810101_20241231_hist.zip
+#   Spalte:  MO_RR (monatliche Niederschlagshöhe in mm)
+#   Referenzperiode: 1991–2020 (DWD-Klimanormalperiode), 360/360 gültige Monatswerte
+#   Berechnung: Σ(MO_RR pro Jahr) / 30 Jahre = 573,5 mm/Jahr → 0,5735 m/Jahr
+#
+#   Jahressummen-Bandbreite: 394 mm (1991) – 806 mm (2002), Median 556 mm
+#   Monatliche Mittelwerte (mm):
+#     Jan 40.0 | Feb 35.8 | Mär 40.2 | Apr 32.7 | Mai 57.3 | Jun 52.9
+#     Jul 65.8 | Aug 56.3 | Sep 47.2 | Okt 47.5 | Nov 46.2 | Dez 51.5
+
+ANNUAL_RAINFALL_WUERZBURG_M = 0.5735  # m/Jahr (573,5 mm — DWD Referenzperiode 1991–2020)
+
+# Monatliche Mittelwerte für zukünftige saisonale Simulation (mm)
+MONTHLY_RAINFALL_WUERZBURG_MM: dict[int, float] = {
+    1: 40.0, 2: 35.8, 3: 40.2, 4: 32.7, 5: 57.3,  6: 52.9,
+    7: 65.8, 8: 56.3, 9: 47.2, 10: 47.5, 11: 46.2, 12: 51.5,
+}

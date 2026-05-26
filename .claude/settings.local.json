@@ -53,7 +53,8 @@
       "Bash(curl -s \"http://localhost:8000/api/hotspots\")",
       "Bash(curl -s \"http://localhost:8000/api/stadtbezirke\")",
       "Bash(curl -s \"http://localhost:8000/api/hotspots?refresh=true\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "WebFetch(domain:www.wildes-bayern.de)"
     ]
   }
 }
