@@ -55,7 +55,6 @@ const useAppStore = create((set) => ({
     entsiegelung_osm:   true,
     stadtbezirke:       false,
     ndvi:               false,
-    ndbi:               false,
   },
   toggleLayer: (key) => set((s) => ({
     layers: { ...s.layers, [key]: !s.layers[key] }

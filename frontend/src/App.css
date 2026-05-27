@@ -2,6 +2,16 @@
   to { transform: rotate(360deg); }
 }
 
+/* Number input ohne Spin-Arrows */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;

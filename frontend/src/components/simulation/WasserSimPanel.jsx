@@ -10,8 +10,23 @@ import {
 } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import SimResultCard from './SimResultCard'
+import EntsiegelungLegend from '../map/EntsiegelungLegend'
 
 const DEBOUNCE_MS = 300
+
+// m³/Jahr → anschauliche Einheit je nach Größenordnung
+function formatWasserKontext(m3year) {
+  if (m3year < 2) {
+    const count = Math.round(m3year * 100) // à 10 L
+    return { count: fmt.num(count), unit: 'Eimer/Jahr', sub: 'à 10 L' }
+  } else if (m3year < 150) {
+    const count = Math.round(m3year * 1000 / 150) // à 150 L
+    return { count: fmt.num(count), unit: 'Badewannen/Jahr', sub: 'à 150 L' }
+  } else {
+    const count = (m3year / 50).toFixed(1) // à 50 m³
+    return { count, unit: 'Schwimmbecken/Jahr', sub: 'à 50 m³' }
+  }
+}
 
 export default function WasserSimPanel() {
   const polygons    = useAppStore((s) => s.sim.selectedPolygons)
@@ -102,10 +117,19 @@ export default function WasserSimPanel() {
     return () => debounceRef.current && clearTimeout(debounceRef.current)
   }, [hasSel, flaecheM2, totalSealable, groupConfig, groups])
 
+  const wasserCtx = results ? formatWasserKontext(results.infiltration) : null
   const surfaceKeys = Object.keys(SURFACE_LABELS)
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Entsiegelung-Legende */}
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">
+          Flächenarten
+        </p>
+        <EntsiegelungLegend />
+      </div>
+
       {/* Area-Info-Banner */}
       <div className="bg-bg-2 border border-border rounded-[10px] p-4 flex items-center gap-3">
         <span style={{ fontSize: 22 }}>💧</span>
@@ -241,11 +265,11 @@ export default function WasserSimPanel() {
             empty={!hasSel}
           />
           <SimResultCard
-            label="Kontext"
-            value={results ? fmt.num(results.persons, 0) : '—'}
-            unit="Personen"
+            label="Entspricht"
+            value={wasserCtx ? wasserCtx.count : '—'}
+            unit={wasserCtx ? wasserCtx.unit : ''}
             color="amber"
-            caveat={results ? 'Jahreswasser · 150 L/Tag' : null}
+            caveat={wasserCtx ? wasserCtx.sub : null}
             loading={loading && !results}
             empty={!hasSel}
           />
