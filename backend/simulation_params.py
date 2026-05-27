@@ -76,3 +76,26 @@ MONTHLY_RAINFALL_WUERZBURG_MM: dict[int, float] = {
     1: 40.0, 2: 35.8, 3: 40.2, 4: 32.7, 5: 57.3,  6: 52.9,
     7: 65.8, 8: 56.3, 9: 47.2, 10: 47.5, 11: 46.2, 12: 51.5,
 }
+
+# ── CO₂-BINDUNG ───────────────────────────────────────────────────────────────
+# Quelle: Dr. Daniel Klein, Wald-Zentrum Universität Münster
+#   Herleitung: Buche, 23 m, ∅ 30 cm → ~600 kg Trockenmasse → 1.000 kg CO₂ in 80 Jahren
+# ⚠ Gilt für ausgewachsene Laubbäume im Forstbestand — Neupflanzungen binden deutlich weniger.
+# ⚠ Noch nicht als Wiki-Seite ingested — vor Produktionsrelease nachholen.
+CO2_KG_PER_TREE_YEAR = 12.5
+
+# ── VERSIEGELUNGSGRADE JE FLÄCHENTYP ─────────────────────────────────────────
+# v1: Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024, DIN 18005)
+# ⚠ v2: Durch Copernicus Imperviousness Layer ersetzen
+#   (GEE: JRC/GHSL/P2023A/GHS_BUILT_S, 10 m, via spatial join auf selektierte Polygone)
+# Flachdächer (osm_flat_roof_industrial) explizit ausgeschlossen — kein Bodenbelag.
+SEAL_RATE_BY_TYPE: dict[str, float] = {
+    "osm_parking":                   0.95,
+    "osm_square":                    0.90,
+    "AX_Strassenverkehrsflaeche":    0.98,
+    "AX_Platz":                      0.88,
+    "AX_IndustrieUndGewerbeflaeche": 0.80,
+    "AX_FlaecheGemischterNutzung":   0.65,
+    "AX_Wohnbauflaeche":             0.60,
+    "_default":                      0.70,
+}
