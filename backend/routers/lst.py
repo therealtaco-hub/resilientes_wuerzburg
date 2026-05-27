@@ -26,6 +26,7 @@ def get_lst(refresh: bool = False):
 
     has_ndvi = "ndvi" in gdf.columns
     has_ndbi = "ndbi" in gdf.columns
+    has_bestand = "bestand_pct" in gdf.columns
 
     features = []
     for _, row in gdf.iterrows():
@@ -39,6 +40,9 @@ def get_lst(refresh: bool = False):
         if has_ndbi:
             v = row["ndbi"]
             props["ndbi"] = float(v) if v == v else None
+        if has_bestand:
+            v = row["bestand_pct"]
+            props["bestand_pct"] = float(v) if v == v else 0.0
         features.append({
             "type": "Feature",
             "geometry": mapping(row.geometry),

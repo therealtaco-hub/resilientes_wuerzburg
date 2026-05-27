@@ -103,11 +103,62 @@ def load_zensus(force_refresh: bool = False) -> gpd.GeoDataFrame:
     return gdf
 
 
+def _compute_bestand_pct(lst_gdf: gpd.GeoDataFrame) -> pd.Series:
+    """Berechnet pro LST-Kachel den Anteil (%) bestehender Baumkronen aus dem Baumkataster.
+
+    Kronenfläche pro Baum: π × (kronenbrei / 2)² (kronenbrei = Kronendurchmesser in m).
+    Spatial Join Tree-Points → LST-Cells; Summe je Zelle / 10.000 m² × 100, geclampt auf [0, 100].
+    Fallback 0.0 wenn Baumkataster nicht verfügbar oder leerer Sjoin.
+    """
+    # Trees-Source robust laden (Cache oder Bulk-Export)
+    trees_path = _TREES_CACHE if _TREES_CACHE.exists() else (
+        _TREES_SOURCE if _TREES_SOURCE.exists() else None
+    )
+    if trees_path is None:
+        return pd.Series(0.0, index=lst_gdf.index)
+
+    trees = gpd.read_parquet(trees_path)
+    if "kronenbrei" not in trees.columns or trees.empty:
+        return pd.Series(0.0, index=lst_gdf.index)
+
+    kronenbrei = pd.to_numeric(trees["kronenbrei"], errors="coerce")
+    crown_area = np.pi * (kronenbrei / 2.0) ** 2
+    trees = trees.assign(crown_area_m2=crown_area).dropna(subset=["crown_area_m2"])
+    trees = trees[trees["crown_area_m2"] > 0]
+    if trees.empty:
+        return pd.Series(0.0, index=lst_gdf.index)
+
+    if trees.crs != lst_gdf.crs:
+        trees = trees.to_crs(lst_gdf.crs)
+
+    joined = gpd.sjoin(
+        trees[["crown_area_m2", trees.geometry.name]],
+        lst_gdf[[lst_gdf.geometry.name]],
+        how="inner",
+        predicate="within",
+    )
+    if joined.empty:
+        return pd.Series(0.0, index=lst_gdf.index)
+
+    sum_per_cell = joined.groupby("index_right")["crown_area_m2"].sum()
+    # Zellgröße ist 100×100 m = 10.000 m². Mehrere Kronen können überlappen → clip(0, 100).
+    pct = (sum_per_cell / 10_000.0 * 100.0).clip(0.0, 100.0)
+    return lst_gdf.index.to_series().map(pct).fillna(0.0).round(1)
+
+
 def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     """Liest LST-GeoTIFF (EPSG:3035, 100m, Destatis-Gitter), berechnet Rang-Normierung,
-    baut Pixel-Bounding-Boxes als Geometrien. Gibt GeoDataFrame in EPSG:4326 zurück."""
+    baut Pixel-Bounding-Boxes als Geometrien. Gibt GeoDataFrame in EPSG:4326 zurück.
+
+    Reichert pro Zelle `bestand_pct` (existierender Kronendeckungsanteil aus dem
+    Baumkataster) an. Alte Caches ohne diese Spalte werden lazy nachgereicht.
+    """
     if not force_refresh and _LST_CACHE.exists():
-        return gpd.read_parquet(_LST_CACHE)
+        gdf = gpd.read_parquet(_LST_CACHE)
+        if "bestand_pct" not in gdf.columns:
+            gdf["bestand_pct"] = _compute_bestand_pct(gdf)
+            gdf.to_parquet(_LST_CACHE)
+        return gdf
 
     if not _LST_TIF.exists():
         raise FileNotFoundError(
@@ -171,6 +222,8 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame(record, geometry=geometries, crs=crs)
     if gdf.crs.to_epsg() != 4326:
         gdf = gdf.to_crs("EPSG:4326")
+
+    gdf["bestand_pct"] = _compute_bestand_pct(gdf)
 
     gdf.to_parquet(_LST_CACHE)
     return gdf
