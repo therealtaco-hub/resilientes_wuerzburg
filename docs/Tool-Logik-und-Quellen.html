@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resilientes Würzburg — Tool-Logik und Quellen</title>
+  <style>
+    :root {
+      --bg0: #0d0f12;
+      --bg1: #13161b;
+      --bg2: #1a1e25;
+      --bg3: #22272f;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --fg0: #f1f3f6;
+      --fg1: #cdd2da;
+      --fg2: #8c95a0;
+      --fg3: #5a6370;
+      --green:  #22c55e;
+      --amber:  #f59e0b;
+      --red:    #ef4444;
+      --blue:   #3b82f6;
+      --purple: #a855f7;
+      --teal:   #14b8a6;
+      --green-dim: rgba(34,197,94,0.12);
+      --amber-dim: rgba(245,158,11,0.12);
+      --blue-dim:  rgba(59,130,246,0.10);
+      --purple-dim:rgba(168,85,247,0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg0);
+      color: var(--fg1);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    .doc-header {
+      border-bottom: 1px solid var(--border2);
+      padding-bottom: 32px;
+      margin-bottom: 48px;
+    }
+    .doc-header .tag-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      color: var(--fg2);
+    }
+    .tag.green  { border-color: rgba(34,197,94,0.3);  color: var(--green);  background: var(--green-dim); }
+    .tag.amber  { border-color: rgba(245,158,11,0.3); color: var(--amber);  background: var(--amber-dim); }
+    .tag.blue   { border-color: rgba(59,130,246,0.3); color: var(--blue);   background: var(--blue-dim); }
+    .doc-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--fg0);
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+    .doc-header .subtitle {
+      font-size: 13px;
+      color: var(--fg3);
+    }
+    .doc-header .meta {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .doc-header .meta-item {
+      font-size: 11px;
+      color: var(--fg3);
+    }
+    .doc-header .meta-item strong {
+      color: var(--fg2);
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 48px;
+    }
+    .toc h3 {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg3);
+      margin-bottom: 12px;
+    }
+    .toc ol {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 32px;
+    }
+    .toc li { counter-increment: toc; }
+    .toc a {
+      color: var(--fg2);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .toc a:hover { color: var(--green); }
+    .toc a::before {
+      content: counter(toc) ". ";
+      color: var(--fg3);
+    }
+    @media (max-width: 600px) {
+      .toc ol { grid-template-columns: 1fr; }
+    }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 48px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .num-green  { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(34,197,94,0.25); }
+    .num-amber  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(245,158,11,0.25);}
+    .num-blue   { background: var(--blue-dim);   color: var(--blue);   border: 1px solid rgba(59,130,246,0.25);}
+    .num-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(168,85,247,0.25);}
+    .num-teal   { background: rgba(20,184,166,0.10); color: var(--teal); border: 1px solid rgba(20,184,166,0.25);}
+    .num-red    { background: rgba(239,68,68,0.10);  color: var(--red);  border: 1px solid rgba(239,68,68,0.25);}
+    .num-gray   { background: var(--bg3);  color: var(--fg2);  border: 1px solid var(--border2);}
+
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--fg0);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--fg1);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 24px 0 10px;
+    }
+    .section h3:first-of-type {
+      margin-top: 0;
+    }
+    .section p {
+      color: var(--fg2);
+      margin-bottom: 10px;
+      font-size: 13.5px;
+    }
+    .section p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .card.green  { border-color: rgba(34,197,94,0.2);  background: rgba(34,197,94,0.04); }
+    .card.amber  { border-color: rgba(245,158,11,0.2); background: rgba(245,158,11,0.04); }
+    .card.blue   { border-color: rgba(59,130,246,0.2); background: rgba(59,130,246,0.04); }
+    .card.purple { border-color: rgba(168,85,247,0.2); background: rgba(168,85,247,0.04); }
+    .card.red    { border-color: rgba(239,68,68,0.2);  background: rgba(239,68,68,0.04); }
+
+    .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--fg3);
+      margin-bottom: 6px;
+    }
+    .card.green  .card-label { color: var(--green); }
+    .card.amber  .card-label { color: var(--amber); }
+    .card.blue   .card-label { color: var(--blue); }
+    .card.purple .card-label { color: var(--purple); }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    thead th {
+      background: var(--bg3);
+      color: var(--fg2);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border2);
+    }
+    tbody td {
+      padding: 9px 14px;
+      color: var(--fg2);
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+    tbody tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+    td strong, .mono {
+      font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+      font-size: 12px;
+      color: var(--fg1);
+    }
+    .val-green { color: var(--green); font-weight: 600; font-family: monospace; }
+    .val-amber { color: var(--amber); font-weight: 600; font-family: monospace; }
+    .val-red   { color: var(--red);   font-weight: 600; font-family: monospace; }
+    .val-blue  { color: var(--blue);  font-weight: 600; font-family: monospace; }
+
+    /* ── Formula blocks ── */
+    .formula-block {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-left: 3px solid var(--green);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+      font-size: 13px;
+      color: var(--fg1);
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .formula-block .comment {
+      color: var(--fg3);
+      font-style: italic;
+    }
+    .formula-block .highlight {
+      color: var(--green);
+      font-weight: 600;
+    }
+    .formula-block .highlight-amber {
+      color: var(--amber);
+      font-weight: 600;
+    }
+    .formula-block .highlight-blue {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    /* ── Info box ── */
+    .info-box {
+      display: flex;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 12.5px;
+    }
+    .info-box.amber {
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.2);
+      color: rgba(245,158,11,0.9);
+    }
+    .info-box.blue {
+      background: rgba(59,130,246,0.07);
+      border: 1px solid rgba(59,130,246,0.2);
+      color: rgba(147,197,253,0.9);
+    }
+    .info-box.green {
+      background: rgba(34,197,94,0.07);
+      border: 1px solid rgba(34,197,94,0.2);
+      color: rgba(134,239,172,0.9);
+    }
+    .info-box .icon { flex-shrink: 0; font-size: 15px; }
+    .info-box p { color: inherit; margin: 0; }
+
+    /* ── Source chips ── */
+    .source-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--fg3);
+      font-family: monospace;
+      margin: 2px 2px;
+    }
+
+    /* ── Data pipeline ── */
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 12px 0;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 14px;
+      background: var(--bg3);
+      border-radius: 6px;
+      font-size: 12.5px;
+    }
+    .pipeline-step .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(34,197,94,0.15);
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .pipeline-step .step-fn {
+      font-family: monospace;
+      color: var(--teal);
+      font-size: 12px;
+    }
+    .pipeline-step .step-desc {
+      color: var(--fg3);
+      font-size: 12px;
+    }
+
+    /* ── Divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 32px 0;
+    }
+
+    /* ── Limitation tags ── */
+    .limit-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+    }
+    .limit-row:last-child { border-bottom: none; }
+    .limit-badge {
+      flex-shrink: 0;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 1px;
+    }
+    .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-green { background: rgba(34,197,94,0.15);  color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-red   { background: rgba(239,68,68,0.15);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+    .badge-blue  { background: rgba(59,130,246,0.15); color: var(--blue);  border: 1px solid rgba(59,130,246,0.3);}
+
+    /* ── Glossary ── */
+    .glossary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .glossary-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .glossary-term {
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      margin-bottom: 3px;
+    }
+    .glossary-def {
+      font-size: 12px;
+      color: var(--fg3);
+    }
+    @media (max-width: 600px) {
+      .glossary-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Architecture overview ── */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .arch-cell {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .arch-cell .arch-icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+    .arch-cell .arch-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--fg1);
+      margin-bottom: 4px;
+    }
+    .arch-cell .arch-sub {
+      font-size: 10px;
+      color: var(--fg3);
+    }
+    @media (max-width: 600px) {
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: white; color: #1a1a1a; }
+      .page { max-width: none; padding: 24px; }
+      .card, .formula-block, .pipeline-step, .glossary-item, .arch-cell { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HEADER ── -->
+  <header class="doc-header">
+    <div class="tag-row">
+      <span class="tag green">Wissenschaftliche Dokumentation</span>
+      <span class="tag amber">Version 1.0 · Juni 2026</span>
+      <span class="tag blue">Resilientes Würzburg</span>
+    </div>
+    <h1>Tool-Logik und Quellen</h1>
+    <p class="subtitle">Interaktive Geodaten-Webanwendung zur Analyse urbaner Hitzeinseln, sozialer Vulnerabilität und Entsiegelungspotenzial in Würzburg — Methodenbeschreibung, Datengrundlagen und wissenschaftliche Quellen</p>
+    <div class="meta">
+      <div class="meta-item"><strong>Stack</strong> FastAPI · React/Vite · deck.gl · Zustand</div>
+      <div class="meta-item"><strong>Geodaten</strong> Landsat 8+9 (GEE) · Destatis Zensus 2022 · ATKIS Basis-DLM Bayern</div>
+      <div class="meta-item"><strong>Koordinatensystem</strong> EPSG:3035 (LAEA, Destatis-Gitter)</div>
+    </div>
+  </header>
+
+  <!-- ── TOC ── -->
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#s1">Systemüberblick</a></li>
+      <li><a href="#s2">Dashboard</a></li>
+      <li><a href="#s3">Hitzeatlas</a></li>
+      <li><a href="#s4">Vulnerabilität &amp; HVI</a></li>
+      <li><a href="#s5">Entsiegelung</a></li>
+      <li><a href="#s6a">Simulation: Baumpflanzung</a></li>
+      <li><a href="#s6b">Simulation: Entsiegelung</a></li>
+      <li><a href="#s7">Datenquellen-Übersicht</a></li>
+      <li><a href="#s8">Einschränkungen &amp; Validierungsbedarf</a></li>
+      <li><a href="#s9">Glossar</a></li>
+    </ol>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 1 · Systemüberblick -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num num-gray">1</div>
+      <h2>Systemüberblick</h2>
+    </div>
+
+    <p>Das Tool verbindet drei thematische Datenebenen zu einer kohärenten Analyseoberfläche. Alle Datenebenen sind räumlich auf das <strong>Destatis 100 m-LAEA-Gitter (EPSG:3035)</strong> harmonisiert — eine pixelgenaue Überlagerung ohne Resampling-Artefakte ist damit möglich.</p>
+
+    <div class="arch-grid">
+      <div class="arch-cell">
+        <div class="arch-icon">🌡️</div>
+        <div class="arch-label">Hitze</div>
+        <div class="arch-sub">Land Surface Temperature (LST), 100 m-Raster<br>Landsat 8+9 · Google Earth Engine</div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-icon">👥</div>
+        <div class="arch-label">Soziales</div>
+        <div class="arch-sub">Seniorenanteil 65+, Einwohnerdichte<br>Destatis Zensus 2022 · 100 m-Gitter</div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-icon">🏗️</div>
+        <div class="arch-label">Fläche</div>
+        <div class="arch-sub">Versiegelte Flächen nach Flächentyp<br>ATKIS Basis-DLM Bayern + OpenStreetMap</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Ebene</th><th>Backend-Endpoint</th><th>Räuml. Auflösung</th><th>Features</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>LST-Raster</td><td><span class="mono">GET /api/lst</span></td><td>100 m (LAEA)</td><td>~14.500</td></tr>
+          <tr><td>Zensus-Gitter</td><td><span class="mono">GET /api/zensus</span></td><td>100 m (LAEA)</td><td>~3.089</td></tr>
+          <tr><td>HVI-Score</td><td><span class="mono">GET /api/vulnerability</span></td><td>100 m (LAEA)</td><td>~3.089</td></tr>
+          <tr><td>Baumkataster</td><td><span class="mono">GET /api/trees</span></td><td>Punkte (WGS84)</td><td>44.647</td></tr>
+          <tr><td>Versiegelte Flächen</td><td><span class="mono">GET /api/entsiegelung</span></td><td>Polygone</td><td>variabel</td></tr>
+          <tr><td>Stadtbezirke</td><td><span class="mono">GET /api/stadtbezirke</span></td><td>Polygone</td><td>13</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 2 · Dashboard -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num num-teal">2</div>
+      <h2>Tab: Dashboard <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/</small></h2>
+    </div>
+
+    <p>Einstiegsseite mit vier KPI-Kacheln und je drei Top-Listen pro Dimension. Aggregierte Kennzahlen auf Stadtbezirksebene. Der Backend-Endpoint <span class="mono">GET /api/stadtbezirke</span> führt Spatial Joins gegen alle vier Datensätze durch.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Kennzahl</th><th>Berechnung</th><th>Datengrundlage</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>lst_median / lst_max</strong></td>
+            <td>Median / Maximum aller LST-Pixel im Bezirk</td>
+            <td>Landsat 8+9 Sommer-Median 2023–2025</td>
+          </tr>
+          <tr>
+            <td><strong>hvi_mean</strong></td>
+            <td>Σ(HVI × Einwohner) / Σ(Einwohner) — <em>bevölkerungsgewichtet</em></td>
+            <td>HVI-Score je Rasterzelle (→ Kap. 4)</td>
+          </tr>
+          <tr>
+            <td><strong>tree_count</strong></td>
+            <td>Anzahl Baumkataster-Punkte im Bezirks-Polygon</td>
+            <td>Baumkataster, opendata.wuerzburg.de</td>
+          </tr>
+          <tr>
+            <td><strong>entsiegelung_m2</strong></td>
+            <td>Σ Fläche aller ATKIS+OSM-Polygone im Bezirk</td>
+            <td>ATKIS Basis-DLM + OSM via osmnx</td>
+          </tr>
+          <tr>
+            <td><strong>einwohner</strong></td>
+            <td>Σ Einwohner aus Zensus-Zellen mit Polygon-Schnitt</td>
+            <td>Destatis Zensus 2022</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-box blue">
+      <span class="icon">ℹ</span>
+      <p><strong>hvi_mean</strong> ist bewusst bevölkerungsgewichtet (nicht arithmetisch), um dünn besiedelte Randlagen mit zufällig hohem Score nicht überzubewerten.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 3 · Hitzeatlas -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num num-red">3</div>
+      <h2>Tab: Hitzeatlas <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/hitzeatlas</small></h2>
+    </div>
+
+    <p>Choropleth-Karte der Landoberflächentemperatur (LST) auf 100 m-Rasterebene, überlagert mit dem vollständigen Baumkataster Würzburg. Hover-Tooltip, klickbares Baum-Popup, Top-5-Hitzespots.</p>
+
+    <h3>Landsat 8+9 LST — Datenquelle und Verarbeitung</h3>
+
+    <div class="card blue">
+      <div class="card-label">Primärdatenquelle</div>
+      <p style="color:var(--fg1);margin-bottom:6px"><strong>Google Earth Engine (GEE)</strong> · Kollektionen <span class="mono">LANDSAT/LC08/C02/T1_L2</span> und <span class="mono">LANDSAT/LC09/C02/T1_L2</span></p>
+      <p>Band <span class="mono">ST_B10</span> (Thermisches Infrarot, 10,6–12,5 μm), Level-2 Science Product</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Wert / Details</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Zeitraum</td><td>Sommer-Monate (Juni–August) 2023–2025 — <strong>3-Jahres-Median-Komposit</strong></td></tr>
+          <tr><td>Räumliche Auflösung</td><td>100 m (crsTransform=[100,0,4 300 000,0,−100,2 985 000], EPSG:3035)</td></tr>
+          <tr><td>QA-Masking</td><td>QA_PIXEL-Band: Wolken, Wolkenschatten, Schnee maskiert</td></tr>
+          <tr><td>Skalierung</td><td>GEE wendet DN→K→°C direkt an; Backend liest fertige °C-Werte (kein Rescaling)</td></tr>
+          <tr><td>Normierung</td><td>Rang-basierte Normierung via <span class="mono">scipy.stats.rankdata</span> → 0,0–1,0 (<span class="mono">lst_norm</span>)</td></tr>
+          <tr><td>Gitter-Ausrichtung</td><td>Exakt auf Destatis 100 m-LAEA-Gitter gesnappt (identischer crsTransform)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-box amber">
+      <span class="icon">⚠</span>
+      <p><strong>Warum Median-Komposit?</strong> Einzelszenen sind stark von Wolken und Staubanomalien abhängig. Der 3-Jahres-Median stabilisiert das Signal und reduziert szenenspezifische Artefakte bei gleichzeitiger Aktualität.</p>
+    </div>
+
+    <h3>Baumkataster</h3>
+    <div class="card">
+      <div class="card-label">Sekundärdatenquelle</div>
+      <p style="color:var(--fg1)">Stadt Würzburg · opendata.wuerzburg.de · Bulk-Export GeoParquet</p>
+      <p style="margin-top:6px"><strong>44.647 Bäume</strong> · Attribute: <span class="mono">baumart, baumart_la, baumtyp, baumhoehe, kronenbrei, stammumfan</span> · CRS: OGC:CRS84 (WGS84 lon/lat)</p>
+    </div>
+
+    <h3>Verarbeitungspipeline (Backend)</h3>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div><span class="step-fn">load_lst()</span> <span class="step-desc">— liest Band 1 aus GeoTIFF, berechnet Pixel-Bounding-Boxes aus rasterio-Transform, speichert Integer-Mittelpunkte x_mp_100m / y_mp_100m als Merge-Schlüssel</span></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div><span class="step-fn">load_tree_cadastre()</span> <span class="step-desc">— liest lokales Parquet, bereits in WGS84 (keine Reprojizierung nötig)</span></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div><span class="step-fn">GET /api/lst</span> <span class="step-desc">— gibt GeoJSON FeatureCollection zurück: Felder lst_celsius, lst_norm (~14.500 Features)</span></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <div><span class="step-fn">GET /api/trees</span> <span class="step-desc">— gibt GeoJSON mit allen 44.647 Punkt-Features zurück</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 4 · Vulnerabilität -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num num-purple">4</div>
+      <h2>Tab: Vulnerabilität <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/vulnerabilitaet</small></h2>
+    </div>
+
+    <p>Choropleth des <strong>Heat Vulnerability Index (HVI)</strong> auf 100 m-Rasterebene. Kombiniert thermische Belastung (LST) mit sozialer Verletzlichkeit (Seniorenanteil 65+). Separate Kartenlayer für LST, Demografie und HVI.</p>
+
+    <h3>HVI-Formel</h3>
+
+    <div class="formula-block">
+      <span class="highlight">HVI_raw</span> = <span class="highlight-amber">0,6</span> × lst_norm + <span class="highlight-amber">0,4</span> × anteil_65plus_adj<br>
+      <span class="highlight">HVI</span>     = HVI_raw × 9 + 1 &nbsp;&nbsp;<span class="comment">// Skalierung auf 1–10</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Faktor</th><th>Gewicht</th><th>Normierung</th><th>Begründung</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="mono">lst_norm</span></td>
+            <td><span class="val-amber">0,6</span></td>
+            <td>Rang-normiert 0–1</td>
+            <td>Hitzeexposition als dominanter Faktor</td>
+          </tr>
+          <tr>
+            <td><span class="mono">anteil_65plus_adj</span></td>
+            <td><span class="val-amber">0,4</span></td>
+            <td>Bayesian-adjustiert 0–1</td>
+            <td>Physiologische Hitzesensitivität älterer Bevölkerung</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Bayesian Shrinkage des Senioranteils</h3>
+    <p>Destatis-Gitterzellen mit &lt;10 Einwohnern produzieren ohne Korrektur Extremwerte (z. B. 3 Einwohner, alle 65+ → HVI = 10). Lösung: Empirischer Bayes-Schätzer (Credibility-Formel):</p>
+
+    <div class="formula-block">
+      anteil_65plus_adj =
+        (n × beobachtet + <span class="highlight">N_prior</span> × stadtmittel) / (n + N_prior)<br><br>
+      <span class="comment">// N_prior = 50 (Glaubwürdigkeit 50 % bei n = 50 Einwohnern)</span><br>
+      <span class="comment">// stadtmittel = bevölkerungsgewichteter Würzburger Mittelwert</span>
+    </div>
+
+    <div class="info-box blue">
+      <span class="icon">ℹ</span>
+      <p>Bei n = 50 Einwohnern liegt die Glaubwürdigkeit bei genau 50 % — die Zelle wird halb zur Stadtmittelrate, halb zum beobachteten Wert gezogen. Bei n ≫ 50 dominiert der beobachtete Wert.</p>
+    </div>
+
+    <h3>Daten: Destatis Zensus 2022</h3>
+
+    <div class="card">
+      <div class="card-label">Datenquelle</div>
+      <p style="color:var(--fg1)">Statistisches Bundesamt (Destatis) · <a href="https://www.destatis.de" style="color:var(--blue)">zensus2022.de</a></p>
+      <p>100 m × 100 m LAEA-Gitter (EPSG:3035) · Felder: <span class="mono">GITTER_ID_100m, a65undaelter, Einwohner</span></p>
+    </div>
+
+    <div class="info-box amber">
+      <span class="icon">⚠</span>
+      <p><strong>Geheimhaltungsrundung (§ 16 BStatG):</strong> Destatis rundet kleine Zellen stochastisch. Da Altersklassen und Gesamtbevölkerung aus getrennten CSVs stammen, kann <span class="mono">a65undaelter &gt; Einwohner</span> entstehen. Fix: <span class="mono">.clip(0, 1)</span> mit Markierung <span class="mono">anteil_65plus_clamped: true</span>. Betrifft &lt;2 % aller Würzburger Gitterzellen.</p>
+    </div>
+
+    <h3>Gitter-Harmonisierung LST ↔ Zensus</h3>
+    <p>Der LST-GeoTIFF wurde in GEE mit identischem <span class="mono">crsTransform=[100, 0, 4 300 000, 0, −100, 2 985 000]</span> exportiert. LST- und Zensus-Zellen werden über Integer-Mittelpunkte <span class="mono">(x_mp_100m, y_mp_100m)</span> via <span class="mono">pd.merge()</span> verknüpft — kein räumlicher Join nötig, kein Resampling-Fehler.</p>
+
+    <h3>Verarbeitungspipeline (Backend)</h3>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div><span class="step-fn">load_zensus()</span> <span class="step-desc">— merged Alters- + Bevölkerungs-CSV, berechnet anteil_65plus, clip(0,1)</span></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div><span class="step-fn">build_hvi_geodataframe()</span> <span class="step-desc">— merge auf (x_mp, y_mp), berechnet global_65_rate, wendet Bayesian Shrinkage an, ruft compute_hvi() auf → HVI 1–10</span></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div><span class="step-fn">GET /api/vulnerability</span> <span class="step-desc">— gibt GeoJSON mit hvi, lst_celsius, lst_norm, anteil_65plus_adj, Einwohner zurück</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 5 · Entsiegelung -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num num-green">5</div>
+      <h2>Tab: Entsiegelung <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/entsiegelung</small></h2>
+    </div>
+
+    <p>Karte aller versiegelten Flächen nach Flächentyp (ATKIS + OSM). Keine Scoring-Funktion — reine Visualisierung der Ausgangssituation. Kategorie-basierte Einfärbung, filterbar nach Quelle.</p>
+
+    <h3>ATKIS Basis-DLM Bayern</h3>
+    <div class="card green">
+      <div class="card-label">Primärquelle Flächen</div>
+      <p style="color:var(--fg1)">LDBV Bayern · <a href="https://geodaten.bayern.de" style="color:var(--green)">geodaten.bayern.de</a> · Datei: <span class="mono">bkg_shape_712.zip</span></p>
+      <p>Layer: <span class="mono">sie02_f.shp</span> (Siedlungsflächen) + <span class="mono">ver01_f.shp</span> (Verkehrsflächen) · CRS: EPSG:25832</p>
+      <p>Filter: Würzburg-BBox <span class="mono">(540 000, 5 505 000, 580 000, 5 540 000)</span> + Präzis-Clip in EPSG:4326</p>
+      <p>Fläche in EPSG:25832 berechnet (metrisch korrekt) vor Reprojizierung nach WGS84</p>
+    </div>
+
+    <h3>OpenStreetMap (OSM)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>OSM-Abfrage</th><th>type_key</th><th>Label</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="mono">amenity=parking</span></td><td><span class="mono">osm_parking</span></td><td>Parkplatz</td></tr>
+          <tr><td><span class="mono">place=square</span></td><td><span class="mono">osm_square</span></td><td>Platz / Markt</td></tr>
+          <tr><td><span class="mono">building=*</span> mit Flachdach/Gewerbe, <em>ohne</em> begrünte Dächer</td><td><span class="mono">osm_flat_roof_industrial</span></td><td>Flachdach / Gewerbebau</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 6a · Simulation Baumpflanzung -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s6a">
+    <div class="section-header">
+      <div class="section-num num-green">6a</div>
+      <h2>Simulation: Baumpflanzung <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/simulation → Tab Baumpflanzung</small></h2>
+    </div>
+
+    <p>Nutzer wählt LST-Kacheln (100 m × 100 m) in der Karte und stellt die Anzahl der Neupflanzungen ein. Das Tool berechnet Δ LST, Δ CO₂-Bindung und Δ Kronendeckung.</p>
+
+    <h3>Wissenschaftliche Grundlage: Koeffizienten</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Wert</th><th>Quelle</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ΔLST / 1 % Kronendeckung (Mischgebiet)</td>
+            <td><span class="val-blue">−0,083 °C</span></td>
+            <td>García de León et al. (2022), München</td>
+          </tr>
+          <tr>
+            <td>ΔLST / 1 % Kronendeckung (Gesamtstadt)</td>
+            <td><span class="val-blue">−0,069 °C</span></td>
+            <td>García de León et al. (2022), München</td>
+          </tr>
+          <tr>
+            <td>ΔLST / 1 % Kronendeckung (Erholungsflächen)</td>
+            <td><span class="val-blue">−0,038 °C</span></td>
+            <td>García de León et al. (2022), München</td>
+          </tr>
+          <tr>
+            <td>CO₂-Bindung pro Baum pro Jahr</td>
+            <td><span class="val-green">12,5 kg</span></td>
+            <td>Dr. Daniel Klein, Universität Münster</td>
+          </tr>
+          <tr>
+            <td>Kronenfläche pro Baum (Default)</td>
+            <td><span class="val-amber">50 m²</span></td>
+            <td>Literaturmittelwert</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Quelle: García de León et al. (2022)</div>
+      <p style="color:var(--fg1)">Tree canopy cover and its effects on Land Surface Temperature in Munich</p>
+      <p>Methodik: OLS-Regression LST ~ Baumkronenanteil, stratifiziert nach ATKIS-Nutzungsklassen. Daten: Landsat 8, Sommer 2020. R² = 0,41 (Erholungsfl.) bis 0,61 (Verkehrsfl.). Nutzungsklassen: Wohnen / Gewerbe / Verkehr / Mischgebiet / Erholung.</p>
+    </div>
+
+    <h3>Berechnungsschritte im Backend</h3>
+
+    <div class="formula-block">
+      <span class="comment">// Schritt 1 — Kronenfläche</span><br>
+      crown_area_total   = n_trees × 50 m²<br>
+      delta_coverage_pct = crown_area_total / area_m2 × 100  <span class="comment">// [%]</span><br>
+      <br>
+      <span class="comment">// Schritt 2 — Headroom-Korrektur (max. 100 % Kronendeckung)</span><br>
+      effective_delta = min(delta_coverage_pct, 100 − existing_coverage_pct)<br>
+      <br>
+      <span class="comment">// Schritt 3 — LST-Reduktion</span><br>
+      <span class="highlight">delta_lst_celsius</span> = −0,083 × effective_delta<br>
+      <br>
+      <span class="comment">// Schritt 4 — CO₂-Bindung</span><br>
+      <span class="highlight-blue">co2_kg_year</span> = n_trees × 12,5 kg
+    </div>
+
+    <h3>Eingabedaten im Panel</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Herkunft</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="mono">area_m2</span></td><td>Σ Fläche ausgewählter LST-Kacheln (n × 10.000 m²)</td></tr>
+          <tr><td><span class="mono">existing_coverage_pct</span></td><td>Ø Kronendeckung der gewählten Kacheln (Feld <span class="mono">bestand_pct</span> aus LST-GeoJSON)</td></tr>
+          <tr><td><span class="mono">n_trees</span></td><td>Slider/Texteingabe, Max = Headroom-Fläche / 50 m²</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 6b · Simulation Entsiegelung -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s6b">
+    <div class="section-header">
+      <div class="section-num num-blue">6b</div>
+      <h2>Simulation: Entsiegelung <small style="color:var(--fg3);font-weight:400;font-size:14px">&nbsp;/simulation → Tab Entsiegelung</small></h2>
+    </div>
+
+    <p>Nutzer wählt Flächen-Polygone und definiert je Flächentyp Ausgangs- und Zielbelag (Von/Zu). Berechnung von Δ Versickerung, Wasserbalance und Grundwasserschätzwert.</p>
+
+    <h3>Berechnungsgrundlage: Vereinfachte Rational-Formel</h3>
+
+    <div class="formula-block">
+      <span class="highlight">Versickerung [m³/Jahr]</span> = A [m²] × <span class="highlight-amber">N [m/Jahr]</span> × (<span class="highlight-blue">Ψ_von</span> − <span class="highlight-blue">Ψ_zu</span>)<br><br>
+      <span class="comment">// A = Entsiegelungsfläche (Slider-Eingabe)</span><br>
+      <span class="comment">// N = 0,5735 m/Jahr (573,5 mm · DWD Station 05705 Würzburg, 1991–2020)</span><br>
+      <span class="comment">// Ψ_von = Abflussbeiwert Ausgangsbelag</span><br>
+      <span class="comment">// Ψ_zu  = Abflussbeiwert Zielbelag</span>
+    </div>
+
+    <div class="info-box green">
+      <span class="icon">🌧</span>
+      <p><strong>Jahresniederschlag Würzburg:</strong> DWD Klimanormalperiode 1991–2020, Station 05705, Monatssummen Jan–Dez. Quelle: DWD Climate Data Center (opendata.dwd.de).</p>
+    </div>
+
+    <h3>Abflussbeiwerte Ψ je Belagstyp</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Belagstyp</th><th>Ψ</th><th>Versickerungsklasse</th><th>Primärquelle</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Asphalt / Beton (fugenlos)</td><td><span class="val-red">0,90</span></td><td>Kaum Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+          <tr><td>Pflaster mit dichten Fugen</td><td><span class="val-red">0,75</span></td><td>Geringe Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+          <tr><td>Pflaster mit offenen Fugen</td><td><span class="val-amber">0,50</span></td><td>Mäßige Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+          <tr><td>Lehm-/Kies-/Splittdecke</td><td><span class="val-amber">0,40</span></td><td>Mäßige Versickerung</td><td>Leitfaden Bayreuth 2024</td></tr>
+          <tr><td>Sickerpflaster</td><td><span class="val-amber">0,30</span></td><td>Gute Versickerung</td><td>Leitfaden Bayreuth 2024</td></tr>
+          <tr><td>Schotterrasen</td><td><span class="val-amber">0,30</span></td><td>Gute Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+          <tr><td>Rasengitter</td><td><span class="val-green">0,15</span></td><td>Sehr gute Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+          <tr><td>Rasenwabe</td><td><span class="val-green">0,15</span></td><td>Sehr gute Versickerung</td><td>Leitfaden Bayreuth 2024</td></tr>
+          <tr><td>Rasendecke / Wiese</td><td><span class="val-green">0,05</span></td><td>Beste Versickerung</td><td>DWA-A138 / LfU Bayern</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:12px;color:var(--fg3)"><strong>DWA-A138:</strong> Deutsche Vereinigung für Wasserwirtschaft, Abwasser und Abfall e.V. — <em>Planung, Bau und Betrieb von Anlagen zur Versickerung von Niederschlagswasser</em> (Ausgabe 2005, Neufassung 2020). Technische Norm, in Bayern durch LfU verbindlich eingeführt. Primärquelle für hydrologische Bemessung von Versickerungsanlagen.</p>
+
+    <h3>Ergebnisinterpretation: Personen-Jahrestrinkwasserbedarf</h3>
+
+    <div class="formula-block">
+      Entspricht ≈ X Personen-Jahresbedarf = Versickerung [m³/Jahr] / <span class="highlight-amber">46,4</span> [m³/Person/Jahr]<br><br>
+      <span class="comment">// Grundlage: 127 L/Tag × 365 Tage = 46.355 L = 46,4 m³/Person/Jahr</span><br>
+      <span class="comment">// Quelle: BDEW Wasserstatistik 2023 (Branchenbild Wasser)</span>
+    </div>
+
+    <h3>Ergebnisinterpretation: Grundwasserneubildung (Schätzwert)</h3>
+
+    <div class="formula-block">
+      Schätzbereich = Versickerung [m³/Jahr] × [<span class="highlight-blue">0,15</span> ; <span class="highlight-blue">0,30</span>]<br><br>
+      <span class="comment">// Ca. 15–30 % der versickernden Menge erreichen das Grundwasser</span><br>
+      <span class="comment">// Quelle: LfU Bayern — Grundwasser in Bayern (Richtwert)</span>
+    </div>
+
+    <div class="info-box amber">
+      <span class="icon">⚠</span>
+      <p>Lokale Bodeneigenschaften (kf-Wert), Grundwassertiefe und Bebauungsdichte im Einzugsgebiet sind nicht berücksichtigt. Der Wert dient ausschließlich als grobe Orientierung für Planungszwecke.</p>
+    </div>
+
+    <h3>Versiegelungsgrade je Flächentyp (Slider-Maximum)</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Flächentyp</th><th>Versiegelungsgrad</th><th>Typ. entsiegelbar</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Straßenverkehrsfläche</td><td><span class="val-red">98 %</span></td><td><span class="val-amber">10 %</span></td></tr>
+          <tr><td>Parkplatz (OSM)</td><td><span class="val-red">95 %</span></td><td><span class="val-green">70 %</span></td></tr>
+          <tr><td>Platz / Markt (OSM)</td><td><span class="val-red">90 %</span></td><td><span class="val-amber">45 %</span></td></tr>
+          <tr><td>Platz (ATKIS)</td><td><span class="val-red">88 %</span></td><td><span class="val-amber">45 %</span></td></tr>
+          <tr><td>Industrie- und Gewerbefläche</td><td><span class="val-red">80 %</span></td><td><span class="val-amber">40 %</span></td></tr>
+          <tr><td>Fläche gemischter Nutzung</td><td><span class="val-amber">65 %</span></td><td><span class="val-amber">35 %</span></td></tr>
+          <tr><td>Wohnbaufläche</td><td><span class="val-amber">60 %</span></td><td><span class="val-amber">30 %</span></td></tr>
+          <tr><td>Bes. funktionaler Prägung</td><td><span class="val-amber">60 %</span></td><td><span class="val-amber">35 %</span></td></tr>
+          <tr><td>Sport &amp; Freizeit, Friedhof</td><td><span class="val-green">20 %</span></td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--fg3)"><em>Typ. entsiegelbar</em> ist ein informativer Schätzwert (kein harter Cap im Slider). Er zeigt an, wie viel der versiegelten Fläche in der Praxis üblicherweise entsiegelbar ist — Gebäudefundamente und strukturell notwendige Befestigungen werden nicht mitgezählt.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 7 · Datenquellen -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num num-gray">7</div>
+      <h2>Datenquellen-Übersicht</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Quelle</th><th>Datensatz</th><th>Verwendung</th><th>Lizenz</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Google Earth Engine</td>
+            <td>Landsat 8+9 ST_B10, Sommer-Median 2023–2025</td>
+            <td>LST-Raster, alle temperaturbasierten Analysen</td>
+            <td><span class="source-chip">USGS · CC-PDM-1.0</span></td>
+          </tr>
+          <tr>
+            <td>Destatis</td>
+            <td>Zensus 2022, 100 m-Gitter, Altersstruktur + Einwohner</td>
+            <td>HVI-Berechnung, Seniorenanteil, Bevölkerungsdichte</td>
+            <td><span class="source-chip">dl-de/by-2-0</span></td>
+          </tr>
+          <tr>
+            <td>Stadt Würzburg</td>
+            <td>Baumkataster (44.647 Bäume)</td>
+            <td>Baumkarte, Simulation Kronendeckung</td>
+            <td><span class="source-chip">CC BY 4.0</span></td>
+          </tr>
+          <tr>
+            <td>LDBV Bayern</td>
+            <td>ATKIS Basis-DLM, sie02_f + ver01_f</td>
+            <td>Entsiegelungskarte, Flächentypen</td>
+            <td><span class="source-chip">CC BY 4.0</span></td>
+          </tr>
+          <tr>
+            <td>OpenStreetMap</td>
+            <td>Parkplätze, Plätze, Flachdächer</td>
+            <td>Ergänzung ATKIS-Layer</td>
+            <td><span class="source-chip">ODbL</span></td>
+          </tr>
+          <tr>
+            <td>DWD</td>
+            <td>Klimanormalperiode 1991–2020, Station 05705</td>
+            <td>Jahresniederschlag N = 573,5 mm</td>
+            <td><span class="source-chip">DWD Open Data</span></td>
+          </tr>
+          <tr>
+            <td>DWA-A138 / LfU Bayern</td>
+            <td>Abflussbeiwerte nach Belagstyp</td>
+            <td>Versickerungsberechnung</td>
+            <td><span class="source-chip">Normwerk</span></td>
+          </tr>
+          <tr>
+            <td>LRÄ Bayreuth (2024)</td>
+            <td>Leitfaden Flächenentsiegelung</td>
+            <td>Ergänzende Ψ-Werte, Kostenkennwerte</td>
+            <td><span class="source-chip">öffentlich</span></td>
+          </tr>
+          <tr>
+            <td>García de León et al. (2022)</td>
+            <td>LST × Baumkrone, München</td>
+            <td>Δ°C je Baum in Baumpflanzungssimulation</td>
+            <td><span class="source-chip">Wissenschaft</span></td>
+          </tr>
+          <tr>
+            <td>BDEW (2023)</td>
+            <td>Wasserstatistik, 127 L/Tag</td>
+            <td>Einordnung Versickerungsvolumen</td>
+            <td><span class="source-chip">öffentlich</span></td>
+          </tr>
+          <tr>
+            <td>LfU Bayern</td>
+            <td>Grundwasserneubildungsrichtwert 15–30 %</td>
+            <td>Grundwasserschätzwert in Simulation</td>
+            <td><span class="source-chip">öffentlich</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 8 · Einschränkungen -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num num-amber">8</div>
+      <h2>Methodische Einschränkungen und Validierungsbedarf</h2>
+    </div>
+
+    <h3>Örtliche Übertragbarkeit der Koeffizienten</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Koeffizient</th><th>Ursprungsort</th><th>Übertragbarkeit</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>−0,083 °C / % Kronendeckung</td>
+            <td>München (Cfb/Dfb)</td>
+            <td>Gleiche Klimazone, ähnliche Stadtstruktur</td>
+            <td><span class="badge-amber limit-badge">Plausibel · nicht validiert</span></td>
+          </tr>
+          <tr>
+            <td>Abflussbeiwerte Ψ</td>
+            <td>Bayern (DWA-A138)</td>
+            <td>Normwerk für Bayern direkt anwendbar</td>
+            <td><span class="badge-green limit-badge">Gültig</span></td>
+          </tr>
+          <tr>
+            <td>Versiegelungsgrade</td>
+            <td>Literaturmittelwerte</td>
+            <td>Keine Würzburg-spezifische Messung</td>
+            <td><span class="badge-red limit-badge">Schätzung</span></td>
+          </tr>
+          <tr>
+            <td>GW-Neubildung 15–30 %</td>
+            <td>Bayern (LfU)</td>
+            <td>Richtwert ohne Bodenerkundung</td>
+            <td><span class="badge-amber limit-badge">Orientierungswert</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <div class="limit-row">
+        <span class="limit-badge badge-amber">LST ≠ Luft</span>
+        <span style="color:var(--fg2)">Die Landoberflächentemperatur ist ein fernerkundlicher Proxy. Bei Vollsonne liegt sie mehrere °C über der Lufttemperatur. Alle Δ-Werte beziehen sich auf LST. Für Komfortaussagen (PET, UTCI) wäre ein gesondertes Modell erforderlich.</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-badge badge-amber">Statistisch</span>
+        <span style="color:var(--fg2)">Beide Simulationen basieren auf statistischen Regressionskoeffizienten. Es werden keine Rückkopplungen berücksichtigt (Windströmungen, Strahlungsgeometrie, Feuchtehaushalt). Eine physikalische Mikroklimasimulation (ENVI-met, WRF) würde mehr Präzision liefern.</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-badge badge-red">Geheimhalt.</span>
+        <span style="color:var(--fg2)">Destatis-Geheimhaltungsrundung (§ 16 BStatG) betrifft &lt;2 % der Würzburger Gitterzellen. Betroffene Zellen erhalten keinen HVI-Score; im Tooltip erscheint ein Datenschutz-Hinweis.</span>
+      </div>
+    </div>
+
+    <h3>Ausstehende Verbesserungen</h3>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--fg2)">
+        <span style="color:var(--amber);margin-top:2px">○</span>
+        <span><strong style="color:var(--fg1)">Würzburg-Kalibrierung:</strong> Eigene Regressionskoeffizienten LST × Baumkronendeckung aus Würzburger Daten ableiten (ATKIS-Klassen × Baumkataster × LST-Raster)</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--fg2)">
+        <span style="color:var(--amber);margin-top:2px">○</span>
+        <span><strong style="color:var(--fg1)">Bodenversickerung:</strong> LfU Bayern Bodendaten (kf-Werte, WFS) für flächentypgenaue Abflussbeiwerte</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--fg2)">
+        <span style="color:var(--amber);margin-top:2px">○</span>
+        <span><strong style="color:var(--fg1)">Copernicus Imperviousness Layer:</strong> Ersatz der Literaturschätzwerte für Versiegelungsgrade durch gemessene 10 m-Rasterdaten (GEE: JRC/GHSL/P2023A)</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--fg2)">
+        <span style="color:var(--amber);margin-top:2px">○</span>
+        <span><strong style="color:var(--fg1)">Kronenfläche aus Kataster:</strong> <span class="mono">kronenbrei</span>-Feld (Kronendurchmesser) für individuelle Kronenfläche statt Literatur-Default 50 m²</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 9 · Glossar -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="section-num num-gray">9</div>
+      <h2>Glossar</h2>
+    </div>
+
+    <div class="glossary-grid">
+      <div class="glossary-item">
+        <div class="glossary-term">LST</div>
+        <div class="glossary-def">Land Surface Temperature — Landoberflächentemperatur, gemessen als Strahlungstemperatur via Thermal-Infrarot-Sensor</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">lst_norm</div>
+        <div class="glossary-def">Rang-normierter LST-Wert 0–1 (0 = kälteste, 1 = heißeste Zelle im Würzburger Stadtgebiet)</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">HVI</div>
+        <div class="glossary-def">Heat Vulnerability Index — gewichteter Score 1–10 aus LST-Rang (60 %) und Seniorenanteil (40 %)</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">Ψ (Abflussbeiwert)</div>
+        <div class="glossary-def">Dimensionsloser Beiwert 0–1: Anteil des Niederschlags, der oberflächlich abfließt (1 = vollständig undurchlässig)</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">Versiegelungsgrad</div>
+        <div class="glossary-def">Anteil einer Flächeneinheit (Landnutzungsklasse), der physisch versiegelt ist</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">Rational-Formel</div>
+        <div class="glossary-def">Vereinfachtes hydrologisches Modell: Abflussvolumen = Fläche × Niederschlag × Abflussbeiwert</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">Bayesian Shrinkage</div>
+        <div class="glossary-def">Empirischer Bayes-Schätzer: kleine Rasterzellen werden zur Stadtmittelrate gezogen, um Small-Numbers-Verzerrung zu reduzieren</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">LAEA / EPSG:3035</div>
+        <div class="glossary-def">Lambert Azimuthal Equal Area — flächentreues Koordinatensystem, das Destatis für Gitterdaten verwendet</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">ATKIS</div>
+        <div class="glossary-def">Amtliches Topographisch-Kartographisches Informationssystem — amtliche Flächennutzungsklassifikation in Deutschland</div>
+      </div>
+      <div class="glossary-item">
+        <div class="glossary-term">QA-Masking</div>
+        <div class="glossary-def">Qualitätssicherungsmaske im Landsat-Prozessierungsalgorithmus: filtert Wolken, Schatten und Schnee aus der Szene</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div style="font-size:11px;color:var(--fg3)">
+      Resilientes Würzburg · Tool-Logik und Quellen · Version 1.0 · Juni 2026
+    </div>
+    <div style="font-size:11px;color:var(--fg3)">
+      Stack: FastAPI · React/Vite · deck.gl · Landsat 8+9 · Destatis Zensus 2022 · ATKIS Basis-DLM
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

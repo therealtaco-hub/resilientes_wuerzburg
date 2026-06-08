@@ -17,6 +17,13 @@ import EntsiegelungLegend from '../map/EntsiegelungLegend'
 
 const DEBOUNCE_MS = 300
 
+// Trinkwasserbedarf pro Person (BDEW Wasserstatistik 2023, 127 L/Tag)
+const WATER_USE_M3_PER_PERSON = (127 * 365) / 1000  // 46,4 m³/Jahr
+
+// Anteil der Versickerung, der das Grundwasser erreicht (LfU Bayern, Richtwert für Bayern)
+const GW_RATE_LOW  = 0.15
+const GW_RATE_HIGH = 0.30
+
 function formatWasserKontext(m3year) {
   if (m3year < 2) {
     const count = Math.round(m3year * 100)
@@ -528,30 +535,81 @@ export default function WasserSimPanel() {
                   </div>
                 </div>
 
-                {/* Versickerungsvolumen */}
+                {/* Versickerung + Interpretation */}
                 <div style={{ borderTop: '1px solid var(--border-soft)', paddingTop: 14 }}>
                   {results ? (
-                    <>
-                      <div className="flex items-baseline gap-1.5 mb-1">
-                        <span
-                          className="font-mono tabular-nums"
-                          style={{ fontSize: 26, fontWeight: 600, color: 'rgba(59,130,246,0.9)' }}
-                        >
-                          {fmt.num(results.infiltration, 0)}
-                        </span>
-                        <span className="text-fg-2 text-[13px] font-mono">m³/Jahr</span>
-                      </div>
-                      {wasserCtx && (
-                        <div className="text-fg-3 text-[11px] font-mono">
-                          ≈ {wasserCtx.count} {wasserCtx.unit}
-                          <span className="text-fg-3 ml-1">({wasserCtx.sub})</span>
+                    <div className="flex flex-col gap-3">
+
+                      {/* Primärer Wert */}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
+                          Zusätzliche Versickerung
+                        </p>
+                        <div className="flex items-baseline gap-1.5 mb-2">
+                          <span
+                            className="font-mono tabular-nums"
+                            style={{ fontSize: 26, fontWeight: 600, color: 'rgba(59,130,246,0.9)' }}
+                          >
+                            {fmt.num(results.infiltration, 0)}
+                          </span>
+                          <span className="text-fg-2 text-[13px] font-mono">m³/Jahr</span>
                         </div>
-                      )}
-                    </>
+                        {/* Einordnung */}
+                        <div className="flex flex-col gap-1">
+                          <div className="text-[11px]" style={{ color: 'var(--text-2)' }}>
+                            ≈{' '}
+                            <span className="font-mono font-semibold">
+                              {results.infiltration < WATER_USE_M3_PER_PERSON
+                                ? '< 1'
+                                : fmt.num(Math.round(results.infiltration / WATER_USE_M3_PER_PERSON), 0)}
+                            </span>
+                            {' '}Personen-Jahrestrinkwasserbedarf
+                            <span className="text-[10px] ml-1" style={{ color: 'var(--text-3)' }}>
+                              (127 L/Tag, BDEW 2023)
+                            </span>
+                          </div>
+                          {wasserCtx && (
+                            <div className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>
+                              ≈ {wasserCtx.count} {wasserCtx.unit}
+                              <span className="ml-1">({wasserCtx.sub})</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Grundwasserneubildung */}
+                      <div
+                        className="rounded-[8px] p-3 flex flex-col gap-2"
+                        style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}
+                      >
+                        <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'rgba(59,130,246,0.6)' }}>
+                          Grundwasserneubildung (Schätzwert)
+                        </p>
+                        <div className="flex items-baseline gap-1.5">
+                          <span
+                            className="font-mono tabular-nums"
+                            style={{ fontSize: 16, fontWeight: 600, color: 'rgba(59,130,246,0.75)' }}
+                          >
+                            ~{fmt.num(Math.round(results.infiltration * GW_RATE_LOW), 0)}–{fmt.num(Math.round(results.infiltration * GW_RATE_HIGH), 0)}
+                          </span>
+                          <span className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>m³/Jahr</span>
+                        </div>
+                        <p className="text-[10px]" style={{ color: 'var(--text-3)' }}>
+                          Ca. 15–30 % der Versickerung erreichen das Grundwasser (LfU Bayern, Richtwert für Bayern).
+                        </p>
+                        <div className="flex items-start gap-1.5 text-[10px]" style={{ color: 'rgba(251,191,36,0.75)' }}>
+                          <span className="shrink-0 mt-px">⚠</span>
+                          <span>
+                            Lokale Bodeneigenschaften, Grundwassertiefe und Bebauungsdichte im Einzugsgebiet sind nicht berücksichtigt — Wert dient nur als Orientierung.
+                          </span>
+                        </div>
+                      </div>
+
+                    </div>
                   ) : (
                     <div className="flex flex-col gap-1">
-                      <span className="font-mono text-fg-3" style={{ fontSize: 26, fontWeight: 600 }}>—</span>
-                      <span className="text-fg-3 text-[11px]">Fläche auswählen und Slider bedienen</span>
+                      <span className="font-mono" style={{ fontSize: 26, fontWeight: 600, color: 'var(--text-3)' }}>—</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>Fläche auswählen und Slider bedienen</span>
                     </div>
                   )}
                 </div>
