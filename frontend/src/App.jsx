@@ -2,6 +2,7 @@ import './index.css'
 import Sidebar from './components/layout/Sidebar.jsx'
 import Topbar from './components/layout/Topbar.jsx'
 import AppRoutes from './app/routes.jsx'
+import GlobalLoader from './components/ui/GlobalLoader.jsx'
 import useAppStore from './store/useAppStore.js'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <AppRoutes />
         </main>
       </div>
+      <GlobalLoader />
     </div>
   )
 }

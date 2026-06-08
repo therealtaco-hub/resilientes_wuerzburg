@@ -201,14 +201,13 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
 }
 
 export default function Hitzeatlas() {
-  const { layers } = useAppStore()
+  const { layers, setLayerLoading } = useAppStore()
   const mapRef = useRef(null)
 
   const [lstData, setLstData]         = useState(null)
   const [treeData, setTreeData]       = useState(null)
   const [bezirkeData, setBezirkeData] = useState(null)
   const [hotspotData, setHotspotData] = useState(null)
-  const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
 
   const [hoveredCell, setHoveredCell]     = useState(null)
@@ -216,21 +215,48 @@ export default function Hitzeatlas() {
   const [hoveredRank, setHoveredRank]     = useState(null)
   const [clickedTree, setClickedTree]     = useState(null)
 
-  useEffect(() => {
-    Promise.all([fetchLst(), fetchTrees(), fetchStadtbezirke()])
-      .then(([lst, trees, bezirke]) => {
-        setLstData(lst)
-        setTreeData(trees)
-        setBezirkeData(bezirke)
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+  // Fetch guard: prevents double-fetching when multiple deps change simultaneously
+  const fetchedRef = useRef({})
 
-    // Hotspots load independently — algorithm can take a moment
-    fetchHotspots()
-      .then(setHotspotData)
-      .catch(() => {}) // silent fail; card stays in loading state
-  }, [])
+  // LST — shared by heatmap and ndvi layers
+  useEffect(() => {
+    if (!(layers.heatmap || layers.ndvi) || fetchedRef.current.lst) return
+    fetchedRef.current.lst = true
+    setLayerLoading('heatmap', true)
+    fetchLst()
+      .then(setLstData)
+      .catch((e) => setError(e.message))
+      .finally(() => setLayerLoading('heatmap', false))
+  }, [layers.heatmap, layers.ndvi])
+
+  // Hotspots — triggered with heatmap, no global loading state (silent)
+  useEffect(() => {
+    if (!layers.heatmap || fetchedRef.current.hotspots) return
+    fetchedRef.current.hotspots = true
+    fetchHotspots().then(setHotspotData).catch(() => {})
+  }, [layers.heatmap])
+
+  // Trees
+  useEffect(() => {
+    if (!layers.trees || fetchedRef.current.trees) return
+    fetchedRef.current.trees = true
+    setLayerLoading('trees', true)
+    fetchTrees()
+      .then(setTreeData)
+      .catch(() => {})
+      .finally(() => setLayerLoading('trees', false))
+  }, [layers.trees])
+
+  // Stadtbezirke
+  useEffect(() => {
+    if (!layers.stadtbezirke || fetchedRef.current.stadtbezirke) return
+    fetchedRef.current.stadtbezirke = true
+    setLayerLoading('stadtbezirke', true)
+    fetchStadtbezirke()
+      .then(setBezirkeData)
+      .catch(() => {})
+      .finally(() => setLayerLoading('stadtbezirke', false))
+  }, [layers.stadtbezirke])
 
   const { bezirkMin, bezirkMedian, bezirkMax } = useMemo(() => {
     if (!bezirkeData) return {}
@@ -318,11 +344,6 @@ export default function Hitzeatlas() {
             Land Surface Temperature · {LST_LABEL}
           </p>
         </div>
-        {loading && (
-          <span className="text-[11px] text-accent-green font-mono animate-pulse">
-            Lade Daten …
-          </span>
-        )}
         {error && (
           <span className="text-[11px] text-accent-red font-mono">
             ● Backend nicht erreichbar – {error}

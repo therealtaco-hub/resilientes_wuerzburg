@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import VulnLayer from '../components/map/overlays/VulnLayer'
@@ -352,29 +352,64 @@ function Tooltip({ cell }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Vulnerabilitaet() {
-  const { layers, vulnWeights, setVulnWeights } = useAppStore()
+  const { layers, vulnWeights, setVulnWeights, setLayerLoading } = useAppStore()
 
   const [vulnData,    setVulnData]    = useState(null)
   const [lstData,     setLstData]     = useState(null)
   const [zensusData,  setZensusData]  = useState(null)
   const [bezirkeData, setBezirkeData] = useState(null)
-  const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState(null)
   const [hovered,     setHovered]     = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
 
+  const fetchedRef = useRef({})
+
+  // HVI / Vulnerabilitäts-Layer
   useEffect(() => {
-    Promise.all([fetchVulnerability(), fetchLst(), fetchZensus(), fetchStadtbezirke()])
-      .then(([vuln, lst, zensus, bezirke]) => {
+    if (!layers.vulnerabilitaet || fetchedRef.current.vuln) return
+    fetchedRef.current.vuln = true
+    setLayerLoading('vulnerabilitaet', true)
+    fetchVulnerability()
+      .then((vuln) => {
         setVulnData(vuln)
-        setLstData(lst)
-        setZensusData(zensus)
-        setBezirkeData(bezirke)
         if (vuln.meta?.weights) setVulnWeights(vuln.meta.weights)
       })
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLayerLoading('vulnerabilitaet', false))
+  }, [layers.vulnerabilitaet])
+
+  // LST (Hitzeinsel-Overlay)
+  useEffect(() => {
+    if (!layers.heatmap || fetchedRef.current.lst) return
+    fetchedRef.current.lst = true
+    setLayerLoading('heatmap', true)
+    fetchLst()
+      .then(setLstData)
+      .catch((e) => setError(e.message))
+      .finally(() => setLayerLoading('heatmap', false))
+  }, [layers.heatmap])
+
+  // Demografie 65+
+  useEffect(() => {
+    if (!layers.zensus || fetchedRef.current.zensus) return
+    fetchedRef.current.zensus = true
+    setLayerLoading('zensus', true)
+    fetchZensus()
+      .then(setZensusData)
+      .catch(() => {})
+      .finally(() => setLayerLoading('zensus', false))
+  }, [layers.zensus])
+
+  // Stadtbezirke (HVI)
+  useEffect(() => {
+    if (!layers.stadtbezirke || fetchedRef.current.stadtbezirke) return
+    fetchedRef.current.stadtbezirke = true
+    setLayerLoading('stadtbezirke', true)
+    fetchStadtbezirke()
+      .then(setBezirkeData)
+      .catch(() => {})
+      .finally(() => setLayerLoading('stadtbezirke', false))
+  }, [layers.stadtbezirke])
 
   const lstStats = useMemo(() => {
     if (!lstData) return {}
@@ -432,15 +467,6 @@ export default function Vulnerabilitaet() {
             Heat Vulnerability Index · Zensus 2022 · {LST_SENSOR}
           </p>
         </div>
-        {loading && (
-          <span className="flex items-center gap-2 text-[11px] font-mono" style={{ color: 'var(--green)' }}>
-            <span
-              className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
-              style={{ borderColor: 'var(--green)', borderTopColor: 'transparent' }}
-            />
-            Lade HVI-Daten …
-          </span>
-        )}
         {error && (
           <span className="flex items-center gap-2 text-[11px] font-mono text-accent-red">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-red" />

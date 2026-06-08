@@ -66,6 +66,12 @@ const useAppStore = create((set) => ({
     layers: { ...s.layers, [key]: !s.layers[key] }
   })),
 
+  // ── Layer-Loading-State (globale Overlay-Steuerung) ────────────────────
+  layerLoading: {},
+  setLayerLoading: (key, isLoading) => set((s) => ({
+    layerLoading: { ...s.layerLoading, [key]: isLoading },
+  })),
+
   // ── HVI-Gewichte (nach erstem Fetch befüllt) ───────────────────────────
   vulnWeights: null,
   setVulnWeights: (weights) => set({ vulnWeights: weights }),

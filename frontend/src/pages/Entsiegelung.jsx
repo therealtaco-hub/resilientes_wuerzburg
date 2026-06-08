@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import EntsiegelungLayer from '../components/map/overlays/EntsiegelungLayer'
 import EntsiegelungLegend from '../components/map/EntsiegelungLegend'
@@ -199,18 +199,23 @@ function InterpretationBox() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Entsiegelung() {
-  const { layers } = useAppStore()
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
+  const { layers, setLayerLoading } = useAppStore()
+  const [data, setData]   = useState(null)
+  const [error, setError] = useState(null)
   const [hovered, setHovered] = useState(null)
 
+  const fetchedRef = useRef(false)
+
+  // Beide Entsiegelungs-Layer teilen sich einen einzigen API-Call
   useEffect(() => {
+    if (!(layers.entsiegelung_atkis || layers.entsiegelung_osm) || fetchedRef.current) return
+    fetchedRef.current = true
+    setLayerLoading('entsiegelung_atkis', true)
     fetchEntsiegelung()
       .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [])
+      .catch((e) => setError(e.message))
+      .finally(() => setLayerLoading('entsiegelung_atkis', false))
+  }, [layers.entsiegelung_atkis, layers.entsiegelung_osm])
 
   const { totalCount, totalFlaeche } = useMemo(() => {
     if (!data) return {}
@@ -232,15 +237,6 @@ export default function Entsiegelung() {
             Versiegelungsgrad · ATKIS Basis-DLM · OpenStreetMap
           </p>
         </div>
-        {loading && (
-          <span className="flex items-center gap-2 text-[11px] font-mono" style={{ color: 'var(--green)' }}>
-            <span
-              className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
-              style={{ borderColor: 'var(--green)', borderTopColor: 'transparent' }}
-            />
-            Lade Entsiegelungsdaten …
-          </span>
-        )}
         {error && (
           <span className="flex items-center gap-2 text-[11px] font-mono text-accent-red">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-red" />
