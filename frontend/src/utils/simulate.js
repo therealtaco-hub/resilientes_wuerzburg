@@ -23,9 +23,9 @@ export const FROM_SURFACE_BY_TYPE_KEY = {
   'AX_Strassenverkehr':                       'asphalt',
   'AX_Platz':                                 'asphalt',
   'AX_IndustrieUndGewerbeflaeche':            'asphalt',
-  'AX_FlaecheGemischterNutzung':              'sickerpflaster',
-  'AX_Wohnbauflaeche':                        'sickerpflaster',
-  'AX_FlaecheBesondererFunktionalerPraegung': 'sickerpflaster',
+  'AX_FlaecheGemischterNutzung':              'pflaster_dicht',
+  'AX_Wohnbauflaeche':                        'pflaster_dicht',
+  'AX_FlaecheBesondererFunktionalerPraegung': 'pflaster_dicht',
   'AX_SportFreizeitUndErholungsflaeche':      'rasendecke',
   'AX_Friedhof':                              'rasendecke',
 }
@@ -34,13 +34,37 @@ export const getFromSurface = (type_key) => FROM_SURFACE_BY_TYPE_KEY[type_key] ?
 
 export const SURFACE_LABELS = {
   'asphalt':        'Asphalt / Beton',
+  'pflaster_dicht': 'Pflaster (dichte Fugen)',
+  'pflaster_offen': 'Pflaster (offene Fugen)',
+  'lehm_kies':      'Lehm-/Kies-/Splittdecke',
   'sickerpflaster': 'Sickerpflaster',
   'schotterrasen':  'Schotterrasen',
   'rasengitter':    'Rasengitter',
   'rasenwabe':      'Rasenwabe',
-  'lehm_kies':      'Lehm-/Kies-/Splittdecke',
   'rasendecke':     'Rasendecke / Wiese',
 }
+
+// Versiegelungsstufen, absteigend nach Abflussbeiwert (höchste → geringste Versiegelung)
+// Quellen: DWA-A138 / LfU Bayern; Leitfaden Flächenentsiegelung Bayreuth 2024
+export const SURFACE_ORDER = [
+  'asphalt',
+  'pflaster_dicht',
+  'pflaster_offen',
+  'lehm_kies',
+  'sickerpflaster',
+  'schotterrasen',
+  'rasengitter',
+  'rasenwabe',
+  'rasendecke',
+]
+
+export const getNextBetterSurface = (from) => {
+  const idx = SURFACE_ORDER.indexOf(from)
+  if (idx === -1 || idx >= SURFACE_ORDER.length - 1) return null
+  return SURFACE_ORDER[idx + 1]
+}
+
+export const isAlreadyGreenest = (from) => getNextBetterSurface(from) === null
 
 export const TYPE_KEY_LABELS = {
   'osm_parking':                              'Parkplatz',

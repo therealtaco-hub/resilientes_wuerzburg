@@ -7,6 +7,7 @@ import {
   SURFACE_LABELS,
   TYPE_KEY_LABELS,
   getFromSurface,
+  isAlreadyGreenest,
 } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import SimResultCard from './SimResultCard'
@@ -79,6 +80,7 @@ export default function WasserSimPanel() {
         .map((g) => {
           const cfg = groupConfig[g.type_key]
           if (!cfg) return null
+          if (isAlreadyGreenest(cfg.from_surface)) return null
           const area = flaecheM2 * (g.sealable / totalSealable)
           if (area <= 0) return null
           return fetchSimulateWasser({
@@ -172,12 +174,14 @@ export default function WasserSimPanel() {
             {groups.map((g) => {
               const cfg = groupConfig[g.type_key] ?? {
                 from_surface: getFromSurface(g.type_key),
-                to_surface:   'schotterrasen',
+                to_surface:   getFromSurface(g.type_key),
               }
+              const greenest = isAlreadyGreenest(cfg.from_surface)
               return (
                 <div
                   key={g.type_key}
                   className="bg-bg-2 border border-border rounded-[8px] p-3"
+                  style={greenest ? { opacity: 0.6 } : undefined}
                 >
                   <div className="flex items-baseline justify-between mb-2">
                     <div className="text-fg-0 text-[12px] font-medium">
@@ -187,30 +191,41 @@ export default function WasserSimPanel() {
                       {fmt.area(g.area_m2)} · {g.count}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-fg-3 text-[10px] w-6">Von</span>
-                    <select
-                      value={cfg.from_surface}
-                      onChange={(e) => setGroupSurface(g.type_key, 'from_surface', e.target.value)}
-                      className="flex-1 bg-bg-1 border border-border rounded px-2 py-1 text-fg-1 text-[11px]"
+                  {greenest ? (
+                    <div
+                      className="text-[11px] leading-snug px-2 py-1.5 rounded"
+                      style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-3)', border: '1px solid var(--border)' }}
                     >
-                      {surfaceKeys.map((k) => (
-                        <option key={k} value={k}>{SURFACE_LABELS[k]}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-fg-3 text-[10px] w-6">Zu</span>
-                    <select
-                      value={cfg.to_surface}
-                      onChange={(e) => setGroupSurface(g.type_key, 'to_surface', e.target.value)}
-                      className="flex-1 bg-bg-1 border border-border rounded px-2 py-1 text-fg-1 text-[11px]"
-                    >
-                      {surfaceKeys.map((k) => (
-                        <option key={k} value={k}>{SURFACE_LABELS[k]}</option>
-                      ))}
-                    </select>
-                  </div>
+                      Bereits vollversickernde Fläche – keine Entsiegelung möglich
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-fg-3 text-[10px] w-6">Von</span>
+                        <select
+                          value={cfg.from_surface}
+                          onChange={(e) => setGroupSurface(g.type_key, 'from_surface', e.target.value)}
+                          className="flex-1 bg-bg-1 border border-border rounded px-2 py-1 text-fg-1 text-[11px]"
+                        >
+                          {surfaceKeys.map((k) => (
+                            <option key={k} value={k}>{SURFACE_LABELS[k]}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-fg-3 text-[10px] w-6">Zu</span>
+                        <select
+                          value={cfg.to_surface}
+                          onChange={(e) => setGroupSurface(g.type_key, 'to_surface', e.target.value)}
+                          className="flex-1 bg-bg-1 border border-border rounded px-2 py-1 text-fg-1 text-[11px]"
+                        >
+                          {surfaceKeys.map((k) => (
+                            <option key={k} value={k}>{SURFACE_LABELS[k]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             })}

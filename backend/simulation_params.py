@@ -47,13 +47,15 @@ LST_PER_PCT_UNSEALING = -0.03  # °C pro 1 % Reduktion der Versiegelungsfläche
 # 0.0 = alles versickert, 1.0 = nichts versickert
 
 RUNOFF_COEFFICIENTS: dict[str, float] = {
-    "asphalt":        0.95,  # Referenz: vollversiegelt
-    "sickerpflaster": 0.30,  # Porenpflaster (Bandbreite 0.0–0.6, Mitte)
-    "schotterrasen":  0.30,  # Kies-/Schotterrasen
-    "rasengitter":    0.15,  # Rasengitterelemente (~40 % Grünanteil)
-    "rasenwabe":      0.15,  # Rasenwabe (>90 % Grünanteil)
-    "lehm_kies":      0.40,  # Lehm-/Kies-/Splittdecke
-    "rasendecke":     0.05,  # Vollbegrünung / Wiese (Bandbreite 0.0–0.1, Mitte)
+    "asphalt":        0.90,  # Asphalt / fugenloser Beton — DWA-A138 / LfU Bayern (Ψ = 0,9); zuvor 0,95 aus Leitfaden Bayreuth
+    "pflaster_dicht": 0.75,  # Pflaster mit dichten Fugen — DWA-A138 / LfU Bayern (Ψ = 0,75)
+    "pflaster_offen": 0.50,  # Pflaster mit offenen Fugen — DWA-A138 / LfU Bayern (Ψ = 0,5)
+    "lehm_kies":      0.40,  # Lehm-/Kies-/Splittdecke — Leitfaden Bayreuth 2024 (Ψ = 0,4)
+    "sickerpflaster": 0.30,  # Porenpflaster / Sickerpflaster (speziell versickerungsfähig) — Leitfaden Bayreuth 2024 (Ψ = 0,0–0,6, Mitte 0,3)
+    "schotterrasen":  0.30,  # Lockerer Kiesbelag / Schotterrasen — DWA-A138 / LfU Bayern (Ψ = 0,3)
+    "rasengitter":    0.15,  # Rasengittersteine — DWA-A138 / LfU Bayern (Ψ = 0,15)
+    "rasenwabe":      0.15,  # Rasenwabe (>90 % Grünanteil) — Leitfaden Bayreuth 2024 (Ψ = 0,15)
+    "rasendecke":     0.05,  # Gärten / Wiesen / Kulturland flach — DWA-A138 / LfU Bayern (Ψ = 0,0–0,1, Mitte)
 }
 
 # ── HYDROLOGIE ────────────────────────────────────────────────────────────────

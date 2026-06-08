@@ -26,13 +26,22 @@ const _FROM_SURFACE = {
   'AX_Strassenverkehr':                       'asphalt',
   'AX_Platz':                                 'asphalt',
   'AX_IndustrieUndGewerbeflaeche':            'asphalt',
-  'AX_FlaecheGemischterNutzung':              'sickerpflaster',
-  'AX_Wohnbauflaeche':                        'sickerpflaster',
-  'AX_FlaecheBesondererFunktionalerPraegung': 'sickerpflaster',
+  'AX_FlaecheGemischterNutzung':              'pflaster_dicht',
+  'AX_Wohnbauflaeche':                        'pflaster_dicht',
+  'AX_FlaecheBesondererFunktionalerPraegung': 'pflaster_dicht',
   'AX_SportFreizeitUndErholungsflaeche':      'rasendecke',
   'AX_Friedhof':                              'rasendecke',
 }
 const _getFromSurface = (type_key) => _FROM_SURFACE[type_key] ?? 'asphalt'
+
+const _SURFACE_ORDER = [
+  'asphalt', 'pflaster_dicht', 'pflaster_offen', 'lehm_kies', 'sickerpflaster', 'schotterrasen', 'rasengitter', 'rasenwabe', 'rasendecke',
+]
+const _getNextBetterSurface = (from) => {
+  const idx = _SURFACE_ORDER.indexOf(from)
+  if (idx === -1 || idx >= _SURFACE_ORDER.length - 1) return null
+  return _SURFACE_ORDER[idx + 1]
+}
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 
@@ -143,9 +152,10 @@ const useAppStore = create((set) => ({
     // groupConfig: auto-befüllen beim ersten Polygon eines neuen type_key
     const nextConfig = { ...s.sim.wasser.groupConfig }
     if (!exists && !(type_key in nextConfig)) {
+      const fromSurf = _getFromSurface(type_key)
       nextConfig[type_key] = {
-        from_surface: _getFromSurface(type_key),
-        to_surface:   'schotterrasen',
+        from_surface: fromSurf,
+        to_surface:   _getNextBetterSurface(fromSurf) ?? fromSurf,
       }
     }
     // groupConfig bereinigen wenn kein Polygon dieses type_key mehr vorhanden
