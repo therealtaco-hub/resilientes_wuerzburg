@@ -5,10 +5,13 @@ import DeckOverlay from './DeckOverlay'
 // Farben spiegeln EntsiegelungLayer (Konsistenz mit /entsiegelung).
 const TYPE_COLORS = {
   AX_IndustrieUndGewerbeflaeche:            [220,  80,  20, 150],
-  AX_Strassenverkehrsflaeche:                [ 55,  60,  72, 150],
+  AX_Strassenverkehr:                        [ 55,  60,  72, 150],
   AX_Platz:                                  [175, 135,   5, 150],
   AX_Wohnbauflaeche:                         [170, 130,  75, 150],
   AX_FlaecheGemischterNutzung:               [150, 105,  65, 150],
+  AX_SportFreizeitUndErholungsflaeche:       [ 75, 135,  75, 150],
+  AX_Friedhof:                               [ 95, 115,  95, 150],
+  AX_FlaecheBesondererFunktionalerPraegung:  [ 85, 100, 130, 150],
   osm_parking:                               [245, 158,  11, 150],
   osm_square:                                [ 59, 130, 246, 150],
 }

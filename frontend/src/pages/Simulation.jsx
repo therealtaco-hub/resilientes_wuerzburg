@@ -134,8 +134,8 @@ export default function Simulation() {
 
       {/* Map + Panel */}
       <div className="flex flex-1 gap-4 px-8 pb-8 min-h-0">
-        {/* Map */}
-        <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
+        {/* Map – Breite = aktuelle Map-Breite bei geöffneter Sidebar (100vw - 220sidebar - 64padding - 16gap - 420panel) */}
+        <div className="relative flex-none w-[calc(100vw-720px)] rounded-xl overflow-hidden border border-border">
           <MapSurface>
             {tab === 'baeume' && (
               <>
@@ -158,8 +158,8 @@ export default function Simulation() {
           </MapSurface>
         </div>
 
-        {/* Panel */}
-        <div className="w-[420px] flex-shrink-0 overflow-y-auto">
+        {/* Panel – flex-1 nimmt den Platz vom Sidebar-Collapse auf */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
           {tab === 'baeume' ? <BaumSimPanel lstData={lstData} /> : <WasserSimPanel />}
         </div>
       </div>

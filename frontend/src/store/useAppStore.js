@@ -6,25 +6,31 @@ const _CROWN_AREA_M2 = 50          // m² pro Baum (CROWN_AREA_M2_DEFAULT)
 const _CELL_AREA_M2  = 10_000      // m² pro LST-Kachel (100×100 m)
 
 const _SEAL_RATE = {
-  'osm_parking':                   0.95,
-  'osm_square':                    0.90,
-  'AX_Strassenverkehrsflaeche':    0.98,
-  'AX_Platz':                      0.88,
-  'AX_IndustrieUndGewerbeflaeche': 0.80,
-  'AX_FlaecheGemischterNutzung':   0.65,
-  'AX_Wohnbauflaeche':             0.60,
-  '_default':                      0.70,
+  'osm_parking':                              0.95,
+  'osm_square':                               0.90,
+  'AX_Strassenverkehr':                       0.98,
+  'AX_Platz':                                 0.88,
+  'AX_IndustrieUndGewerbeflaeche':            0.80,
+  'AX_FlaecheGemischterNutzung':              0.65,
+  'AX_Wohnbauflaeche':                        0.60,
+  'AX_FlaecheBesondererFunktionalerPraegung': 0.60,
+  'AX_SportFreizeitUndErholungsflaeche':      0.20,
+  'AX_Friedhof':                              0.20,
+  '_default':                                 0.70,
 }
 const _getSealRate = (type_key) => _SEAL_RATE[type_key] ?? _SEAL_RATE['_default']
 
 const _FROM_SURFACE = {
-  'osm_parking':                   'asphalt',
-  'osm_square':                    'asphalt',
-  'AX_Strassenverkehrsflaeche':    'asphalt',
-  'AX_Platz':                      'asphalt',
-  'AX_IndustrieUndGewerbeflaeche': 'asphalt',
-  'AX_FlaecheGemischterNutzung':   'sickerpflaster',
-  'AX_Wohnbauflaeche':             'sickerpflaster',
+  'osm_parking':                              'asphalt',
+  'osm_square':                               'asphalt',
+  'AX_Strassenverkehr':                       'asphalt',
+  'AX_Platz':                                 'asphalt',
+  'AX_IndustrieUndGewerbeflaeche':            'asphalt',
+  'AX_FlaecheGemischterNutzung':              'sickerpflaster',
+  'AX_Wohnbauflaeche':                        'sickerpflaster',
+  'AX_FlaecheBesondererFunktionalerPraegung': 'sickerpflaster',
+  'AX_SportFreizeitUndErholungsflaeche':      'rasendecke',
+  'AX_Friedhof':                              'rasendecke',
 }
 const _getFromSurface = (type_key) => _FROM_SURFACE[type_key] ?? 'asphalt'
 

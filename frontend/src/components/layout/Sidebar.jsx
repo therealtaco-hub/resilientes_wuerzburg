@@ -70,12 +70,13 @@ function ChevronIcon({ left }) {
   )
 }
 
-function NavItem({ to, label, icon, end, collapsed }) {
+function NavItem({ to, label, icon, end, collapsed, onNavigate }) {
   return (
     <NavLink
       to={to}
       end={end}
       title={collapsed ? label : undefined}
+      onClick={onNavigate}
       className={({ isActive }) =>
         [
           'relative flex items-center gap-3 rounded-md text-[13px] transition-colors select-none',
@@ -154,7 +155,14 @@ export default function Sidebar() {
         {collapsed && <div className="pt-3" />}
         <div className="flex flex-col gap-0.5">
           {NAV_SIMULATION.map((item) => (
-            <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon} collapsed={collapsed} />
+            <NavItem
+              key={item.to}
+              to={item.to}
+              label={item.label}
+              icon={item.icon}
+              collapsed={collapsed}
+              onNavigate={() => { if (!collapsed) toggleSidebar() }}
+            />
           ))}
         </div>
       </nav>

@@ -90,12 +90,15 @@ CO2_KG_PER_TREE_YEAR = 12.5
 #   (GEE: JRC/GHSL/P2023A/GHS_BUILT_S, 10 m, via spatial join auf selektierte Polygone)
 # Flachdächer (osm_flat_roof_industrial) explizit ausgeschlossen — kein Bodenbelag.
 SEAL_RATE_BY_TYPE: dict[str, float] = {
-    "osm_parking":                   0.95,
-    "osm_square":                    0.90,
-    "AX_Strassenverkehrsflaeche":    0.98,
-    "AX_Platz":                      0.88,
-    "AX_IndustrieUndGewerbeflaeche": 0.80,
-    "AX_FlaecheGemischterNutzung":   0.65,
-    "AX_Wohnbauflaeche":             0.60,
-    "_default":                      0.70,
+    "osm_parking":                              0.95,
+    "osm_square":                               0.90,
+    "AX_Strassenverkehr":                       0.98,
+    "AX_Platz":                                 0.88,
+    "AX_IndustrieUndGewerbeflaeche":            0.80,
+    "AX_FlaecheGemischterNutzung":              0.65,
+    "AX_Wohnbauflaeche":                        0.60,
+    "AX_FlaecheBesondererFunktionalerPraegung": 0.60,
+    "AX_SportFreizeitUndErholungsflaeche":      0.20,
+    "AX_Friedhof":                              0.20,
+    "_default":                                 0.70,
 }
