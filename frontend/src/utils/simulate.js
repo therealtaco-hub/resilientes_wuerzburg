@@ -80,3 +80,35 @@ export const TYPE_KEY_LABELS = {
 }
 
 export const CROWN_AREA_M2_DEFAULT = 50
+
+// Ψ-Abflussbeiwerte je Belagstyp (gespiegelt aus simulation_params.py RUNOFF_COEFFICIENTS)
+// Quellen: DWA-A138 / LfU Bayern; Leitfaden Flächenentsiegelung Landkreis Bayreuth 2024
+export const RUNOFF_COEFFICIENTS = {
+  asphalt:        0.90,
+  pflaster_dicht: 0.75,
+  pflaster_offen: 0.50,
+  lehm_kies:      0.40,
+  sickerpflaster: 0.30,
+  schotterrasen:  0.30,
+  rasengitter:    0.15,
+  rasenwabe:      0.15,
+  rasendecke:     0.05,
+}
+
+// Schätzwert: wie viel % der versiegelten Fläche ist je Flächentyp typischerweise entsiegelbar?
+// Kein harter Cap — dient nur als informativer Hinweis in der UI.
+// Hintergrund: Ein Großteil der versiegelten Fläche entfällt auf Gebäudeflächen (Fundamente,
+// Fabrikhallen, Wohngebäude), die nicht entsiegelt werden können.
+export const TYPICAL_REALIZATION_RATE = {
+  osm_parking:                              0.70,
+  osm_square:                               0.45,
+  AX_Strassenverkehr:                       0.10,
+  AX_Platz:                                 0.45,
+  AX_IndustrieUndGewerbeflaeche:            0.40,
+  AX_FlaecheGemischterNutzung:              0.35,
+  AX_Wohnbauflaeche:                        0.30,
+  AX_FlaecheBesondererFunktionalerPraegung: 0.35,
+  _default:                                 0.40,
+}
+export const getTypicalRealizationRate = (type_key) =>
+  TYPICAL_REALIZATION_RATE[type_key] ?? TYPICAL_REALIZATION_RATE['_default']
