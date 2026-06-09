@@ -183,6 +183,24 @@ export default function BaumSimPanel({ lstData, treeData }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Start-Hinweis — verschwindet bei erster Auswahl */}
+      {!hasSel && (
+        <div
+          className="rounded-[10px] p-4 flex items-start gap-3"
+          style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.35)' }}
+        >
+          <span style={{ fontSize: 20 }}>👆</span>
+          <div className="min-w-0">
+            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">So startest du die Simulation</div>
+            <div className="text-fg-2 text-[12px] leading-snug">
+              Klicke auf eine oder mehrere <span className="font-medium text-fg-0">Kacheln</span> in der
+              Karte, um Flächen für die Baumpflanzung auszuwählen. Anschließend stellst du die Anzahl der
+              Neupflanzungen ein und siehst den Kühl- und CO₂-Effekt.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LST-Legende */}
       {lstMin != null && (
         <div>

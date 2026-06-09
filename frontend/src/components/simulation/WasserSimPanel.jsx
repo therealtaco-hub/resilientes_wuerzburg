@@ -232,6 +232,24 @@ export default function WasserSimPanel() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Start-Hinweis — verschwindet bei erster Auswahl */}
+      {!hasSel && (
+        <div
+          className="rounded-[10px] p-4 flex items-start gap-3"
+          style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.35)' }}
+        >
+          <span style={{ fontSize: 20 }}>👆</span>
+          <div className="min-w-0">
+            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">So startest du die Simulation</div>
+            <div className="text-fg-2 text-[12px] leading-snug">
+              Klicke auf ein oder mehrere <span className="font-medium text-fg-0">Polygone</span> (Flächen)
+              in der Karte, um sie zu entsiegeln. Anschließend wählst du den neuen Belag und siehst die
+              jährliche Versickerung. <span className="text-fg-3">Flachdächer sind nicht auswählbar.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Legende */}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">Flächenarten</p>
