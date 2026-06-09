@@ -48,7 +48,7 @@ function BeforeAfterRow({ label, barFill, beforeFill, beforeFmt, afterFmt, delta
   )
 }
 
-export default function BaumSimPanel({ lstData }) {
+export default function BaumSimPanel({ lstData, treeData }) {
   const selectedCells       = useAppStore((s) => s.sim.selectedCells)
   const selectedCellsAreaM2 = useAppStore((s) => s.sim.selectedCellsAreaM2)
   const selectedCount       = selectedCells.length
@@ -73,6 +73,25 @@ export default function BaumSimPanel({ lstData }) {
     if (!vals.length) return null
     return vals.reduce((s, v) => s + v, 0) / vals.length
   }, [selectedCells, selectedCount, lstData])
+
+  // Bestandsbäume in selektierten Zellen via Bbox-Check
+  const treeCount = useMemo(() => {
+    if (!treeData?.features?.length || selectedCount === 0 || !lstData) return null
+    const bboxes = selectedCells.map((idx) => {
+      const coords = lstData.features[idx]?.geometry?.coordinates?.[0]
+      if (!coords) return null
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      for (const [x, y] of coords) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x
+        if (y < minY) minY = y; if (y > maxY) maxY = y
+      }
+      return [minX, minY, maxX, maxY]
+    }).filter(Boolean)
+    return treeData.features.filter((f) => {
+      const [lon, lat] = f.geometry.coordinates
+      return bboxes.some(([x0, y0, x1, y1]) => lon >= x0 && lon <= x1 && lat >= y0 && lat <= y1)
+    }).length
+  }, [treeData, selectedCells, selectedCount, lstData])
 
   const headroomPct    = Math.max(0, 100 - existingPct)
   const sliderMax      = Math.floor((headroomPct / 100) * selectedCellsAreaM2 / CROWN_AREA_M2_DEFAULT)
@@ -142,6 +161,11 @@ export default function BaumSimPanel({ lstData }) {
   const existingBarPct = Math.min(existingPct, 100)
   const newBarPct      = Math.min(effectiveNewPct, 100 - existingBarPct)
 
+  // Vorher/Nachher Baum-Werte
+  const treeCapacity  = (treeCount ?? 0) + sliderMax
+  const treeBarBefore = treeCapacity > 0 ? (treeCount ?? 0) / treeCapacity : 0
+  const treeBarAfter  = treeCapacity > 0 ? Math.min(((treeCount ?? 0) + anzahl) / treeCapacity, 1) : 1
+
   // Vorher/Nachher LST-Werte
   const lstRange    = (lstMax ?? 0) - (lstMin ?? 0) || 1
   const lstBefore   = avgLstCelsius
@@ -172,6 +196,7 @@ export default function BaumSimPanel({ lstData }) {
               </div>
               <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
                 Bestand: {fmt.pct(existingPct)} Kronendeckung
+                {treeCount != null && ` · ${fmt.num(treeCount)} ${treeCount === 1 ? 'Baum' : 'Bäume'}`}
               </div>
             </>
           ) : (
@@ -218,9 +243,13 @@ export default function BaumSimPanel({ lstData }) {
 
       {/* Slider + Text-Input */}
       <div className={hasSel ? '' : 'opacity-50 pointer-events-none'}>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-1">
           Neupflanzungen
         </div>
+        <p className="text-fg-3 text-[10px] leading-snug mb-3">
+          Simulierbar bis zur vollen Kronendeckung (100 %) der Fläche —
+          danach kein weiterer Kühleffekt.
+        </p>
 
         {/* Wert-Zeile: Zahl (editierbar) + Einheit + Max-Hinweis */}
         <div className="flex items-baseline gap-2 mb-2">
@@ -271,14 +300,24 @@ export default function BaumSimPanel({ lstData }) {
           </div>
           <div className="flex justify-between mt-1 text-[10px] font-mono text-fg-3">
             <span>
-              {existingBarPct > 0 && <><span style={{ color: 'rgba(34,197,94,0.6)' }}>■</span> {fmt.pct(existingPct)}</>}
-              {newBarPct > 0 && <> · <span style={{ color: 'var(--green)' }}>■</span> +{fmt.pct(effectiveNewPct)}</>}
+              {existingBarPct > 0 && <><span style={{ color: 'rgba(34,197,94,0.6)' }}>■</span> {fmt.pct(existingPct)} Bestand</>}
+              {newBarPct > 0 && <> · <span style={{ color: 'var(--green)' }}>■</span> +{fmt.pct(effectiveNewPct)} neu</>}
             </span>
-            <span style={{ color: 'var(--text-1)' }}>= {fmt.pct(totalPct)} gesamt</span>
+            <span>
+              <span style={{ color: 'var(--text-3)' }}>□ {fmt.pct(Math.max(0, 100 - totalPct))} frei</span>
+              {' · '}
+              <span style={{ color: 'var(--text-1)' }}>{fmt.pct(totalPct)} gesamt</span>
+            </span>
           </div>
         </div>
 
-        {newPctRaw > headroomPct + 0.05 && hasSel && (
+        {hasSel && sliderMax === 0 && (
+          <div className="text-accent-amber text-[10px] mt-1.5">
+            ⚠ Kronendeckung bereits bei {fmt.pct(existingPct)} — kein Platz für weitere Bäume.
+          </div>
+        )}
+
+        {newPctRaw > headroomPct + 0.05 && hasSel && sliderMax > 0 && (
           <div className="text-accent-amber text-[10px] mt-1.5">
             ⚠ {fmt.pct(newPctRaw - headroomPct)} überschreiten den Headroom — kein zusätzlicher Δ°C-Effekt.
           </div>
@@ -299,6 +338,20 @@ export default function BaumSimPanel({ lstData }) {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
+              {/* Baumanzahl */}
+              {treeCount != null && (
+                <BeforeAfterRow
+                  label="Baumanzahl"
+                  barFill={treeBarAfter}
+                  beforeFill={treeBarBefore}
+                  beforeFmt={`${fmt.num(treeCount)} ${treeCount === 1 ? 'Baum' : 'Bäume'}`}
+                  afterFmt={`${fmt.num(treeCount + anzahl)} Bäume`}
+                  deltaFmt={`+${fmt.num(anzahl)}`}
+                  deltaColor="var(--green)"
+                  barColor="var(--green)"
+                />
+              )}
+
               {/* Temperatur */}
               {lstBefore != null && (
                 <BeforeAfterRow

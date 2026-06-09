@@ -173,7 +173,7 @@ export default function Simulation() {
 
         {/* Panel – flex-1 nimmt den Platz vom Sidebar-Collapse auf */}
         <div className="flex-1 min-w-0 overflow-y-auto">
-          {tab === 'baeume' ? <BaumSimPanel lstData={lstData} /> : <WasserSimPanel />}
+          {tab === 'baeume' ? <BaumSimPanel lstData={lstData} treeData={treeData} /> : <WasserSimPanel />}
         </div>
       </div>
     </div>

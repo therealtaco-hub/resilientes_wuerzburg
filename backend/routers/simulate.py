@@ -26,6 +26,12 @@ _LAND_USE_INTERNAL = "mixed"
 
 _BAEUME_CAVEATS = [
     (
+        "Kronendeckung: Kronenflächen werden pro Zelle summiert, nicht als geometrische Union "
+        "berechnet — Überlappungen zwischen benachbarten Bäumen werden ignoriert. "
+        "In dichten Beständen (Parks, Alleen) wird die tatsächliche Bodenabdeckung dadurch "
+        "überschätzt."
+    ),
+    (
         "−0,083 °C/% basiert auf García de León et al. (München Sommer 2020) — "
         "noch nicht lokal für Würzburg kalibriert."
     ),
