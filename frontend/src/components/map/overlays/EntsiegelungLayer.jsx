@@ -18,7 +18,7 @@ const TYPE_COLORS = {
 }
 const DEFAULT_COLOR = [100, 100, 110, 170]
 
-export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover }) {
+export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover, onClick }) {
   if (!data) return null
 
   const visible = data.features.filter(f => {
@@ -40,5 +40,5 @@ export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover })
     updateTriggers: { getFillColor: [data, showAtkis, showOsm] },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

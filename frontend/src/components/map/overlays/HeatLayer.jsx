@@ -29,7 +29,7 @@ function centroidKey(f) {
   return `${lon}_${lat}`
 }
 
-export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
+export default function HeatLayer({ data, hotspots, hoveredRank, onHover, onClick }) {
   // Build centroid-key → rank lookup (empty Map when hotspots not yet loaded)
   const hotspotMap = useMemo(() => {
     if (!hotspots) return new Map()
@@ -146,6 +146,7 @@ export default function HeatLayer({ data, hotspots, hoveredRank, onHover }) {
     <DeckOverlay
       layers={[geoJsonLayer, ringLayer, dotLayer, labelLayer]}
       onHover={onHover}
+      onClick={onClick}
     />
   )
 }

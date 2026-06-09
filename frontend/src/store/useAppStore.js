@@ -60,6 +60,11 @@ const useAppStore = create((set) => ({
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
+  // ── Mobile-Navigation (Off-Canvas-Schublade < 1024px) ─────────────────────
+  mobileNavOpen: false,
+  setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
+  toggleMobileNav: () => set((s) => ({ mobileNavOpen: !s.mobileNavOpen })),
+
   // ── Aktive Karten-Layer — true = sichtbar ──────────────────────────────
   layers: {
     heatmap:            true,

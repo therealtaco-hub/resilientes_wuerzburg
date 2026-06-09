@@ -5,6 +5,8 @@ import EntsiegelungLegend from '../components/map/EntsiegelungLegend'
 import useAppStore from '../store/useAppStore'
 import { fetchEntsiegelung } from '../api/entsiegelung'
 import { fmt } from '../utils/format'
+import { tooltipPos, tapToHover } from '../utils/tooltip'
+import useIsMobile from '../hooks/useIsMobile'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -133,7 +135,7 @@ function EntsiegelungLayerPanel({ meta }) {
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 
-function Tooltip({ cell }) {
+function Tooltip({ cell, mobile }) {
   if (!cell) return null
   const p = cell.object.properties
 
@@ -143,8 +145,7 @@ function Tooltip({ cell }) {
       className="bg-bg-2 border border-border font-mono text-[11px] rounded-md px-3 py-2 space-y-0.5"
       style={{
         position: 'fixed',
-        left: cell.x + 14,
-        top: cell.y + 14,
+        ...tooltipPos(cell.x, cell.y, mobile, 200, 90),
         pointerEvents: 'none',
         zIndex: 9999,
       }}
@@ -200,6 +201,7 @@ function InterpretationBox() {
 
 export default function Entsiegelung() {
   const { layers, setLayerLoading } = useAppStore()
+  const isMobile = useIsMobile()
   const [data, setData]   = useState(null)
   const [error, setError] = useState(null)
   const [hovered, setHovered] = useState(null)
@@ -227,12 +229,15 @@ export default function Entsiegelung() {
   const handleHover = ({ object, x, y }) =>
     setHovered(object ? { object, x, y } : null)
 
+  // Mobil: Tooltips per Tap (onClick) statt Hover.
+  const pick = (handler) => (isMobile ? { onClick: tapToHover(handler) } : { onHover: handler })
+
   return (
-    <div className="flex flex-col h-[calc(100vh-48px)]">
+    <div className="flex flex-col lg:h-[calc(100vh-48px)]">
       {/* Page Header */}
-      <div className="flex items-end justify-between px-8 pt-8 pb-4 flex-shrink-0">
+      <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 lg:pb-4 flex-shrink-0">
         <div>
-          <h1 className="text-fg-0 text-[28px] font-semibold tracking-tight">Entsiegelung</h1>
+          <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">Entsiegelung</h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
             Versiegelungsgrad · ATKIS Basis-DLM · OpenStreetMap
           </p>
@@ -246,19 +251,19 @@ export default function Entsiegelung() {
       </div>
 
       {/* Map + Right Rail */}
-      <div className="flex flex-1 gap-4 px-8 pb-8 min-h-0">
-        <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">
+        <div className="relative h-[55vh] min-h-[320px] lg:h-auto lg:flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface>
             <EntsiegelungLayer
               data={data}
               showAtkis={layers.entsiegelung_atkis}
               showOsm={layers.entsiegelung_osm}
-              onHover={handleHover}
+              {...pick(handleHover)}
             />
           </MapSurface>
         </div>
 
-        <div className="w-[360px] flex flex-col gap-4 flex-shrink-0 overflow-y-auto">
+        <div className="w-full lg:w-[360px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto">
           <KpiCard
             label="Erfasste Flächen"
             value={totalCount != null ? fmt.num(totalCount) : '—'}
@@ -282,7 +287,7 @@ export default function Entsiegelung() {
         </div>
       </div>
 
-      <Tooltip cell={hovered} />
+      <Tooltip cell={hovered} mobile={isMobile} />
     </div>
   )
 }

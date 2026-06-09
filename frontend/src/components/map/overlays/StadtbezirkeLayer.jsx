@@ -22,7 +22,7 @@ function heatColor(norm) {
 
 // Normierung dynamisch aus den 13 Bezirkswerten berechnet (nicht absolut),
 // damit der volle Farbgradient immer ausgenutzt wird — unabhängig vom Temperaturjahr.
-export default function StadtbezirkeLayer({ data, onHover }) {
+export default function StadtbezirkeLayer({ data, onHover, onClick }) {
   const range = useMemo(() => {
     if (!data) return null
     const vals = data.features
@@ -55,5 +55,5 @@ export default function StadtbezirkeLayer({ data, onHover }) {
     },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

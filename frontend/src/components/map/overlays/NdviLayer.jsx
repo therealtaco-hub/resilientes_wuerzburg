@@ -24,7 +24,7 @@ function ndviColor(ndvi) {
     : lerp4(GREEN_MID, GREEN_HI, (t - 0.5) * 2)
 }
 
-export default function NdviLayer({ data, onHover }) {
+export default function NdviLayer({ data, onHover, onClick }) {
   if (!data) return null
 
   const layer = new GeoJsonLayer({
@@ -43,5 +43,5 @@ export default function NdviLayer({ data, onHover }) {
     transitions: { getFillColor: 300 },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import useAppStore from '../../store/useAppStore.js'
+import useIsMobile from '../../hooks/useIsMobile.js'
 
 const NAV_ANALYSE = [
   {
@@ -106,78 +107,122 @@ function NavItem({ to, label, icon, end, collapsed, onNavigate }) {
 }
 
 export default function Sidebar() {
-  const collapsed     = useAppStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
-  const width         = collapsed ? 48 : 220
+  const collapsed        = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar    = useAppStore((s) => s.toggleSidebar)
+  const isMobile         = useIsMobile()
+  const mobileNavOpen    = useAppStore((s) => s.mobileNavOpen)
+  const setMobileNavOpen = useAppStore((s) => s.setMobileNavOpen)
+
+  // Auf Mobil ist die Schublade immer ausgeklappt (Collapse-Affordanz nur Desktop).
+  const effectiveCollapsed = isMobile ? false : collapsed
+  const width = effectiveCollapsed ? 48 : 220
+
+  const closeMobile = () => setMobileNavOpen(false)
+  const handleNavigate = () => { if (isMobile) closeMobile() }
+
+  // Desktop: feste Sidebar mit Breiten-Animation. Mobil: Off-Canvas, per
+  // translateX ein-/ausgeblendet (Breite konstant 220px).
+  const asideStyle = isMobile
+    ? { width: 256, transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)' }
+    : { width }
 
   return (
-    <aside
-      className="fixed left-0 top-0 bottom-0 flex flex-col border-r border-border bg-bg-1 overflow-y-auto transition-[width] duration-200"
-      style={{ width }}
-    >
-      {/* Logo */}
-      <div className={`flex items-center gap-2.5 shrink-0 ${collapsed ? 'justify-center px-0 py-5' : 'px-4 py-5'}`}>
+    <>
+      {/* Backdrop nur Mobil + geöffnet */}
+      {isMobile && mobileNavOpen && (
         <div
-          className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-          style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 19c0-8 6-14 16-14 0 10-6 16-14 16-1 0-2-1-2-2z" />
-            <path d="M5 19c4-4 7-7 11-9" />
-          </svg>
-        </div>
-        {!collapsed && (
-          <span className="text-[13px] font-semibold text-fg-0 leading-tight whitespace-nowrap overflow-hidden">
-            Resilientes Würzburg
-          </span>
-        )}
-      </div>
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Nav */}
-      <nav className={`flex-1 pb-4 ${collapsed ? 'px-1' : 'px-3'}`}>
-        {!collapsed && (
-          <p className="px-3 pt-2 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
-            Analyse
-          </p>
-        )}
-        {collapsed && <div className="pt-2" />}
-        <div className="flex flex-col gap-0.5">
-          {NAV_ANALYSE.map((item) => (
-            <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon} end={item.to === '/'} collapsed={collapsed} />
-          ))}
+      <aside
+        className="fixed left-0 top-0 bottom-0 z-50 flex flex-col border-r border-border bg-bg-1 overflow-y-auto transition-[width,transform] duration-200"
+        style={asideStyle}
+      >
+        {/* Logo */}
+        <div className={`flex items-center gap-2.5 shrink-0 ${isMobile ? 'justify-between' : ''} ${effectiveCollapsed ? 'justify-center px-0 py-5' : 'px-4 py-5'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 19c0-8 6-14 16-14 0 10-6 16-14 16-1 0-2-1-2-2z" />
+                <path d="M5 19c4-4 7-7 11-9" />
+              </svg>
+            </div>
+            {!effectiveCollapsed && (
+              <span className="text-[13px] font-semibold text-fg-0 leading-tight whitespace-nowrap overflow-hidden">
+                Resilientes Würzburg
+              </span>
+            )}
+          </div>
+          {isMobile && (
+            <button
+              onClick={closeMobile}
+              aria-label="Menü schließen"
+              className="shrink-0 p-1.5 rounded-md text-fg-3 hover:bg-white/5 hover:text-fg-0 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {!collapsed && (
-          <p className="px-3 pt-5 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
-            Simulation
-          </p>
-        )}
-        {collapsed && <div className="pt-3" />}
-        <div className="flex flex-col gap-0.5">
-          {NAV_SIMULATION.map((item) => (
-            <NavItem
-              key={item.to}
-              to={item.to}
-              label={item.label}
-              icon={item.icon}
-              collapsed={collapsed}
-              onNavigate={() => { if (!collapsed) toggleSidebar() }}
-            />
-          ))}
-        </div>
-      </nav>
+        {/* Nav */}
+        <nav className={`flex-1 pb-4 ${effectiveCollapsed ? 'px-1' : 'px-3'}`}>
+          {!effectiveCollapsed && (
+            <p className="px-3 pt-2 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
+              Analyse
+            </p>
+          )}
+          {effectiveCollapsed && <div className="pt-2" />}
+          <div className="flex flex-col gap-0.5">
+            {NAV_ANALYSE.map((item) => (
+              <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon} end={item.to === '/'} collapsed={effectiveCollapsed} onNavigate={handleNavigate} />
+            ))}
+          </div>
 
-      {/* Collapse-Toggle */}
-      <div className={`shrink-0 border-t border-border ${collapsed ? 'flex justify-center py-3' : 'px-3 py-3'}`}>
-        <button
-          onClick={toggleSidebar}
-          title={collapsed ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-md text-fg-3 hover:bg-white/5 hover:text-fg-1 transition-colors text-[12px] select-none w-full justify-center"
-        >
-          <ChevronIcon left={!collapsed} />
-          {!collapsed && <span>Einklappen</span>}
-        </button>
-      </div>
-    </aside>
+          {!effectiveCollapsed && (
+            <p className="px-3 pt-5 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
+              Simulation
+            </p>
+          )}
+          {effectiveCollapsed && <div className="pt-3" />}
+          <div className="flex flex-col gap-0.5">
+            {NAV_SIMULATION.map((item) => (
+              <NavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={item.icon}
+                collapsed={effectiveCollapsed}
+                onNavigate={() => {
+                  if (isMobile) closeMobile()
+                  else if (!collapsed) toggleSidebar()
+                }}
+              />
+            ))}
+          </div>
+        </nav>
+
+        {/* Collapse-Toggle — nur Desktop */}
+        {!isMobile && (
+          <div className={`shrink-0 border-t border-border ${collapsed ? 'flex justify-center py-3' : 'px-3 py-3'}`}>
+            <button
+              onClick={toggleSidebar}
+              title={collapsed ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-fg-3 hover:bg-white/5 hover:text-fg-1 transition-colors text-[12px] select-none w-full justify-center"
+            >
+              <ChevronIcon left={!collapsed} />
+              {!collapsed && <span>Einklappen</span>}
+            </button>
+          </div>
+        )}
+      </aside>
+    </>
   )
 }

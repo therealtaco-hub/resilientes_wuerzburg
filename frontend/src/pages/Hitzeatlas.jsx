@@ -16,6 +16,8 @@ import { fetchHotspots } from '../api/hotspots'
 import { fmt } from '../utils/format'
 import { COLORS } from '../utils/colors'
 import { LST_LABEL } from '../utils/sources'
+import { tooltipPos, tapToHover } from '../utils/tooltip'
+import useIsMobile from '../hooks/useIsMobile'
 
 const HINTS = [
   {
@@ -202,7 +204,11 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
 
 export default function Hitzeatlas() {
   const { layers, setLayerLoading } = useAppStore()
+  const isMobile = useIsMobile()
   const mapRef = useRef(null)
+
+  // Mobil: Tooltips per Tap (onClick) statt Hover.
+  const pick = (handler) => (isMobile ? { onClick: tapToHover(handler) } : { onHover: handler })
 
   const [lstData, setLstData]         = useState(null)
   const [treeData, setTreeData]       = useState(null)
@@ -333,11 +339,11 @@ export default function Hitzeatlas() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-48px)]">
+    <div className="flex flex-col lg:h-[calc(100vh-48px)]">
       {/* Page Header */}
-      <div className="flex items-end justify-between px-8 pt-8 pb-4 flex-shrink-0">
+      <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 lg:pb-4 flex-shrink-0">
         <div>
-          <h1 className="text-fg-0 text-[28px] font-semibold tracking-tight">
+          <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
             Hitzeatlas
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
@@ -352,26 +358,26 @@ export default function Hitzeatlas() {
       </div>
 
       {/* Map + Right Rail */}
-      <div className="flex flex-1 gap-4 px-8 pb-8 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">
         {/* Karte */}
-        <div className="relative flex-1 rounded-xl overflow-hidden border border-border">
+        <div className="relative h-[55vh] min-h-[320px] lg:h-auto lg:flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface ref={mapRef}>
             {layers.heatmap      && (
               <HeatLayer
                 data={lstData}
                 hotspots={hotspotData}
                 hoveredRank={hoveredRank}
-                onHover={handleHover}
+                {...pick(handleHover)}
               />
             )}
             {layers.trees        && <TreeLayer data={treeData} onTreeClick={handleTreeClick} />}
-            {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} onHover={handleBezirkHover} />}
-            {layers.ndvi         && <NdviLayer data={lstData} onHover={handleHover} />}
+            {layers.stadtbezirke && <StadtbezirkeLayer data={bezirkeData} {...pick(handleBezirkHover)} />}
+            {layers.ndvi         && <NdviLayer data={lstData} {...pick(handleHover)} />}
           </MapSurface>
         </div>
 
         {/* Right Rail */}
-        <div className="w-[280px] flex flex-col gap-4 flex-shrink-0 overflow-y-auto">
+        <div className="w-full lg:w-[280px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto">
           <LayerPanel />
 
           {layers.heatmap && (
@@ -402,8 +408,7 @@ export default function Hitzeatlas() {
           className="bg-bg-2 border border-border text-fg-0 font-mono text-[11px] px-3 py-2 rounded-md space-y-0.5"
           style={{
             position: 'fixed',
-            left: hoveredCell.x + 14,
-            top:  hoveredCell.y + 14,
+            ...tooltipPos(hoveredCell.x, hoveredCell.y, isMobile, 150, 70),
             pointerEvents: 'none',
             zIndex: 9999,
           }}
@@ -499,8 +504,7 @@ export default function Hitzeatlas() {
           className="bg-bg-2 border border-border font-mono text-[11px] rounded-md px-3 py-2 space-y-0.5"
           style={{
             position: 'fixed',
-            left: hoveredBezirk.x + 14,
-            top:  hoveredBezirk.y + 14,
+            ...tooltipPos(hoveredBezirk.x, hoveredBezirk.y, isMobile, 190, 140),
             pointerEvents: 'none',
             minWidth: 180,
             zIndex: 9999,

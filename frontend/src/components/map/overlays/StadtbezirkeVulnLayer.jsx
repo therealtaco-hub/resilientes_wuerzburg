@@ -2,7 +2,7 @@ import { GeoJsonLayer } from '@deck.gl/layers'
 import { useMemo } from 'react'
 import DeckOverlay from './DeckOverlay'
 
-export default function StadtbezirkeVulnLayer({ data, onHover }) {
+export default function StadtbezirkeVulnLayer({ data, onHover, onClick }) {
   const range = useMemo(() => {
     if (!data) return null
     const vals = data.features
@@ -35,5 +35,5 @@ export default function StadtbezirkeVulnLayer({ data, onHover }) {
     },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

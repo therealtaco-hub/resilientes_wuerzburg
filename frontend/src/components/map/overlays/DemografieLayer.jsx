@@ -20,7 +20,7 @@ function demografieColor(anteil) {
   return lerp4(BLUE_LO, BLUE_HI, v)
 }
 
-export default function DemografieLayer({ data, onHover }) {
+export default function DemografieLayer({ data, onHover, onClick }) {
   if (!data) return null
 
   const layer = new GeoJsonLayer({
@@ -40,5 +40,5 @@ export default function DemografieLayer({ data, onHover }) {
     },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

@@ -11,8 +11,6 @@ import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
 import { fetchEntsiegelung } from '../api/entsiegelung'
 
-const MIN_WIDTH_PX = 1024
-
 function TabButton({ active, onClick, icon, label }) {
   return (
     <button
@@ -32,9 +30,6 @@ function TabButton({ active, onClick, icon, label }) {
 
 export default function Simulation() {
   const [tab, setTab] = useState('baeume')   // 'baeume' | 'wasser'
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window !== 'undefined' ? window.innerWidth : 1280,
-  )
   const [lstData, setLstData]     = useState(null)
   const [treeData, setTreeData]   = useState(null)
   const [entsData, setEntsData]   = useState(null)
@@ -50,15 +45,6 @@ export default function Simulation() {
   const setLayerLoading   = useAppStore((s) => s.setLayerLoading)
 
   useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-
-  const isDesktop = viewportWidth >= MIN_WIDTH_PX
-
-  useEffect(() => {
-    if (!isDesktop) return
     if (tab === 'baeume' && !lstData) {
       setLayerLoading('sim_lst', true)
       fetchLst()
@@ -80,7 +66,7 @@ export default function Simulation() {
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_ents', false))
     }
-  }, [tab, isDesktop, lstData, treeData, entsData])
+  }, [tab, lstData, treeData, entsData])
 
   // Clear selections wenn die zugehörigen Daten gewechselt werden — Indizes sonst ungültig.
   // (kein Refresh-Trigger hier, aber Initialload kann auch invalidieren)
@@ -93,29 +79,12 @@ export default function Simulation() {
 
   }, [entsData])
 
-  if (!isDesktop) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-48px)] p-8">
-        <div className="bg-bg-2 border border-border rounded-xl p-8 max-w-md text-center">
-          <div style={{ fontSize: 36 }}>🖥️</div>
-          <h2 className="text-fg-0 text-[18px] font-semibold mt-3">
-            Diese Seite ist für Desktop optimiert.
-          </h2>
-          <p className="text-fg-2 text-[13px] mt-2 leading-relaxed">
-            Die Simulationsseite kombiniert eine interaktive Karte mit detaillierten Auswertungs-Panels.
-            Bitte öffne sie auf einem Bildschirm mit mindestens 1024 px Breite.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-[calc(100vh-48px)]">
+    <div className="flex flex-col lg:h-[calc(100vh-48px)]">
       {/* Header */}
-      <div className="flex items-end justify-between px-8 pt-8 pb-3 flex-shrink-0">
+      <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 flex-shrink-0">
         <div>
-          <h1 className="text-fg-0 text-[28px] font-semibold tracking-tight">
+          <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
             Simulation
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
@@ -130,7 +99,7 @@ export default function Simulation() {
       </div>
 
       {/* Tab-Bar */}
-      <div className="flex gap-2 px-8 pb-4 flex-shrink-0">
+      <div className="flex gap-2 px-4 lg:px-8 pb-4 flex-shrink-0">
         <TabButton
           active={tab === 'baeume'}
           onClick={() => setTab('baeume')}
@@ -146,9 +115,9 @@ export default function Simulation() {
       </div>
 
       {/* Map + Panel */}
-      <div className="flex flex-1 gap-4 px-8 pb-8 min-h-0">
-        {/* Map – Breite = aktuelle Map-Breite bei geöffneter Sidebar (100vw - 220sidebar - 64padding - 16gap - 420panel) */}
-        <div className="relative flex-none w-[calc(100vw-720px)] rounded-xl overflow-hidden border border-border">
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">
+        {/* Map – Desktop: feste Breite (100vw - 220sidebar - 64padding - 16gap - 420panel). Mobil: volle Breite, feste Höhe. */}
+        <div className="relative w-full h-[55vh] min-h-[320px] lg:h-auto lg:flex-none lg:w-[calc(100vw-720px)] rounded-xl overflow-hidden border border-border">
           <MapSurface>
             {tab === 'baeume' && (
               <>
@@ -171,8 +140,8 @@ export default function Simulation() {
           </MapSurface>
         </div>
 
-        {/* Panel – flex-1 nimmt den Platz vom Sidebar-Collapse auf */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        {/* Panel – Desktop: flex-1 (nimmt Platz vom Sidebar-Collapse auf). Mobil: volle Breite, stapelt unter der Karte. */}
+        <div className="w-full lg:w-auto lg:flex-1 min-w-0 lg:overflow-y-auto">
           {tab === 'baeume' ? <BaumSimPanel lstData={lstData} treeData={treeData} /> : <WasserSimPanel />}
         </div>
       </div>

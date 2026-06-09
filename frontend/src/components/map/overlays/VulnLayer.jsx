@@ -23,7 +23,7 @@ function vulnColor(hvi) {
     : lerp4(PURPLE_MID, PURPLE_HI, (v - 0.5) * 2)
 }
 
-export default function VulnLayer({ data, onHover }) {
+export default function VulnLayer({ data, onHover, onClick }) {
   if (!data) return null
 
   const layer = new GeoJsonLayer({
@@ -46,5 +46,5 @@ export default function VulnLayer({ data, onHover }) {
     },
   })
 
-  return <DeckOverlay layers={[layer]} onHover={onHover} />
+  return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />
 }

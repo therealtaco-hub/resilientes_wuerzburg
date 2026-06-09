@@ -93,8 +93,8 @@ export default function Dashboard() {
   }, [bezirke])
 
   return (
-    <div className="p-8">
-      <h1 className="text-fg-0 text-[28px] font-semibold tracking-tight">
+    <div className="p-4 lg:p-8">
+      <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
         Dashboard
       </h1>
       <p className="text-fg-2 text-[13px] mt-0.5">
@@ -129,7 +129,7 @@ export default function Dashboard() {
       )}
 
       {kpis && !error && (
-        <div className="grid grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           <KpiCard
             label="Heißeste Zone"
             value={fmt.num(kpis.hottest.properties.lst_max, 1)}
@@ -166,7 +166,7 @@ export default function Dashboard() {
       )}
 
       {kpis && !error && (
-        <div className="grid grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
           <TopList
             title="Heißeste Bezirke"
             sub="LST Max · ⌀"
