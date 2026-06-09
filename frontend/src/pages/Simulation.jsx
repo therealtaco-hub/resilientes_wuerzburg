@@ -47,6 +47,7 @@ export default function Simulation() {
   const toggleSimPolygon  = useAppStore((s) => s.toggleSimPolygon)
   const clearSimCells     = useAppStore((s) => s.clearSimCells)
   const clearSimPolygons  = useAppStore((s) => s.clearSimPolygons)
+  const setLayerLoading   = useAppStore((s) => s.setLayerLoading)
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth)
@@ -59,13 +60,25 @@ export default function Simulation() {
   useEffect(() => {
     if (!isDesktop) return
     if (tab === 'baeume' && !lstData) {
-      fetchLst().catch((e) => setError(e.message)).then((d) => d && setLstData(d))
+      setLayerLoading('sim_lst', true)
+      fetchLst()
+        .then((d) => setLstData(d))
+        .catch((e) => setError(e.message))
+        .finally(() => setLayerLoading('sim_lst', false))
     }
     if (tab === 'baeume' && !treeData) {
-      fetchTrees().catch((e) => setError(e.message)).then((d) => d && setTreeData(d))
+      setLayerLoading('sim_trees', true)
+      fetchTrees()
+        .then((d) => setTreeData(d))
+        .catch((e) => setError(e.message))
+        .finally(() => setLayerLoading('sim_trees', false))
     }
     if (tab === 'wasser' && !entsData) {
-      fetchEntsiegelung().catch((e) => setError(e.message)).then((d) => d && setEntsData(d))
+      setLayerLoading('sim_ents', true)
+      fetchEntsiegelung()
+        .then((d) => setEntsData(d))
+        .catch((e) => setError(e.message))
+        .finally(() => setLayerLoading('sim_ents', false))
     }
   }, [tab, isDesktop, lstData, treeData, entsData])
 
