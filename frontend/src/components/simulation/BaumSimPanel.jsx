@@ -140,6 +140,14 @@ export default function BaumSimPanel({ lstData, treeData }) {
 
   const co2 = result ? formatCo2(result.co2_kg_year) : null
 
+  // CO₂-Bindung Vorher/Nachher: Bestand aus treeCount × Koeffizient, gleiche Formel wie Backend
+  const co2PerTree    = result?.coefficients_used?.co2_kg_per_tree_year ?? null
+  const co2BeforeKg   = co2PerTree != null && treeCount != null ? treeCount * co2PerTree : null
+  const co2AfterKg    = result != null ? (co2BeforeKg ?? 0) + result.co2_kg_year : null
+  const co2Before     = co2BeforeKg != null ? formatCo2(co2BeforeKg) : null
+  const co2After      = co2AfterKg  != null ? formatCo2(co2AfterKg)  : null
+  const co2BeforeFill = co2AfterKg > 0 ? (co2BeforeKg ?? 0) / co2AfterKg : 0
+
   const { lstMin, lstMedian, lstMax } = useMemo(() => {
     if (!lstData?.features?.length) return {}
     const vals = lstData.features
@@ -370,9 +378,9 @@ export default function BaumSimPanel({ lstData, treeData }) {
               <BeforeAfterRow
                 label="CO₂-Bindung"
                 barFill={result ? 1 : 0}
-                beforeFill={0}
-                beforeFmt="0 kg/Jahr"
-                afterFmt={co2 ? `${co2.value} ${co2.unit}` : '—'}
+                beforeFill={co2BeforeFill}
+                beforeFmt={co2Before ? `${co2Before.value} ${co2Before.unit}` : '—'}
+                afterFmt={co2After ? `${co2After.value} ${co2After.unit}` : '—'}
                 deltaFmt={co2 ? `+${co2.value} ${co2.unit}` : '—'}
                 deltaColor="var(--green)"
                 barColor="var(--green)"
