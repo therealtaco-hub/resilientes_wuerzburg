@@ -13,15 +13,23 @@ node_modules/
 dist/
 .next/
 
-# Geodaten (große Binärdateien)
+# Geodaten (große Binärdateien) – global ignorieren
 *.tif
 *.tiff
 *.parquet
 *.gpkg
 
+# backend/data/: Quelldateien zu groß für GitHub (>100 MB)
+backend/data/bkg_shape_712.zip
+backend/data/Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv
+backend/data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv
+
+# Ausnahmen: kleine Datendateien in backend/data/ committen
+!backend/data/*.tif
+!backend/data/*.tiff
+!backend/data/*.parquet
+!backend/data/dwd_wuerzburg_monthly_kl_hist.zip
+
 # OS
 .DS_Store
 Thumbs.db
-
-#data
-backend/data/
