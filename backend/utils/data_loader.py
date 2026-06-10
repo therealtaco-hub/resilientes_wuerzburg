@@ -21,6 +21,8 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
+from simulation_params import SEAL_RATE_BY_TYPE
+
 _DATA_DIR = Path(__file__).parent.parent / "data"
 _TREES_SOURCE = _DATA_DIR / "baumkataster_stadt_wuerzburg.parquet"  # Bulk-Export (alle 44.647 Records)
 _TREES_CACHE  = _DATA_DIR / "trees.parquet"                         # verarbeiteter Cache
@@ -156,17 +158,84 @@ def _compute_bestand_pct(lst_gdf: gpd.GeoDataFrame) -> pd.Series:
     return lst_gdf.index.to_series().map(pct).fillna(0.0).round(1)
 
 
+def _compute_seal_pct(lst_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
+    """Berechnet pro LST-Kachel den flächengewichteten Versiegelungsgrad (0–1) aus den
+    Entsiegelungs-Polygonen (ATKIS sie02/ver01 + OSM) sowie die dominante Flächenkategorie.
+
+    seal_pct = Σ(Überlappungsfläche × seal_rate) / 10.000 m², geklemmt auf [0, 1].
+    Versiegelungsgrade je type_key aus SEAL_RATE_BY_TYPE (Literaturwerte), unbekannte
+    Typen → _default. Kacheln ohne Polygon-Überdeckung gelten als unversiegelt (seal=0,
+    dominant=None) — Abwesenheit von sie02/ver01 ≈ Grün-/Freifläche (E2).
+
+    Der Clip [0, 1] fängt die Doppelzählung sich überlappender Polygone ab (z. B. OSM-Dach
+    innerhalb einer ATKIS-Wohnbaufläche) — bewusste Vereinfachung der groben Typ-Schätzung
+    (v2: GHSL-Imperviousness ersetzt das). Gibt (seal_pct, dominant_type_key) zurück.
+    """
+    none_dom = pd.Series([None] * len(lst_gdf), index=lst_gdf.index, dtype=object)
+    try:
+        ents = load_entsiegelung()
+    except Exception:
+        return pd.Series(0.0, index=lst_gdf.index), none_dom
+    if ents.empty or "type_key" not in ents.columns:
+        return pd.Series(0.0, index=lst_gdf.index), none_dom
+
+    ents = ents[["type_key", ents.geometry.name]].copy()
+    if ents.crs != lst_gdf.crs:
+        ents = ents.to_crs(lst_gdf.crs)
+    ents["seal_rate"] = (
+        ents["type_key"].map(SEAL_RATE_BY_TYPE).fillna(SEAL_RATE_BY_TYPE["_default"])
+    )
+
+    cells = lst_gdf[[lst_gdf.geometry.name]].copy()
+    cells["cell_id"] = lst_gdf.index
+
+    inter = gpd.overlay(ents, cells, how="intersection", keep_geom_type=False)
+    if inter.empty:
+        return pd.Series(0.0, index=lst_gdf.index), none_dom
+
+    # Überlappungsfläche metrisch in EPSG:25832 (UTM 32N) berechnen.
+    inter["overlap_area"] = inter.to_crs("EPSG:25832").geometry.area
+
+    # Flächengewichteter Versiegelungsgrad je Zelle, geklemmt gegen Polygon-Doppelzählung.
+    weighted = inter["overlap_area"] * inter["seal_rate"]
+    seal = (inter.assign(_w=weighted).groupby("cell_id")["_w"].sum() / 10_000.0).clip(0.0, 1.0)
+
+    # Dominante Kategorie = type_key mit der größten Überlappungsfläche je Zelle (nur fürs Label).
+    area_by = inter.groupby(["cell_id", "type_key"])["overlap_area"].sum().reset_index()
+    dom_idx = area_by.groupby("cell_id")["overlap_area"].idxmax()
+    dominant = area_by.loc[dom_idx].set_index("cell_id")["type_key"]
+
+    seal_series = lst_gdf.index.to_series().map(seal).fillna(0.0).round(3)
+    # Explizit None (nicht NaN) für Kacheln ohne Überdeckung — Series.where(..., None)
+    # würde None wieder zu NaN füllen (pandas-Falle).
+    mapped = lst_gdf.index.to_series().map(dominant)
+    dom_series = pd.Series(
+        [v if pd.notna(v) else None for v in mapped],
+        index=lst_gdf.index,
+        dtype=object,
+    )
+    return seal_series, dom_series
+
+
 def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     """Liest LST-GeoTIFF (EPSG:3035, 100m, Destatis-Gitter), berechnet Rang-Normierung,
     baut Pixel-Bounding-Boxes als Geometrien. Gibt GeoDataFrame in EPSG:4326 zurück.
 
-    Reichert pro Zelle `bestand_pct` (existierender Kronendeckungsanteil aus dem
-    Baumkataster) an. Alte Caches ohne diese Spalte werden lazy nachgereicht.
+    Reichert pro Zelle `bestand_pct` (projizierte Kronendeckung aus dem Baumkataster)
+    sowie `seal_pct`/`dominant_type_key` (Versiegelungsgrad + dominante Flächenkategorie
+    aus den Entsiegelungs-Polygonen) an. Alte Caches ohne diese Spalten werden lazy
+    nachgereicht.
     """
     if not force_refresh and _LST_CACHE.exists():
         gdf = gpd.read_parquet(_LST_CACHE)
+        changed = False
         if "bestand_pct" not in gdf.columns:
             gdf["bestand_pct"] = _compute_bestand_pct(gdf)
+            changed = True
+        if "seal_pct" not in gdf.columns:
+            gdf["seal_pct"], gdf["dominant_type_key"] = _compute_seal_pct(gdf)
+            changed = True
+        if changed:
             gdf.to_parquet(_LST_CACHE)
         return gdf
 
@@ -234,6 +303,7 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
         gdf = gdf.to_crs("EPSG:4326")
 
     gdf["bestand_pct"] = _compute_bestand_pct(gdf)
+    gdf["seal_pct"], gdf["dominant_type_key"] = _compute_seal_pct(gdf)
 
     gdf.to_parquet(_LST_CACHE)
     return gdf

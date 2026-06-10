@@ -880,6 +880,15 @@
         </tbody>
       </table>
     </div>
+
+    <h3>Pflanzbare Fläche (Versiegelungsgrad)</h3>
+    <p>Nicht die ganze Kachel ist bepflanzbar — versiegelter Boden trägt keinen Stamm. Pro 100-m-Kachel wird beim Cache-Bau ein flächengewichteter Versiegelungsgrad <span class="mono">seal_pct = Σ(Überlappungsfläche × seal_rate) / 10.000</span> aus den überlappenden ATKIS-/OSM-Flächen vorberechnet, dazu die dominante Kategorie fürs Label.</p>
+    <ul>
+      <li><strong>Pflanzbare Fläche</strong> = Zellfläche × (1 − <span class="mono">seal_pct</span>) → begrenzt nur die <strong>Stammzahl</strong>, nicht den Kühl-Nenner (<span class="mono">area_m2</span> bleibt die volle Fläche; Kronen überhängen versiegelten Boden, der Koeffizient ist gegen Deckung über die ganze Polygonfläche kalibriert).</li>
+      <li><strong>Versiegelungsgrade</strong>: Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024, DIN 18005; Arnold &amp; Gibbons 1996). v2: GHSL-Imperviousness (gemessen statt typbasiert).</li>
+      <li><strong>Lücken-Annahme</strong>: geladen sind nur ATKIS <span class="mono">sie02</span> (Siedlung) + <span class="mono">ver01</span> (Verkehr) — Kacheln ohne Überdeckung gelten als unversiegelt (Grün-/Freifläche) und werden im Readout markiert.</li>
+      <li><strong>Readout/Overlay</strong>: das Panel zeigt „überwiegend {Kategorie} · ~X % versiegelt · Y m² pflanzbar · max N Bäume"; optionaler ATKIS-Overlay-Toggle (Default aus) zur optischen Verifikation. Die pflanzbare Fläche ist eine Obergrenze, kein Pflanzplan.</li>
+    </ul>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->

@@ -18,7 +18,7 @@ const TYPE_COLORS = {
 }
 const DEFAULT_COLOR = [100, 100, 110, 170]
 
-export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover, onClick }) {
+export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover, onClick, pickable = true, alpha }) {
   if (!data) return null
 
   const visible = data.features.filter(f => {
@@ -29,15 +29,20 @@ export default function EntsiegelungLayer({ data, showAtkis, showOsm, onHover, o
 
   if (visible.length === 0) return null
 
+  const colorFor = (f) => {
+    const c = TYPE_COLORS[f.properties.type_key] ?? DEFAULT_COLOR
+    return alpha != null ? [c[0], c[1], c[2], alpha] : c
+  }
+
   const layer = new GeoJsonLayer({
     id: 'entsiegelung',
     data: { ...data, features: visible },
     stroked: false,
     filled: true,
-    pickable: true,
+    pickable,
     lineWidthMinPixels: 0,
-    getFillColor: f => TYPE_COLORS[f.properties.type_key] ?? DEFAULT_COLOR,
-    updateTriggers: { getFillColor: [data, showAtkis, showOsm] },
+    getFillColor: colorFor,
+    updateTriggers: { getFillColor: [data, showAtkis, showOsm, alpha] },
   })
 
   return <DeckOverlay layers={[layer]} onHover={onHover} onClick={onClick} />

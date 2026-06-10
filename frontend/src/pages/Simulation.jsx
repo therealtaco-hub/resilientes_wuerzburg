@@ -4,6 +4,7 @@ import HeatLayer from '../components/map/overlays/HeatLayer'
 import TreeLayer from '../components/map/overlays/TreeLayer'
 import SimCellLayer from '../components/map/overlays/SimCellLayer'
 import SimEntsiegelungLayer from '../components/map/overlays/SimEntsiegelungLayer'
+import EntsiegelungLayer from '../components/map/overlays/EntsiegelungLayer'
 import BaumSimPanel from '../components/simulation/BaumSimPanel'
 import WasserSimPanel from '../components/simulation/WasserSimPanel'
 import useAppStore from '../store/useAppStore'
@@ -38,6 +39,8 @@ export default function Simulation() {
   const selectedCells     = useAppStore((s) => s.sim.selectedCells)
   const selectedPolygons  = useAppStore((s) => s.sim.selectedPolygons)
   const showBaumkataster  = useAppStore((s) => s.sim.showBaumkataster)
+  const showSimLst        = useAppStore((s) => s.sim.showSimLst)
+  const showSimAtkis      = useAppStore((s) => s.sim.showSimAtkis)
   const toggleSimCell     = useAppStore((s) => s.toggleSimCell)
   const toggleSimPolygon  = useAppStore((s) => s.toggleSimPolygon)
   const clearSimCells     = useAppStore((s) => s.clearSimCells)
@@ -59,14 +62,17 @@ export default function Simulation() {
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_trees', false))
     }
-    if (tab === 'wasser' && !entsData) {
+    // Entsiegelungs-Polygone: für den Wasser-Tab immer, im Baum-Tab nur wenn das
+    // ATKIS-Versiegelungs-Overlay eingeschaltet ist (Verifikations-Layer, Default aus).
+    const needsEnts = tab === 'wasser' || (tab === 'baeume' && showSimAtkis)
+    if (needsEnts && !entsData) {
       setLayerLoading('sim_ents', true)
       fetchEntsiegelung()
         .then((d) => setEntsData(d))
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_ents', false))
     }
-  }, [tab, lstData, treeData, entsData])
+  }, [tab, lstData, treeData, entsData, showSimAtkis])
 
   // Clear selections wenn die zugehörigen Daten gewechselt werden — Indizes sonst ungültig.
   // (kein Refresh-Trigger hier, aber Initialload kann auch invalidieren)
@@ -121,7 +127,12 @@ export default function Simulation() {
           <MapSurface>
             {tab === 'baeume' && (
               <>
-                <HeatLayer data={lstData} />
+                {/* LST-Farbcodierung optional — Raster bleibt über SimCellLayer sichtbar */}
+                {showSimLst && <HeatLayer data={lstData} />}
+                {/* Versiegelungs-Overlay UNTER der Kachel-Selektion, nicht-pickbar (stiehlt sonst Klicks) */}
+                {showSimAtkis && (
+                  <EntsiegelungLayer data={entsData} showAtkis showOsm pickable={false} alpha={70} />
+                )}
                 <SimCellLayer
                   data={lstData}
                   selectedCells={selectedCells}

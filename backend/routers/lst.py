@@ -27,6 +27,7 @@ def get_lst(refresh: bool = False):
     has_ndvi = "ndvi" in gdf.columns
     has_ndbi = "ndbi" in gdf.columns
     has_bestand = "bestand_pct" in gdf.columns
+    has_seal = "seal_pct" in gdf.columns
 
     features = []
     for _, row in gdf.iterrows():
@@ -43,6 +44,13 @@ def get_lst(refresh: bool = False):
         if has_bestand:
             v = row["bestand_pct"]
             props["bestand_pct"] = float(v) if v == v else 0.0
+        if has_seal:
+            sv = row["seal_pct"]
+            seal = float(sv) if sv == sv else 0.0
+            props["seal_pct"] = seal
+            dv = row["dominant_type_key"]
+            props["dominant_type_key"] = dv if (dv is not None and dv == dv) else None
+            props["plantable_m2"] = round(10_000.0 * (1.0 - seal), 1)
         features.append({
             "type": "Feature",
             "geometry": mapping(row.geometry),

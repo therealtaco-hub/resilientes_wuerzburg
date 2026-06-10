@@ -2,8 +2,9 @@
 import { create } from 'zustand'
 
 // ── Simulationskonstanten (gespiegelt aus simulation_params.py / utils/simulate.js) ──
-const _CROWN_AREA_M2 = 50          // m² pro Baum (CROWN_AREA_M2_DEFAULT)
-const _CELL_AREA_M2  = 10_000      // m² pro LST-Kachel (100×100 m)
+const _CROWN_AREA_M2          = 50      // m² pro Baum (CROWN_AREA_M2_DEFAULT)
+const _MIN_GROUND_PER_TREE_M2 = 25      // m²/Baum, pflanzpraktischer Slider-Cap
+const _CELL_AREA_M2           = 10_000  // m² pro LST-Kachel (100×100 m)
 
 const _SEAL_RATE = {
   'osm_parking':                              0.95,
@@ -49,8 +50,10 @@ function _computeSealableM2(polygons) {
   return polygons.reduce((sum, p) => sum + p.area_m2 * _getSealRate(p.type_key), 0)
 }
 
+// Grober Pre-Cap für anzahl bei Selektionsänderung (volle Fläche, ohne Versiegelung).
+// Der seal-aware Finalclamp passiert im BaumSimPanel (kennt seal_pct aus den LST-Daten).
 function _baeumeSliderMax(cellsAreaM2) {
-  return Math.floor(cellsAreaM2 / _CROWN_AREA_M2)
+  return Math.floor(cellsAreaM2 / _MIN_GROUND_PER_TREE_M2)
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -94,6 +97,8 @@ const useAppStore = create((set) => ({
   sim: {
     // Sim A — Baumpflanzung
     showBaumkataster: true,     // Baumkataster als Overlay auf der Baum-Simulation
+    showSimLst: true,           // LST-Farbcodierung (HeatLayer); aus = nur Raster sichtbar
+    showSimAtkis: false,        // ATKIS/Entsiegelungs-Polygone als Versiegelungs-Overlay (Verifikation)
     selectedCells: [],          // number[] — Indizes im LST data-Array; session-only
     selectedCellsAreaM2: 0,     // abgeleitet: selectedCells.length × 10_000
 
@@ -112,6 +117,14 @@ const useAppStore = create((set) => ({
 
   toggleSimBaumkataster: () => set((s) => ({
     sim: { ...s.sim, showBaumkataster: !s.sim.showBaumkataster },
+  })),
+
+  toggleSimLst: () => set((s) => ({
+    sim: { ...s.sim, showSimLst: !s.sim.showSimLst },
+  })),
+
+  toggleSimAtkis: () => set((s) => ({
+    sim: { ...s.sim, showSimAtkis: !s.sim.showSimAtkis },
   })),
 
   // Sim A — Kachel-Selektion

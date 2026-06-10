@@ -231,12 +231,22 @@ Schritt 3 — CO₂-Bindung:
 | `existing_coverage_pct` | Ø Kronendeckung der ausgewählten Kacheln (Feld `bestand_pct` aus LST-GeoJSON) |
 | `n_trees` | Slider-/Texteingabe, Max = pflanzbare Fläche / 25 m² (Mindeststandfläche je Baum, Plausibilitäts-Cap) |
 
+#### Pflanzbare Fläche (Versiegelungsgrad)
+
+Nicht die ganze Kachel ist bepflanzbar — versiegelter Boden (Dächer, Straßen, Höfe) trägt keinen Stamm. Pro 100-m-Kachel wird beim Cache-Bau ein flächengewichteter **Versiegelungsgrad** `seal_pct` aus den überlappenden ATKIS-/OSM-Flächen vorberechnet (`seal_pct = Σ(Überlappungsfläche × seal_rate) / 10.000`), dazu die dominante Kategorie `dominant_type_key` fürs Label.
+
+- **Pflanzbare Fläche** = `Zellfläche × (1 − seal_pct)` → begrenzt nur die **Stammzahl** (`n_trees`), **nicht** den Kühl-Nenner (`area_m2` bleibt die volle Fläche — Kronen überhängen versiegelten Boden, der García-de-León-Koeffizient ist gegen Deckung über die ganze Polygonfläche kalibriert).
+- **Versiegelungsgrade** (`seal_rate` je Flächentyp): Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024, DIN 18005), Quelle Arnold & Gibbons (1996) für den Zusammenhang Landnutzung ↔ Versiegelung. v2: GHSL-Imperviousness (gemessen statt typbasiert).
+- **Lücken-Annahme:** Geladen sind nur ATKIS `sie02` (Siedlung) + `ver01` (Verkehr) — Kacheln ohne Überdeckung gelten als **unversiegelt** (Grün-/Freifläche). Das Tool markiert solche Kacheln im Readout, damit eine leere Stelle nicht als „fehlende Daten" missverstanden wird.
+- **Readout/Overlay:** Das Panel zeigt je Auswahl „überwiegend {Kategorie} · ~X % versiegelt · Y m² pflanzbar · max N Bäume". Ein optionaler ATKIS-Overlay-Toggle (Default aus) blendet die Polygone zur optischen Verifikation ein.
+
 #### Einschränkungen (im Tool kommuniziert)
 
 - Koeffizienten aus München — nicht mit Würzburger Daten kalibriert (Übertragbarkeit plausibel, R² variiert nach Nutzungsklasse)
 - LST ≠ Lufttemperatur (Landoberflächentemperatur kann um mehrere °C von der gefühlten Temperatur abweichen)
 - Kronenfläche 50 m² ist eine **Endausbau-Annahme** (Pretzsch 2015 / Moser-Reischl 2021); eine Neupflanzung erreicht sie erst nach ~20–40 Jahren — Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand
 - Kronenüberlappung wird über das Poisson-Modell (zufällige Platzierung) angenähert; bei regelmäßigen Alleen leicht unterschätzt, bei Park-Clustern leicht überschätzt (Gray et al. 2021)
+- Versiegelungsgrade sind grobe Typ-Mittelwerte (Literatur), keine gemessene Per-Zellen-Versiegelung; „unversiegelt" ≠ tatsächlich verfügbar (Privatgärten, Bestandsvegetation, Abstandsflächen) — die pflanzbare Fläche ist eine **Obergrenze**, kein Pflanzplan
 - Modell rein statistisch, keine physikalische Mikroklimasimulation
 
 ---

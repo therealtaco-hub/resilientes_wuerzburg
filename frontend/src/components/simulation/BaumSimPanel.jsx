@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useAppStore from '../../store/useAppStore'
 import { fetchSimulateBaeume } from '../../api/simulate'
-import { CROWN_AREA_M2_DEFAULT, MIN_GROUND_PER_TREE_M2 } from '../../utils/simulate'
+import { CROWN_AREA_M2_DEFAULT, MIN_GROUND_PER_TREE_M2, TYPE_KEY_LABELS } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import LSTLegend from '../map/LSTLegend'
 
@@ -57,6 +57,10 @@ export default function BaumSimPanel({ lstData, treeData }) {
   const clearCells          = useAppStore((s) => s.clearSimCells)
   const showBaumkataster    = useAppStore((s) => s.sim.showBaumkataster)
   const toggleBaumkataster  = useAppStore((s) => s.toggleSimBaumkataster)
+  const showSimLst          = useAppStore((s) => s.sim.showSimLst)
+  const toggleSimLst        = useAppStore((s) => s.toggleSimLst)
+  const showSimAtkis        = useAppStore((s) => s.sim.showSimAtkis)
+  const toggleSimAtkis      = useAppStore((s) => s.toggleSimAtkis)
 
   const existingPct = useMemo(() => {
     if (selectedCount === 0 || !lstData) return 0
@@ -93,8 +97,34 @@ export default function BaumSimPanel({ lstData, treeData }) {
     }).length
   }, [treeData, selectedCells, selectedCount, lstData])
 
-  // Slider-Max: pflanzpraktischer Cap über Mindeststandfläche (kein Modell-Cap, siehe simulate.js)
-  const sliderMax      = Math.max(0, Math.floor(selectedCellsAreaM2 / MIN_GROUND_PER_TREE_M2))
+  // Versiegelung: nur die unversiegelte Fläche ist pflanzbar (begrenzt die Stammzahl, NICHT
+  // den Kühl-Nenner — Kronen überhängen versiegelten Boden, siehe Plan 10.5).
+  const { avgSealPct, dominantLabel, hasGap } = useMemo(() => {
+    if (selectedCount === 0 || !lstData) return { avgSealPct: 0, dominantLabel: null, hasGap: false }
+    const seals = []
+    const domCounts = {}
+    let gap = false
+    for (const idx of selectedCells) {
+      const p = lstData.features[idx]?.properties
+      seals.push(p?.seal_pct ?? 0)
+      const dom = p?.dominant_type_key ?? null
+      if (dom == null) gap = true
+      else domCounts[dom] = (domCounts[dom] ?? 0) + 1
+    }
+    const avg = seals.reduce((s, v) => s + v, 0) / seals.length
+    const topDom = Object.entries(domCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+    return {
+      avgSealPct: avg,
+      dominantLabel: topDom ? (TYPE_KEY_LABELS[topDom] ?? topDom) : null,
+      hasGap: gap,
+    }
+  }, [selectedCells, selectedCount, lstData])
+
+  const plantableAreaM2 = selectedCellsAreaM2 * (1 - avgSealPct)
+
+  // Slider-Max: pflanzpraktischer Cap (Mindeststandfläche) auf der *pflanzbaren* (unversiegelten)
+  // Fläche — kein Modell-Cap. Kombiniert Teil-1-Entscheidung 1B mit dem Versiegelungsgrad.
+  const sliderMax      = Math.max(0, Math.floor(plantableAreaM2 / MIN_GROUND_PER_TREE_M2))
   const hasSel         = selectedCount > 0
   const sliderDisabled = !hasSel || sliderMax <= 0
 
@@ -207,8 +237,8 @@ export default function BaumSimPanel({ lstData, treeData }) {
         </div>
       )}
 
-      {/* LST-Legende */}
-      {lstMin != null && (
+      {/* LST-Legende — nur wenn die Farbcodierung aktiv ist */}
+      {showSimLst && lstMin != null && (
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">
             Oberflächentemperatur (LST)
@@ -230,6 +260,16 @@ export default function BaumSimPanel({ lstData, treeData }) {
                 Bestand: {fmt.pct(existingPct)} Kronendeckung
                 {treeCount != null && ` · ${fmt.num(treeCount)} ${treeCount === 1 ? 'Baum' : 'Bäume'}`}
               </div>
+              {/* Versiegelungs-Readout — genau die Größe, die in sliderMax eingeht */}
+              <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
+                {dominantLabel ? `überwiegend ${dominantLabel} · ` : ''}
+                ~{fmt.pct(avgSealPct * 100)} versiegelt · {fmt.area(plantableAreaM2)} pflanzbar · max {fmt.num(sliderMax)} Bäume
+              </div>
+              {hasGap && (
+                <div className="text-accent-amber text-[10px] mt-0.5 leading-snug">
+                  ⚠ Teils keine ATKIS-Siedlungs-/Verkehrsfläche → dort als unversiegelt (Grün-/Freifläche) angenommen.
+                </div>
+              )}
             </>
           ) : (
             <div className="text-fg-2 text-[12px] leading-snug">
@@ -247,6 +287,30 @@ export default function BaumSimPanel({ lstData, treeData }) {
           </button>
         )}
       </div>
+
+      {/* Layer-Toggle: LST-Farbcodierung (Raster bleibt sichtbar) */}
+      <button
+        onClick={toggleSimLst}
+        className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
+        style={{
+          background: showSimLst ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
+          border:     showSimLst ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
+        }}
+      >
+        <span
+          className="shrink-0 flex items-center justify-center rounded"
+          style={{ width: 16, height: 16, background: showSimLst ? 'var(--green)' : 'transparent', border: showSimLst ? 'none' : '1.5px solid var(--text-3)' }}
+        >
+          {showSimLst && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          )}
+        </span>
+        <span className="flex-1 text-[12px]" style={{ color: showSimLst ? 'var(--text-0)' : 'var(--text-2)' }}>
+          LST-Farbcodierung
+        </span>
+      </button>
 
       {/* Layer-Toggle: Baumkataster */}
       <button
@@ -271,6 +335,30 @@ export default function BaumSimPanel({ lstData, treeData }) {
           Baumkataster anzeigen
         </span>
         <span className="text-fg-3 text-[10px] font-mono">44.647</span>
+      </button>
+
+      {/* Layer-Toggle: ATKIS-Versiegelungs-Overlay (Verifikation der pflanzbaren Fläche) */}
+      <button
+        onClick={toggleSimAtkis}
+        className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
+        style={{
+          background: showSimAtkis ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
+          border:     showSimAtkis ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
+        }}
+      >
+        <span
+          className="shrink-0 flex items-center justify-center rounded"
+          style={{ width: 16, height: 16, background: showSimAtkis ? 'var(--green)' : 'transparent', border: showSimAtkis ? 'none' : '1.5px solid var(--text-3)' }}
+        >
+          {showSimAtkis && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          )}
+        </span>
+        <span className="flex-1 text-[12px]" style={{ color: showSimAtkis ? 'var(--text-0)' : 'var(--text-2)' }}>
+          Versiegelungsflächen (ATKIS/OSM)
+        </span>
       </button>
 
       {/* Slider + Text-Input */}
