@@ -127,7 +127,7 @@ resilientes-wuerzburg/
 | `GET /api/vulnerability` | HVI-Score als GeoJSON (`hvi` 1–10, Bayesian-adjustiert) |
 | `GET /api/entsiegelung` | ATKIS + OSM-Polygone nach `type_key` |
 | `GET /api/stadtbezirke` | 13 Stadtbezirke mit aggregierten Kennzahlen |
-| `GET /api/simulate/baeume` | Neupflanzungen → `delta_lst_celsius`, `co2_kg_year`, `delta_coverage_pct` |
+| `GET /api/simulate/baeume` | Neupflanzungen → `delta_lst_celsius`, `co2_kg_year`, `effective_new_pct`, `total_coverage_pct` |
 | `GET /api/simulate/wasser` | Entsiegelung → `infiltration_m3_year`, `retention_pct` |
 
 Alle Endpoints unterstützen `?refresh=true` zum Cache-Invalidieren.

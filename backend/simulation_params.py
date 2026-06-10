@@ -19,8 +19,13 @@ LST_PER_PCT_CANOPY_OVERALL      = -0.069  # °C pro 1 % Baumkronendeckung, gesam
 LST_PER_PCT_CANOPY_MIXED        = -0.083  # °C pro 1 % Kronendeckung, Misch-/Wohngebiet
 LST_PER_PCT_CANOPY_RECREATIONAL = -0.038  # °C pro 1 % Kronendeckung, Erholungsflächen
 
-# Angenommene mittlere Kronenfläche pro Stadtbaum (Literaturwert, keine Würzburg-Quelle)
-# Typische Bandbreite: 30–80 m² je nach Art und Alter
+# Angenommene mittlere Kronenfläche pro Stadtbaum — Endausbau-/„at-maturity"-Annahme.
+# Quellen: Pretzsch et al. 2015 (Urban For. & Urban Greening 14(3): Kronengrößen 22 Arten,
+#   Innenstadt < Park); Moser-Reischl et al. 2021 (Arboric. & Urban For. 47(4): süddt.
+#   Stadtbäume, z. B. Platanus × hispanica ~113,7 m² Kronenprojektion).
+# 50 m² = plausibler Mittelwert mittelalter Straßenbäume, unter Parkbaum-Endausbau.
+# ⚠ Eine Neupflanzung erreicht diese Kronenfläche erst nach ~20–40 Jahren (Caveat in
+#   /api/simulate/baeume). Typische Bandbreite: 30–80 m² je nach Art und Alter.
 CROWN_AREA_M2_DEFAULT = 50.0  # m² pro Baum
 
 # ── TRANSPIRATION NACH BAUMKLASSE ─────────────────────────────────────────────

@@ -853,17 +853,17 @@
     <h3>Berechnungsschritte im Backend</h3>
 
     <div class="formula-block">
-      <span class="comment">// Schritt 1 — Kronenfläche</span><br>
+      <span class="comment">// Schritt 1 — Projizierte Kronendeckung (Überlappungsmodell, Crookston &amp; Stage 1999)</span><br>
       crown_area_total   = n_trees × 50 m²<br>
-      delta_coverage_pct = crown_area_total / area_m2 × 100  <span class="comment">// [%]</span><br>
+      new_ratio          = crown_area_total / area_m2  <span class="comment">// Flächen-Verhältnis</span><br>
+      existing_ratio     = −ln(1 − existing_coverage_pct / 100)<br>
+      total_coverage_pct = (1 − exp(−(existing_ratio + new_ratio))) × 100  <span class="comment">// [%]</span><br>
+      effective_new_pct  = total_coverage_pct − existing_coverage_pct  <span class="comment">// ≥ 0, kein Cap</span><br>
       <br>
-      <span class="comment">// Schritt 2 — Headroom-Korrektur (max. 100 % Kronendeckung)</span><br>
-      effective_delta = min(delta_coverage_pct, 100 − existing_coverage_pct)<br>
+      <span class="comment">// Schritt 2 — LST-Reduktion (nur auf projizierten Zuwachs)</span><br>
+      <span class="highlight">delta_lst_celsius</span> = −0,083 × effective_new_pct<br>
       <br>
-      <span class="comment">// Schritt 3 — LST-Reduktion</span><br>
-      <span class="highlight">delta_lst_celsius</span> = −0,083 × effective_delta<br>
-      <br>
-      <span class="comment">// Schritt 4 — CO₂-Bindung</span><br>
+      <span class="comment">// Schritt 3 — CO₂-Bindung</span><br>
       <span class="highlight-blue">co2_kg_year</span> = n_trees × 12,5 kg
     </div>
 
@@ -876,7 +876,7 @@
         <tbody>
           <tr><td><span class="mono">area_m2</span></td><td>Σ Fläche ausgewählter LST-Kacheln (n × 10.000 m²)</td></tr>
           <tr><td><span class="mono">existing_coverage_pct</span></td><td>Ø Kronendeckung der gewählten Kacheln (Feld <span class="mono">bestand_pct</span> aus LST-GeoJSON)</td></tr>
-          <tr><td><span class="mono">n_trees</span></td><td>Slider/Texteingabe, Max = Headroom-Fläche / 50 m²</td></tr>
+          <tr><td><span class="mono">n_trees</span></td><td>Slider/Texteingabe, Max = pflanzbare Fläche / 25 m² (Mindeststandfläche, Plausibilitäts-Cap)</td></tr>
         </tbody>
       </table>
     </div>

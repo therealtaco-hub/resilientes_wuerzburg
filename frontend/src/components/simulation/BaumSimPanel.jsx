@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useAppStore from '../../store/useAppStore'
 import { fetchSimulateBaeume } from '../../api/simulate'
-import { CROWN_AREA_M2_DEFAULT } from '../../utils/simulate'
+import { CROWN_AREA_M2_DEFAULT, MIN_GROUND_PER_TREE_M2 } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import LSTLegend from '../map/LSTLegend'
 
@@ -93,8 +93,8 @@ export default function BaumSimPanel({ lstData, treeData }) {
     }).length
   }, [treeData, selectedCells, selectedCount, lstData])
 
-  const headroomPct    = Math.max(0, 100 - existingPct)
-  const sliderMax      = Math.floor((headroomPct / 100) * selectedCellsAreaM2 / CROWN_AREA_M2_DEFAULT)
+  // Slider-Max: pflanzpraktischer Cap über Mindeststandfläche (kein Modell-Cap, siehe simulate.js)
+  const sliderMax      = Math.max(0, Math.floor(selectedCellsAreaM2 / MIN_GROUND_PER_TREE_M2))
   const hasSel         = selectedCount > 0
   const sliderDisabled = !hasSel || sliderMax <= 0
 
@@ -131,12 +131,18 @@ export default function BaumSimPanel({ lstData, treeData }) {
     return () => debounceRef.current && clearTimeout(debounceRef.current)
   }, [hasSel, anzahl, selectedCellsAreaM2, existingPct])
 
-  const newPctRaw      = useMemo(() => {
-    if (!hasSel || anzahl < 1) return 0
-    return (anzahl * CROWN_AREA_M2_DEFAULT) / selectedCellsAreaM2 * 100
-  }, [hasSel, anzahl, selectedCellsAreaM2])
-  const effectiveNewPct = Math.min(newPctRaw, headroomPct)
-  const totalPct        = Math.min(existingPct + effectiveNewPct, 100)
+  // Projizierte Kronendeckung (Crookston & Stage 1999) — spiegelt die Backend-Formel
+  // für die unmittelbare Slider-Vorschau. Bestand & Neu werden im Flächen-Verhältnis
+  // addiert, nicht als Prozente. Backend bleibt die Wahrheit.
+  const { totalPct, effectiveNewPct, naiveNewPct } = useMemo(() => {
+    const existingSafe  = Math.min(existingPct, 99.9)
+    const existingRatio = -Math.log(1 - existingSafe / 100)
+    const newRatio = (!hasSel || anzahl < 1 || selectedCellsAreaM2 <= 0)
+      ? 0
+      : (anzahl * CROWN_AREA_M2_DEFAULT) / selectedCellsAreaM2
+    const total = Math.max(existingPct, (1 - Math.exp(-(existingRatio + newRatio))) * 100)
+    return { totalPct: total, effectiveNewPct: total - existingPct, naiveNewPct: newRatio * 100 }
+  }, [hasSel, anzahl, selectedCellsAreaM2, existingPct])
 
   const co2 = result ? formatCo2(result.co2_kg_year) : null
 
@@ -273,8 +279,8 @@ export default function BaumSimPanel({ lstData, treeData }) {
           Neupflanzungen
         </div>
         <p className="text-fg-3 text-[10px] leading-snug mb-3">
-          Simulierbar bis zur vollen Kronendeckung (100 %) der Fläche —
-          danach kein weiterer Kühleffekt.
+          Abnehmender Grenznutzen: jede weitere Pflanzung deckt zunehmend bereits
+          beschattete Fläche — die projizierte Kronendeckung wächst immer langsamer.
         </p>
 
         {/* Wert-Zeile: Zahl (editierbar) + Einheit + Max-Hinweis */}
@@ -337,15 +343,10 @@ export default function BaumSimPanel({ lstData, treeData }) {
           </div>
         </div>
 
-        {hasSel && sliderMax === 0 && (
+        {naiveNewPct - effectiveNewPct > 5 && hasSel && (
           <div className="text-accent-amber text-[10px] mt-1.5">
-            ⚠ Kronendeckung bereits bei {fmt.pct(existingPct)} — kein Platz für weitere Bäume.
-          </div>
-        )}
-
-        {newPctRaw > headroomPct + 0.05 && hasSel && sliderMax > 0 && (
-          <div className="text-accent-amber text-[10px] mt-1.5">
-            ⚠ {fmt.pct(newPctRaw - headroomPct)} überschreiten den Headroom — kein zusätzlicher Δ°C-Effekt.
+            ⚠ Überlappung: ~{fmt.pct(naiveNewPct - effectiveNewPct)} der neuen Kronenfläche fällt auf
+            bereits beschatteten Boden — kein zusätzlicher Kühleffekt dort.
           </div>
         )}
       </div>

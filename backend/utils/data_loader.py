@@ -104,11 +104,18 @@ def load_zensus(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
 
 def _compute_bestand_pct(lst_gdf: gpd.GeoDataFrame) -> pd.Series:
-    """Berechnet pro LST-Kachel den Anteil (%) bestehender Baumkronen aus dem Baumkataster.
+    """Berechnet pro LST-Kachel die *projizierte* Kronendeckung (%) aus dem Baumkataster.
 
     Kronenfläche pro Baum: π × (kronenbrei / 2)² (kronenbrei = Kronendurchmesser in m).
-    Spatial Join Tree-Points → LST-Cells; Summe je Zelle / 10.000 m² × 100, geclampt auf [0, 100].
-    Fallback 0.0 wenn Baumkataster nicht verfügbar oder leerer Sjoin.
+    Spatial Join Tree-Points → LST-Cells, dann projizierte Kronendeckung nach dem
+    negativ-exponentiellen Überlappungsmodell (Crookston & Stage 1999):
+
+        bestand_pct = (1 − exp(−Σ Kronenfläche / Zellfläche)) × 100
+
+    Das eliminiert die Doppelzählung überlappender Kronen (naive Summe überschätzt
+    die Bodenabdeckung in dichten Beständen) und ist die Größe, gegen die der
+    García-de-León-Kühlkoeffizient kalibriert ist. Liefert per Konstruktion [0, 100) —
+    kein clip nötig. Fallback 0.0 wenn Baumkataster nicht verfügbar oder leerer Sjoin.
     """
     # Trees-Source robust laden (Cache oder Bulk-Export)
     trees_path = _TREES_CACHE if _TREES_CACHE.exists() else (
@@ -141,8 +148,11 @@ def _compute_bestand_pct(lst_gdf: gpd.GeoDataFrame) -> pd.Series:
         return pd.Series(0.0, index=lst_gdf.index)
 
     sum_per_cell = joined.groupby("index_right")["crown_area_m2"].sum()
-    # Zellgröße ist 100×100 m = 10.000 m². Mehrere Kronen können überlappen → clip(0, 100).
-    pct = (sum_per_cell / 10_000.0 * 100.0).clip(0.0, 100.0)
+    # Projizierte Kronendeckung nach Crookston & Stage (1999):
+    # Annahme zufälliger Kronenüberlappung → 1 − exp(−Σ Kronenfläche / Zellfläche).
+    # Zellgröße ist 100×100 m = 10.000 m². Liefert per Konstruktion [0, 100) — kein clip nötig.
+    ratio = sum_per_cell / 10_000.0
+    pct = (1.0 - np.exp(-ratio)) * 100.0
     return lst_gdf.index.to_series().map(pct).fillna(0.0).round(1)
 
 

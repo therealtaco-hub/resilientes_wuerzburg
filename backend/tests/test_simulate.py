@@ -6,6 +6,8 @@ Ausführen:
     python -m pytest tests/test_simulate.py -v
 """
 
+import math
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 
@@ -17,6 +19,19 @@ from simulation_params import (
     LST_PER_PCT_CANOPY_MIXED,
     RUNOFF_COEFFICIENTS,
 )
+
+
+def _projected_cover_pct(n_trees, area_m2, existing_pct=0.0):
+    """Spiegelt die Backend-Formel (Crookston & Stage 1999) für Test-Erwartungen.
+
+    Gibt (total_coverage_pct, effective_new_pct) als *ungerundete* Werte zurück —
+    die Tests runden analog zum Router.
+    """
+    new_ratio = n_trees * CROWN_AREA_M2_DEFAULT / area_m2
+    existing_safe = min(existing_pct, 99.9)
+    existing_ratio = -math.log(1.0 - existing_safe / 100.0)
+    total = max(existing_pct, (1.0 - math.exp(-(existing_ratio + new_ratio))) * 100.0)
+    return total, total - existing_pct
 
 
 @pytest.fixture
@@ -32,52 +47,57 @@ def client():
 class TestSimulateBaeume:
     @pytest.mark.asyncio
     async def test_standardfall(self, client):
+        # ratio = 100×50/10.000 = 0,5 → projizierte Deckung (1−e^−0,5)·100 ≈ 39,3 %
         resp = await client.get("/api/simulate/baeume?n_trees=100&area_m2=10000")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["delta_coverage_pct"] == 50.0
-        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * 50.0, 2)
+        total, eff = _projected_cover_pct(100, 10000)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert data["effective_new_pct"] == round(eff, 1)
+        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
         assert data["co2_kg_year"] == round(100 * CO2_KG_PER_TREE_YEAR, 1)
+        # delta_coverage_pct existiert nicht mehr (durch crown_area_ratio ersetzt)
+        assert "delta_coverage_pct" not in data
+        assert data["crown_area_ratio"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_genau_100_prozent_deckung(self, client):
-        # 200 Bäume × 50 m² = 10.000 m² = 100 % auf 10.000 m²
+    async def test_ratio_1_ergibt_63_prozent(self, client):
+        # 200 Bäume × 50 m² → ratio = 1,0 → (1−e^−1)·100 ≈ 63,2 % (nicht 100 %)
         resp = await client.get("/api/simulate/baeume?n_trees=200&area_m2=10000")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["delta_coverage_pct"] == 100.0
-        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * 100.0, 2)
+        total, eff = _projected_cover_pct(200, 10000)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert 62.0 < data["total_coverage_pct"] < 64.0
+        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
 
     @pytest.mark.asyncio
-    async def test_ueber_100_prozent_lst_gecappt(self, client):
-        # 300 Bäume → 150 % Deckung; δLST muss gecappt sein (wie bei 100 %)
+    async def test_hohe_dichte_konvergiert_unter_100(self, client):
+        # 300 Bäume → ratio = 1,5; Modell konvergiert asymptotisch, bleibt < 100 %
         resp = await client.get("/api/simulate/baeume?n_trees=300&area_m2=10000")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["delta_coverage_pct"] == 150.0
-        # LST basiert intern auf 100 % (nicht extrapoliert)
-        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * 100.0, 2)
+        total, _ = _projected_cover_pct(300, 10000)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert data["total_coverage_pct"] < 100.0
 
     @pytest.mark.asyncio
     async def test_1_baum_auf_1_kachel(self, client):
         resp = await client.get("/api/simulate/baeume?n_trees=1&area_m2=10000")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["delta_coverage_pct"] == round(50.0 / 10000.0 * 100.0, 1)
-        assert data["delta_lst_celsius"] == pytest.approx(
-            round(LST_PER_PCT_CANOPY_MIXED * (CROWN_AREA_M2_DEFAULT / 10000.0 * 100.0), 2),
-            abs=0.01,
-        )
+        total, eff = _projected_cover_pct(1, 10000)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
 
     @pytest.mark.asyncio
     async def test_viele_kacheln(self, client):
         resp = await client.get("/api/simulate/baeume?n_trees=1000&area_m2=500000")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["delta_coverage_pct"] == round(1000 * 50.0 / 500000.0 * 100.0, 1)
-        assert data["delta_lst_celsius"] == pytest.approx(
-            round(LST_PER_PCT_CANOPY_MIXED * 10.0, 2), abs=0.01
-        )
+        total, eff = _projected_cover_pct(1000, 500000)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
 
     @pytest.mark.asyncio
     async def test_co2_unter_1000kg(self, client):
@@ -107,9 +127,11 @@ class TestSimulateBaeume:
         resp = await client.get("/api/simulate/baeume?n_trees=50&area_m2=5000")
         assert resp.status_code == 200
         data = resp.json()
-        for field in ["n_trees", "area_m2", "delta_coverage_pct",
-                      "delta_lst_celsius", "co2_kg_year", "coefficients_used", "caveats"]:
+        for field in ["n_trees", "area_m2", "crown_area_ratio", "effective_new_pct",
+                      "total_coverage_pct", "delta_lst_celsius", "co2_kg_year",
+                      "coefficients_used", "caveats"]:
             assert field in data, f"Pflichtfeld fehlt: {field}"
+        assert "delta_coverage_pct" not in data
 
     @pytest.mark.asyncio
     async def test_caveats_nicht_leer(self, client):
@@ -132,42 +154,47 @@ class TestSimulateBaeume:
 
     @pytest.mark.asyncio
     async def test_existing_coverage_default_ist_null(self, client):
-        """Ohne Param → existing=0, effective_new=delta_coverage_capped (Backward Compat)."""
+        """Ohne Param → existing=0, effective_new = projizierte Deckung des Zuwachses."""
         resp = await client.get("/api/simulate/baeume?n_trees=100&area_m2=10000")
         data = resp.json()
+        total, eff = _projected_cover_pct(100, 10000, existing_pct=0.0)
         assert data["existing_coverage_pct"] == 0.0
-        assert data["effective_new_pct"] == 50.0
-        assert data["total_coverage_pct"] == 50.0
+        assert data["effective_new_pct"] == round(eff, 1)
+        assert data["total_coverage_pct"] == round(total, 1)
 
     @pytest.mark.asyncio
-    async def test_existing_coverage_30_neue_passt_in_headroom(self, client):
-        """30% Bestand + 100 Bäume = 50% neu — passt in 70% Headroom, voller Δ°C."""
+    async def test_existing_coverage_addiert_im_projektionsraum(self, client):
+        """30% Bestand + 100 Bäume: Bestand & Neu werden als Flächen-Verhältnis addiert,
+        nicht als Prozente — Zuwachs ist kleiner als bei 0% Bestand (abnehmender Grenznutzen)."""
         resp = await client.get(
             "/api/simulate/baeume?n_trees=100&area_m2=10000&existing_coverage_pct=30"
         )
         data = resp.json()
+        total, eff = _projected_cover_pct(100, 10000, existing_pct=30.0)
         assert data["existing_coverage_pct"] == 30.0
-        assert data["delta_coverage_pct"] == 50.0
-        assert data["effective_new_pct"] == 50.0
-        assert data["total_coverage_pct"] == 80.0
-        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * 50.0, 2)
+        assert data["effective_new_pct"] == round(eff, 1)
+        assert data["total_coverage_pct"] == round(total, 1)
+        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
+        # Zuwachs bei 30% Bestand < Zuwachs bei 0% Bestand (gleiche Baumzahl)
+        _, eff_leer = _projected_cover_pct(100, 10000, existing_pct=0.0)
+        assert eff < eff_leer
 
     @pytest.mark.asyncio
-    async def test_existing_coverage_30_neue_ueberschreitet_headroom(self, client):
-        """30% Bestand + 200 Bäume = 100% neu, aber nur 70% Headroom — Δ°C basiert auf 70%."""
+    async def test_existing_coverage_hoch_kleiner_zuwachs(self, client):
+        """Hoher Bestand → neue Bäume decken überwiegend bereits beschattete Fläche →
+        kleiner, aber stets nicht-negativer effektiver Zuwachs."""
         resp = await client.get(
-            "/api/simulate/baeume?n_trees=200&area_m2=10000&existing_coverage_pct=30"
+            "/api/simulate/baeume?n_trees=200&area_m2=10000&existing_coverage_pct=80"
         )
         data = resp.json()
-        assert data["existing_coverage_pct"] == 30.0
-        assert data["delta_coverage_pct"] == 100.0      # ungekürzt
-        assert data["effective_new_pct"] == 70.0         # gekappt auf Headroom
-        assert data["total_coverage_pct"] == 100.0
-        assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * 70.0, 2)
+        total, eff = _projected_cover_pct(200, 10000, existing_pct=80.0)
+        assert data["effective_new_pct"] == round(eff, 1)
+        assert data["effective_new_pct"] >= 0.0
+        assert data["total_coverage_pct"] >= 80.0
 
     @pytest.mark.asyncio
     async def test_existing_coverage_100_kein_effekt(self, client):
-        """Bestand bei 100% → Headroom 0 → kein Δ°C, CO₂ bleibt linear."""
+        """Bestand bei 100% → kein Δ°C, effective_new nicht negativ (Log-Schutz + max-Guard)."""
         resp = await client.get(
             "/api/simulate/baeume?n_trees=50&area_m2=10000&existing_coverage_pct=100"
         )
@@ -175,15 +202,6 @@ class TestSimulateBaeume:
         assert data["effective_new_pct"] == 0.0
         assert data["delta_lst_celsius"] == 0.0
         assert data["co2_kg_year"] == round(50 * CO2_KG_PER_TREE_YEAR, 1)
-
-    @pytest.mark.asyncio
-    async def test_existing_coverage_caveat_bei_overflow(self, client):
-        """Bei Headroom-Überschreitung erscheint ein zusätzlicher Caveat ganz vorne."""
-        resp = await client.get(
-            "/api/simulate/baeume?n_trees=300&area_m2=10000&existing_coverage_pct=40"
-        )
-        data = resp.json()
-        assert any("Bestand bereits" in c for c in data["caveats"])
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("existing", [-1, 100.1, 150])
@@ -216,10 +234,11 @@ class TestSimulateWasser:
         )
         assert resp.status_code == 200
         data = resp.json()
-        # delta_C = 0.95 - 0.30 = 0.65
-        expected_infil = round(1000 * ANNUAL_RAINFALL_WUERZBURG_M * 0.65, 1)
+        c_from = RUNOFF_COEFFICIENTS["asphalt"]
+        c_to = RUNOFF_COEFFICIENTS["schotterrasen"]
+        expected_infil = round(1000 * ANNUAL_RAINFALL_WUERZBURG_M * (c_from - c_to), 1)
         assert data["infiltration_m3_year"] == expected_infil
-        assert data["retention_pct"] == round((1 - 0.30) * 100, 1)
+        assert data["retention_pct"] == round((1 - c_to) * 100, 1)
         assert data["context_persons"] == round(expected_infil / 54.75, 1)
 
     @pytest.mark.asyncio
@@ -241,7 +260,7 @@ class TestSimulateWasser:
         assert resp.status_code == 200
         data = resp.json()
         assert data["infiltration_m3_year"] == 0.0
-        assert data["retention_pct"] == round((1 - 0.95) * 100, 1)
+        assert data["retention_pct"] == round((1 - RUNOFF_COEFFICIENTS["asphalt"]) * 100, 1)
         # Caveat muss enthalten sein
         assert any("gleich" in c or "keine" in c.lower() for c in data["caveats"])
 

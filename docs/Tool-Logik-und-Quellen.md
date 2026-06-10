@@ -208,18 +208,18 @@ Nutzer wählt LST-Kacheln (100 m × 100 m) in der Karte aus und stellt die Anzah
 #### Berechnungsschritte (Backend: `GET /api/simulate/baeume`)
 
 ```
-Schritt 1 — Kronenfläche:
+Schritt 1 — Projizierte Kronendeckung (Überlappungsmodell, Crookston & Stage 1999):
   crown_area_total   = n_trees × 50 m²
-  delta_coverage_pct = crown_area_total / area_m2 × 100 [%]
+  new_ratio          = crown_area_total / area_m2          [Flächen-Verhältnis]
+  existing_ratio     = −ln(1 − existing_coverage_pct / 100) [Bestand, inverse Formel]
+  total_coverage_pct = (1 − exp(−(existing_ratio + new_ratio))) × 100 [%]
+  effective_new_pct  = total_coverage_pct − existing_coverage_pct      [realer Zuwachs, ≥ 0]
+  (berücksichtigt Kronenüberlappung; konvergiert gegen 100 %, kein harter Cap)
 
-Schritt 2 — Headroom-Korrektur:
-  effective_delta    = min(delta_coverage_pct, 100 − existing_coverage_pct)
-  (verhindert Überschreitung von 100 % Kronendeckung)
+Schritt 2 — LST-Reduktion:
+  delta_lst_celsius  = −0,083 × effective_new_pct   [Mischgebiet-Default]
 
-Schritt 3 — LST-Reduktion:
-  delta_lst_celsius  = −0,083 × effective_delta   [Mischgebiet-Default]
-
-Schritt 4 — CO₂-Bindung:
+Schritt 3 — CO₂-Bindung:
   co2_kg_year        = n_trees × 12,5 kg/Jahr
 ```
 
@@ -229,13 +229,14 @@ Schritt 4 — CO₂-Bindung:
 |---|---|
 | `area_m2` | Σ Fläche ausgewählter LST-Kacheln (n × 10.000 m²) |
 | `existing_coverage_pct` | Ø Kronendeckung der ausgewählten Kacheln (Feld `bestand_pct` aus LST-GeoJSON) |
-| `n_trees` | Slider-/Texteingabe, Max = Headroom-Fläche / 50 m² |
+| `n_trees` | Slider-/Texteingabe, Max = pflanzbare Fläche / 25 m² (Mindeststandfläche je Baum, Plausibilitäts-Cap) |
 
 #### Einschränkungen (im Tool kommuniziert)
 
 - Koeffizienten aus München — nicht mit Würzburger Daten kalibriert (Übertragbarkeit plausibel, R² variiert nach Nutzungsklasse)
 - LST ≠ Lufttemperatur (Landoberflächentemperatur kann um mehrere °C von der gefühlten Temperatur abweichen)
-- Kronenfläche 50 m² ist Literaturmittelwert; tatsächliche Kronenfläche je Baum aus `kronenbrei`-Feld im Kataster vorhanden, aber noch nicht in Berechnung integriert
+- Kronenfläche 50 m² ist eine **Endausbau-Annahme** (Pretzsch 2015 / Moser-Reischl 2021); eine Neupflanzung erreicht sie erst nach ~20–40 Jahren — Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand
+- Kronenüberlappung wird über das Poisson-Modell (zufällige Platzierung) angenähert; bei regelmäßigen Alleen leicht unterschätzt, bei Park-Clustern leicht überschätzt (Gray et al. 2021)
 - Modell rein statistisch, keine physikalische Mikroklimasimulation
 
 ---

@@ -6,6 +6,7 @@ Formeln und Koeffizienten ausschließlich aus simulation_params.py.
 Wissenschaftliche Herleitung: urban-heat-wiki/wiki/simulation-logic.md
 """
 
+import math
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -26,14 +27,20 @@ _LAND_USE_INTERNAL = "mixed"
 
 _BAEUME_CAVEATS = [
     (
-        "Kronendeckung: Kronenflächen werden pro Zelle summiert, nicht als geometrische Union "
-        "berechnet — Überlappungen zwischen benachbarten Bäumen werden ignoriert. "
-        "In dichten Beständen (Parks, Alleen) wird die tatsächliche Bodenabdeckung dadurch "
-        "überschätzt."
+        "Kronendeckung: projizierte Bodenabdeckung nach dem negativ-exponentiellen "
+        "Überlappungsmodell (Crookston & Stage 1999) — 1 − exp(−Σ Kronenfläche / Fläche). "
+        "Überlappungen werden berücksichtigt; angenommen wird zufällige (Poisson-)Platzierung "
+        "der Kronen. Bei regelmäßig gepflanzten Alleen leicht unterschätzt, bei Park-Clustern "
+        "leicht überschätzt."
     ),
     (
-        "−0,083 °C/% basiert auf García de León et al. (München Sommer 2020) — "
-        "noch nicht lokal für Würzburg kalibriert."
+        "Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand (50 m² Kronenfläche "
+        "als Endausbau-Annahme, Pretzsch 2015 / Moser-Reischl 2021); in den ersten Jahren "
+        "nach Pflanzung ist die Wirkung deutlich geringer."
+    ),
+    (
+        "−0,083 °C/% basiert auf García de León et al. (München Sommer 2020), kalibriert "
+        "gegen projizierte Kronendeckung — noch nicht lokal für Würzburg kalibriert."
     ),
     (
         "12,5 kg CO₂/Baum/Jahr ist ein Mittelwert für ausgewachsene Laubbäume im "
@@ -92,43 +99,48 @@ def simulate_baeume(
     Berechnet Δ°C LST, CO₂-Bindung und Kronendeckung für N Neupflanzungen
     auf einer gegebenen Fläche unter Berücksichtigung bestehender Kronendeckung.
 
-    Schritt-für-Schritt (siehe simulation-logic.md):
+    Projizierte Kronendeckung nach dem negativ-exponentiellen Überlappungsmodell
+    (Crookston & Stage 1999, siehe simulation-logic.md):
+
       1. crown_area_total    = n_trees × CROWN_AREA_M2_DEFAULT
-      2. delta_coverage_pct  = crown_area_total / area_m2 × 100      (ungekürzt, kann > 100)
-      3. headroom_pct        = max(0, 100 − existing_coverage_pct)    (verbleibender Spielraum)
-      4. effective_new_pct   = min(delta_coverage_pct, headroom_pct)  (für LST-Wirksamkeit)
-      5. total_coverage_pct  = existing_coverage_pct + effective_new_pct
+      2. existing_ratio      = −ln(1 − existing_coverage_pct/100)   (inverse Formel; log-sicher)
+      3. new_ratio           = crown_area_total / area_m2
+      4. total_coverage_pct  = (1 − exp(−(existing_ratio + new_ratio))) × 100
+      5. effective_new_pct   = total_coverage_pct − existing_coverage_pct   (≥ 0, ≤ Restspielraum)
       6. delta_lst_celsius   = LST_PER_PCT_CANOPY_MIXED × effective_new_pct
       7. co2_kg_year         = n_trees × CO2_KG_PER_TREE_YEAR
 
-    Bei existing_coverage_pct = 0 ist das Verhalten identisch zur Vorgänger-Formel.
-    Δ°C wird nur auf die *zusätzliche* Kronendeckung angewendet — bestehender Schatten
-    kühlt die Fläche bereits, neue Bäume können nur den verbleibenden Headroom abdecken.
+    Bestehende und neue Kronen werden im selben Projektionsraum (Flächen-Verhältnis)
+    addiert, damit keine projizierten und naiven Prozente vermischt werden. Δ°C wirkt
+    nur auf den *realen* projizierten Deckungszuwachs (= Kalibrierungsgröße García de León);
+    der abnehmende Grenznutzen dichter Bestände ist dadurch automatisch abgebildet — ein
+    expliziter Headroom-Cap entfällt.
     """
     crown_area_total = n_trees * CROWN_AREA_M2_DEFAULT
-    delta_coverage_pct = crown_area_total / area_m2 * 100.0
-    headroom_pct = max(0.0, 100.0 - existing_coverage_pct)
-    effective_new_pct = min(delta_coverage_pct, headroom_pct)
-    total_coverage_pct = existing_coverage_pct + effective_new_pct
+
+    # Bestehende projizierte Deckung → äquivalentes Kronenflächen-Verhältnis (inverse Formel).
+    # Schutz gegen log(0) bei existing_coverage_pct → 100.
+    existing_pct_safe = min(existing_coverage_pct, 99.9)
+    existing_ratio = -math.log(1.0 - existing_pct_safe / 100.0)
+
+    # Neue Bäume als zusätzliches Flächen-Verhältnis, im selben Raum addieren.
+    new_ratio = crown_area_total / area_m2
+    total_ratio = existing_ratio + new_ratio
+
+    # max() gegen Artefakt am Rand: bei existing_coverage_pct ∈ (99.9, 100] liefert die
+    # auf 99.9 geklemmte existing_ratio eine Gesamtdeckung knapp < existing → sonst negativ.
+    total_coverage_pct = max(existing_coverage_pct, (1.0 - math.exp(-total_ratio)) * 100.0)
+    effective_new_pct = total_coverage_pct - existing_coverage_pct  # physikalisch begrenzt, ≥ 0
     delta_lst_celsius = LST_PER_PCT_CANOPY_MIXED * effective_new_pct
     co2_kg_year = n_trees * CO2_KG_PER_TREE_YEAR
 
     caveats = list(_BAEUME_CAVEATS)
-    if existing_coverage_pct > 0 and delta_coverage_pct > headroom_pct:
-        caveats.insert(
-            0,
-            (
-                f"Bestand bereits bei {existing_coverage_pct:.1f} % Kronendeckung — "
-                f"nur die verbleibenden {headroom_pct:.1f} % Headroom wirken kühlend. "
-                "Zusätzliche Bäume binden weiterhin CO₂, erzeugen aber kein weiteres Δ°C."
-            ),
-        )
 
     return {
         "n_trees": n_trees,
         "area_m2": area_m2,
         "existing_coverage_pct": round(existing_coverage_pct, 1),
-        "delta_coverage_pct": round(delta_coverage_pct, 1),
+        "crown_area_ratio": round(new_ratio, 3),
         "effective_new_pct": round(effective_new_pct, 1),
         "total_coverage_pct": round(total_coverage_pct, 1),
         "delta_lst_celsius": round(delta_lst_celsius, 2),
