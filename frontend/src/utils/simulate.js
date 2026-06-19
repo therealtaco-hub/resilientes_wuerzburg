@@ -82,9 +82,9 @@ export const TYPE_KEY_LABELS = {
 export const CROWN_AREA_M2_DEFAULT = 50
 
 // Mindeststandfläche je Neupflanzung (UX-/Plausibilitäts-Cap fürs Slider-Maximum,
-// KEIN Modell-Cap). ~25 m²/Baum ≈ 5 m Pflanzabstand — dichte, aber sinnvolle
-// jugendliche Neupflanzung. Größenordnung: Moser-Reischl et al. 2021 (Pflanzabstände
-// bei Kroneninteraktion ~10–15 m bei Vollausbau; 25 m² ist bewusst großzügig).
+// KEIN Modell-Cap). ~25 m²/Baum ≈ 5 m Standabstand — dichte, aber sinnvolle
+// jugendliche Neupflanzung. Größenordnung: reife Kronendurchmesser ~9–12 m
+// (Moser-Reischl 2021; Platanus ~12 m, Tilia ~8,9 m aus CPA); 25 m² ist bewusst großzügig.
 export const MIN_GROUND_PER_TREE_M2 = 25
 
 // Ψ-Abflussbeiwerte je Belagstyp (gespiegelt aus simulation_params.py RUNOFF_COEFFICIENTS)

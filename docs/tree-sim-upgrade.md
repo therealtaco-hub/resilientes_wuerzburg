@@ -236,16 +236,16 @@ const MIN_GROUND_PER_TREE_M2 = 25
 const sliderMax = Math.max(0, Math.floor(selectedCellsAreaM2 / MIN_GROUND_PER_TREE_M2))
 ```
 
-Das ist **kein Modell-Cap**, sondern ein UX-/Plausibilitäts-Cap mit eigener Begründung. Innerhalb dieser Spanne zeigt die Poisson-Kurve den abnehmenden Grenznutzen ohnehin sichtbar. Quelle für die Größenordnung: Pflanzabstände für Stadtbäume bei Kroneninteraktion ~10–15 m bei Vollausbau (Moser-Reischl et al. 2021); 25 m²/Baum ist die dichtere, jugendliche Annahme — bewusst großzügig, damit der Slider nicht künstlich beengt.
+Das ist **kein Modell-Cap**, sondern ein UX-/Plausibilitäts-Cap mit eigener Begründung. Innerhalb dieser Spanne zeigt die Poisson-Kurve den abnehmenden Grenznutzen ohnehin sichtbar. Quelle für die Größenordnung: Kronendurchmesser reif ~9–12 m (Moser-Reischl et al. 2021; Platanus ~12 m, Tilia ~8,9 m aus CPA); 25 m²/Baum (≈5 m Standabstand) ist die dichtere, jugendliche Annahme — bewusst großzügig, damit der Slider nicht künstlich beengt.
 
 ### Entscheidung 2: Kronenfläche neuer Bäume — `CROWN_AREA_M2_DEFAULT = 50 m²`
 
-Der Wert ist ein **Endausbau-/mittlerer Stadtbaumwert** und damit ein impliziter „at-maturity"-Szenario-Parameter. Belastbare Einordnung:
+Der Wert ist ein **konservativer mittlerer Stadtbaumwert** (bewusst unter dem Reifewert), kein Endausbau-Default. Belastbare Einordnung:
 
 - **Pretzsch et al. (2015)**, *Urban Forestry & Urban Greening* 14(3):466–479 — Kronengrößen/Standraum für 22 Arten in Innenstädten vs. Parks; Innenstadtbäume kleiner als Parkbäume.
 - **Moser-Reischl et al. (2021)**, *Arboriculture & Urban Forestry* 47(4):150–169 — >2.000 Bäume, 6 süddeutsche Städte: *Platanus × hispanica* erreicht im Mittel 11,2 m Kronendurchmesser / **113,7 m² Kronenprojektion**; kleinere/jüngere Straßenbäume deutlich darunter.
 
-→ **Empfehlung:** 50 m² als Default beibehalten (plausibler Mittelwert mittelalter Straßenbäume, < Parkbaum-Endausbau), aber **explizit als „Endausbau-Annahme" labeln.** Eine Neupflanzung liefert diese Kronenfläche erst nach ~20–40 Jahren — dieselbe zeitliche Einschränkung, die bereits beim CO₂-Caveat steht. Diesen Caveat um die Kronen-/Kühlwirkung erweitern: *„Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand; in den ersten Jahren nach Pflanzung ist die Wirkung deutlich geringer."* Quelle für den Wert in `simulation_params.py` ergänzen (Pretzsch 2015 / Moser-Reischl 2021). Ein Klein/Mittel/Groß-Selektor ist möglich, aber für v1 **Overengineering** — nicht empfohlen.
+→ **Empfehlung:** 50 m² als Default beibehalten (konservativer Mittelwert mittelalter Straßenbäume, bewusst unter dem Reifewert 62–124 m²). Als **konservativer Default** labeln — *nicht* als Endausbau-Annahme, da Quellen zeigen, dass reife Bäume deutlich größere Kronen haben. Caveat beibehalten: junge Neupflanzungen haben deutlich weniger Krone und damit geringere Kühlwirkung. Quelle in `simulation_params.py` ergänzt (Pretzsch 2015 / Moser-Reischl 2021). Ein Klein/Mittel/Groß-Selektor ist möglich, aber für v1 **Overengineering** — nicht empfohlen.
 
 ### Entscheidung 3: Response-Feld `delta_coverage_pct`
 

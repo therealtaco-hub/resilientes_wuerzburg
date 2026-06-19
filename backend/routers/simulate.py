@@ -34,9 +34,10 @@ _BAEUME_CAVEATS = [
         "leicht überschätzt."
     ),
     (
-        "Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand (50 m² Kronenfläche "
-        "als Endausbau-Annahme, Pretzsch 2015 / Moser-Reischl 2021); in den ersten Jahren "
-        "nach Pflanzung ist die Wirkung deutlich geringer."
+        "50 m² Kronenfläche ist ein konservativer Default für mittelalte Bäume "
+        "(Pretzsch 2015 / Moser-Reischl 2021); reife Würzburger Kronen liegen bei 62–124 m², "
+        "junge Neupflanzungen deutlich darunter. In den ersten Jahren nach Pflanzung ist die "
+        "Kühlwirkung entsprechend geringer."
     ),
     (
         "−0,083 °C/% basiert auf García de León et al. (München Sommer 2020), kalibriert "

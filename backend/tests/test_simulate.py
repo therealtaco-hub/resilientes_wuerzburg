@@ -53,6 +53,7 @@ class TestSimulateBaeume:
         data = resp.json()
         total, eff = _projected_cover_pct(100, 10000)
         assert data["total_coverage_pct"] == round(total, 1)
+        assert data["total_coverage_pct"] == 39.3  # Literal-Pin: ratio=0,5 → (1−e^−0,5)×100
         assert data["effective_new_pct"] == round(eff, 1)
         assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
         assert data["co2_kg_year"] == round(100 * CO2_KG_PER_TREE_YEAR, 1)

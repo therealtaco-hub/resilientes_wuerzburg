@@ -7,6 +7,34 @@ import LSTLegend from '../map/LSTLegend'
 
 const DEBOUNCE_MS = 300
 
+function LayerToggle({ active, onToggle, label, badge }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
+      style={{
+        background: active ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
+        border:     active ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
+      }}
+    >
+      <span
+        className="shrink-0 flex items-center justify-center rounded"
+        style={{ width: 16, height: 16, background: active ? 'var(--green)' : 'transparent', border: active ? 'none' : '1.5px solid var(--text-3)' }}
+      >
+        {active && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        )}
+      </span>
+      <span className="flex-1 text-[12px]" style={{ color: active ? 'var(--text-0)' : 'var(--text-2)' }}>
+        {label}
+      </span>
+      {badge && <span className="text-fg-3 text-[10px] font-mono">{badge}</span>}
+    </button>
+  )
+}
+
 function formatCo2(kgYear) {
   if (kgYear < 1000) return { value: fmt.num(kgYear, 0), unit: 'kg/Jahr' }
   return { value: fmt.num(kgYear / 1000, 1), unit: 't/Jahr' }
@@ -288,78 +316,10 @@ export default function BaumSimPanel({ lstData, treeData }) {
         )}
       </div>
 
-      {/* Layer-Toggle: LST-Farbcodierung (Raster bleibt sichtbar) */}
-      <button
-        onClick={toggleSimLst}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
-        style={{
-          background: showSimLst ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
-          border:     showSimLst ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
-        }}
-      >
-        <span
-          className="shrink-0 flex items-center justify-center rounded"
-          style={{ width: 16, height: 16, background: showSimLst ? 'var(--green)' : 'transparent', border: showSimLst ? 'none' : '1.5px solid var(--text-3)' }}
-        >
-          {showSimLst && (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5"/>
-            </svg>
-          )}
-        </span>
-        <span className="flex-1 text-[12px]" style={{ color: showSimLst ? 'var(--text-0)' : 'var(--text-2)' }}>
-          LST-Farbcodierung
-        </span>
-      </button>
-
-      {/* Layer-Toggle: Baumkataster */}
-      <button
-        onClick={toggleBaumkataster}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
-        style={{
-          background: showBaumkataster ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
-          border:     showBaumkataster ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
-        }}
-      >
-        <span
-          className="shrink-0 flex items-center justify-center rounded"
-          style={{ width: 16, height: 16, background: showBaumkataster ? 'var(--green)' : 'transparent', border: showBaumkataster ? 'none' : '1.5px solid var(--text-3)' }}
-        >
-          {showBaumkataster && (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5"/>
-            </svg>
-          )}
-        </span>
-        <span className="flex-1 text-[12px]" style={{ color: showBaumkataster ? 'var(--text-0)' : 'var(--text-2)' }}>
-          Baumkataster anzeigen
-        </span>
-        <span className="text-fg-3 text-[10px] font-mono">44.647</span>
-      </button>
-
-      {/* Layer-Toggle: ATKIS-Versiegelungs-Overlay (Verifikation der pflanzbaren Fläche) */}
-      <button
-        onClick={toggleSimAtkis}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] transition-colors text-left"
-        style={{
-          background: showSimAtkis ? 'rgba(34,197,94,0.08)' : 'var(--bg-2)',
-          border:     showSimAtkis ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--border)',
-        }}
-      >
-        <span
-          className="shrink-0 flex items-center justify-center rounded"
-          style={{ width: 16, height: 16, background: showSimAtkis ? 'var(--green)' : 'transparent', border: showSimAtkis ? 'none' : '1.5px solid var(--text-3)' }}
-        >
-          {showSimAtkis && (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5"/>
-            </svg>
-          )}
-        </span>
-        <span className="flex-1 text-[12px]" style={{ color: showSimAtkis ? 'var(--text-0)' : 'var(--text-2)' }}>
-          Versiegelungsflächen (ATKIS/OSM)
-        </span>
-      </button>
+      {/* Layer-Toggles */}
+      <LayerToggle active={showSimLst}       onToggle={toggleSimLst}       label="LST-Farbcodierung" />
+      <LayerToggle active={showBaumkataster} onToggle={toggleBaumkataster} label="Baumkataster anzeigen" badge="44.647" />
+      <LayerToggle active={showSimAtkis}     onToggle={toggleSimAtkis}     label="Versiegelungsflächen (ATKIS/OSM)" />
 
       {/* Slider + Text-Input */}
       <div className={hasSel ? '' : 'opacity-50 pointer-events-none'}>

@@ -244,7 +244,7 @@ Nicht die ganze Kachel ist bepflanzbar — versiegelter Boden (Dächer, Straßen
 
 - Koeffizienten aus München — nicht mit Würzburger Daten kalibriert (Übertragbarkeit plausibel, R² variiert nach Nutzungsklasse)
 - LST ≠ Lufttemperatur (Landoberflächentemperatur kann um mehrere °C von der gefühlten Temperatur abweichen)
-- Kronenfläche 50 m² ist eine **Endausbau-Annahme** (Pretzsch 2015 / Moser-Reischl 2021); eine Neupflanzung erreicht sie erst nach ~20–40 Jahren — Δ°C und Kronendeckung gelten für den ausgewachsenen Zustand
+- Kronenfläche 50 m² ist ein **konservativer Default** (Pretzsch 2015 / Moser-Reischl 2021); reife Würzburger Kronen liegen bei 62–124 m², junge Neupflanzungen deutlich darunter — Δ°C und Kronendeckung gelten für mittelalte bis reife Bäume
 - Kronenüberlappung wird über das Poisson-Modell (zufällige Platzierung) angenähert; bei regelmäßigen Alleen leicht unterschätzt, bei Park-Clustern leicht überschätzt (Gray et al. 2021)
 - Versiegelungsgrade sind grobe Typ-Mittelwerte (Literatur), keine gemessene Per-Zellen-Versiegelung; „unversiegelt" ≠ tatsächlich verfügbar (Privatgärten, Bestandsvegetation, Abstandsflächen) — die pflanzbare Fläche ist eine **Obergrenze**, kein Pflanzplan
 - Modell rein statistisch, keine physikalische Mikroklimasimulation
