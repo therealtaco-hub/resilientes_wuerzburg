@@ -93,6 +93,20 @@ const useAppStore = create((set) => ({
   vulnWeights: null,
   setVulnWeights: (weights) => set({ vulnWeights: weights }),
 
+  // ── Layer-Daten-Cache (session-persistent, kein Re-Fetch bei Navigation) ──
+  layerData: {
+    lst:           null,
+    trees:         null,
+    entsiegelung:  null,
+    stadtbezirke:  null,
+    vulnerability: null,
+    zensus:        null,
+    hotspots:      null,
+  },
+  setLayerData: (key, data) => set((s) => ({
+    layerData: { ...s.layerData, [key]: data },
+  })),
+
   // ── Simulation ──────────────────────────────────────────────────────────
   sim: {
     // Sim A — Baumpflanzung

@@ -10,7 +10,7 @@ import math
 
 import geopandas as gpd
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from shapely.geometry import mapping
 
 from utils.data_loader import (
@@ -39,8 +39,9 @@ def _safe(val):
 
 
 @router.get("")
-async def get_stadtbezirke(refresh: bool = False):
+async def get_stadtbezirke(refresh: bool = False, response: Response = None):
     global _cache
+    response.headers["Cache-Control"] = "no-cache" if refresh else "public, max-age=3600"
     if not refresh and _cache is not None:
         return _cache
 

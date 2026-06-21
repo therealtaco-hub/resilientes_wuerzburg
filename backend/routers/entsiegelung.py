@@ -8,7 +8,7 @@ meta enthält atkis_count / osm_count / total_count.
 
 import math
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from shapely.geometry import mapping
 
 from utils.data_loader import load_entsiegelung
@@ -19,8 +19,9 @@ _cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 @router.get("")
-def get_entsiegelung(refresh: bool = False):
+def get_entsiegelung(refresh: bool = False, response: Response = None):
     global _cache
+    response.headers["Cache-Control"] = "no-cache" if refresh else "public, max-age=3600"
     if not refresh and _cache is not None:
         return _cache
 

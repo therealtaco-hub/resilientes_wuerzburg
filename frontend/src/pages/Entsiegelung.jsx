@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import EntsiegelungLayer from '../components/map/overlays/EntsiegelungLayer'
 import EntsiegelungLegend from '../components/map/EntsiegelungLegend'
@@ -202,22 +202,20 @@ function InterpretationBox() {
 export default function Entsiegelung() {
   const { layers, setLayerLoading } = useAppStore()
   const isMobile = useIsMobile()
-  const [data, setData]   = useState(null)
+  const data         = useAppStore(s => s.layerData.entsiegelung)
+  const setLayerData = useAppStore(s => s.setLayerData)
   const [error, setError] = useState(null)
   const [hovered, setHovered] = useState(null)
 
-  const fetchedRef = useRef(false)
-
   // Beide Entsiegelungs-Layer teilen sich einen einzigen API-Call
   useEffect(() => {
-    if (!(layers.entsiegelung_atkis || layers.entsiegelung_osm) || fetchedRef.current) return
-    fetchedRef.current = true
+    if (!(layers.entsiegelung_atkis || layers.entsiegelung_osm) || data) return
     setLayerLoading('entsiegelung_atkis', true)
     fetchEntsiegelung()
-      .then(setData)
+      .then(d => setLayerData('entsiegelung', d))
       .catch((e) => setError(e.message))
       .finally(() => setLayerLoading('entsiegelung_atkis', false))
-  }, [layers.entsiegelung_atkis, layers.entsiegelung_osm])
+  }, [layers.entsiegelung_atkis, layers.entsiegelung_osm, data])
 
   const { totalCount, totalFlaeche } = useMemo(() => {
     if (!data) return {}

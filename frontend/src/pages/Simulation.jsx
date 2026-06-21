@@ -32,12 +32,15 @@ function TabButton({ active, onClick, icon, label }) {
 }
 
 export default function Simulation() {
-  const [tab, setTab] = useState('baeume')   // 'baeume' | 'wasser'
-  const [lstData, setLstData]     = useState(null)
-  const [treeData, setTreeData]   = useState(null)
-  const [entsData, setEntsData]   = useState(null)
-  const [cityMeta, setCityMeta]   = useState(null)
-  const [error, setError]         = useState(null)
+  const [tab, setTab]     = useState('baeume')   // 'baeume' | 'wasser'
+  const [error, setError] = useState(null)
+
+  const lstData        = useAppStore(s => s.layerData.lst)
+  const treeData       = useAppStore(s => s.layerData.trees)
+  const entsData       = useAppStore(s => s.layerData.entsiegelung)
+  const stadtbezirke   = useAppStore(s => s.layerData.stadtbezirke)
+  const setLayerData   = useAppStore(s => s.setLayerData)
+  const cityMeta       = stadtbezirke?.meta ?? null
 
   const selectedCells     = useAppStore((s) => s.sim.selectedCells)
   const selectedPolygons  = useAppStore((s) => s.sim.selectedPolygons)
@@ -54,20 +57,19 @@ export default function Simulation() {
     if (tab === 'baeume' && !lstData) {
       setLayerLoading('sim_lst', true)
       fetchLst()
-        .then((d) => setLstData(d))
+        .then(d => setLayerData('lst', d))
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_lst', false))
     }
-    if (tab === 'baeume' && !cityMeta) {
-      // Nur meta.city_canopy_pct + meta.city_cell_count nötig — Backend ist in-memory gecacht.
+    if (tab === 'baeume' && !stadtbezirke) {
       fetchStadtbezirke()
-        .then((d) => setCityMeta(d.meta ?? null))
+        .then(d => setLayerData('stadtbezirke', d))
         .catch(() => {/* non-fatal */})
     }
     if (tab === 'baeume' && !treeData) {
       setLayerLoading('sim_trees', true)
       fetchTrees()
-        .then((d) => setTreeData(d))
+        .then(d => setLayerData('trees', d))
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_trees', false))
     }
@@ -77,11 +79,11 @@ export default function Simulation() {
     if (needsEnts && !entsData) {
       setLayerLoading('sim_ents', true)
       fetchEntsiegelung()
-        .then((d) => setEntsData(d))
+        .then(d => setLayerData('entsiegelung', d))
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_ents', false))
     }
-  }, [tab, lstData, treeData, entsData, cityMeta, showSimAtkis])
+  }, [tab, lstData, treeData, entsData, stadtbezirke, showSimAtkis])
 
   // Clear selections wenn die zugehörigen Daten gewechselt werden — Indizes sonst ungültig.
   // (kein Refresh-Trigger hier, aber Initialload kann auch invalidieren)

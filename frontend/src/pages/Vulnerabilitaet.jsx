@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
 import VulnLayer from '../components/map/overlays/VulnLayer'
@@ -360,62 +360,57 @@ export default function Vulnerabilitaet() {
   // Mobil: Tooltips per Tap (onClick) statt Hover.
   const pick = (handler) => (isMobile ? { onClick: tapToHover(handler) } : { onHover: handler })
 
-  const [vulnData,    setVulnData]    = useState(null)
-  const [lstData,     setLstData]     = useState(null)
-  const [zensusData,  setZensusData]  = useState(null)
-  const [bezirkeData, setBezirkeData] = useState(null)
-  const [error,       setError]       = useState(null)
-  const [hovered,     setHovered]     = useState(null)
+  const vulnData     = useAppStore(s => s.layerData.vulnerability)
+  const lstData      = useAppStore(s => s.layerData.lst)
+  const zensusData   = useAppStore(s => s.layerData.zensus)
+  const bezirkeData  = useAppStore(s => s.layerData.stadtbezirke)
+  const setLayerData = useAppStore(s => s.setLayerData)
+  const [error,     setError]     = useState(null)
+  const [hovered,   setHovered]   = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
-
-  const fetchedRef = useRef({})
 
   // HVI / Vulnerabilitäts-Layer
   useEffect(() => {
-    if (!layers.vulnerabilitaet || fetchedRef.current.vuln) return
-    fetchedRef.current.vuln = true
+    if (!layers.vulnerabilitaet || vulnData) return
     setLayerLoading('vulnerabilitaet', true)
     fetchVulnerability()
       .then((vuln) => {
-        setVulnData(vuln)
+        setLayerData('vulnerability', vuln)
         if (vuln.meta?.weights) setVulnWeights(vuln.meta.weights)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLayerLoading('vulnerabilitaet', false))
-  }, [layers.vulnerabilitaet])
+  }, [layers.vulnerabilitaet, vulnData])
 
   // LST (Hitzeinsel-Overlay)
   useEffect(() => {
-    if (!layers.heatmap || fetchedRef.current.lst) return
-    fetchedRef.current.lst = true
+    if (!layers.heatmap || lstData) return
     setLayerLoading('heatmap', true)
     fetchLst()
-      .then(setLstData)
+      .then(d => setLayerData('lst', d))
       .catch((e) => setError(e.message))
       .finally(() => setLayerLoading('heatmap', false))
-  }, [layers.heatmap])
+  }, [layers.heatmap, lstData])
 
   // Demografie 65+
   useEffect(() => {
-    if (!layers.zensus || fetchedRef.current.zensus) return
-    fetchedRef.current.zensus = true
+    if (!layers.zensus || zensusData) return
     setLayerLoading('zensus', true)
     fetchZensus()
-      .then(setZensusData)
+      .then(d => setLayerData('zensus', d))
       .catch(() => {})
       .finally(() => setLayerLoading('zensus', false))
-  }, [layers.zensus])
+  }, [layers.zensus, zensusData])
 
   // Stadtbezirke (HVI)
   useEffect(() => {
-    if (!layers.stadtbezirke || fetchedRef.current.stadtbezirke) return
-    fetchedRef.current.stadtbezirke = true
+    if (!layers.stadtbezirke || bezirkeData) return
     setLayerLoading('stadtbezirke', true)
     fetchStadtbezirke()
-      .then(setBezirkeData)
+      .then(d => setLayerData('stadtbezirke', d))
       .catch(() => {})
       .finally(() => setLayerLoading('stadtbezirke', false))
-  }, [layers.stadtbezirke])
+  }, [layers.stadtbezirke, bezirkeData])
 
   const lstStats = useMemo(() => {
     if (!lstData) return {}

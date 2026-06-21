@@ -1,6 +1,6 @@
 """GET /api/trees — Baumkataster als GeoJSON FeatureCollection (44.647 Stadtbäume)."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from utils.data_loader import load_tree_cadastre
 
 router = APIRouter()
@@ -9,8 +9,9 @@ _cache = None  # In-Memory-Cache; wird bei Backend-Neustart geleert
 
 
 @router.get("")
-async def get_trees(refresh: bool = False):
+async def get_trees(refresh: bool = False, response: Response = None):
     global _cache
+    response.headers["Cache-Control"] = "no-cache" if refresh else "public, max-age=3600"
     if not refresh and _cache is not None:
         return _cache
 

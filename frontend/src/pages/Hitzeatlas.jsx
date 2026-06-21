@@ -211,59 +211,53 @@ export default function Hitzeatlas() {
   // Mobil: Tooltips per Tap (onClick) statt Hover.
   const pick = (handler) => (isMobile ? { onClick: tapToHover(handler) } : { onHover: handler })
 
-  const [lstData, setLstData]         = useState(null)
-  const [treeData, setTreeData]       = useState(null)
-  const [bezirkeData, setBezirkeData] = useState(null)
-  const [hotspotData, setHotspotData] = useState(null)
-  const [error, setError]             = useState(null)
+  const lstData      = useAppStore(s => s.layerData.lst)
+  const treeData     = useAppStore(s => s.layerData.trees)
+  const bezirkeData  = useAppStore(s => s.layerData.stadtbezirke)
+  const hotspotData  = useAppStore(s => s.layerData.hotspots)
+  const setLayerData = useAppStore(s => s.setLayerData)
+  const [error, setError] = useState(null)
 
   const [hoveredCell, setHoveredCell]     = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
   const [hoveredRank, setHoveredRank]     = useState(null)
   const [clickedTree, setClickedTree]     = useState(null)
 
-  // Fetch guard: prevents double-fetching when multiple deps change simultaneously
-  const fetchedRef = useRef({})
-
   // LST — shared by heatmap and ndvi layers
   useEffect(() => {
-    if (!(layers.heatmap || layers.ndvi) || fetchedRef.current.lst) return
-    fetchedRef.current.lst = true
+    if (!(layers.heatmap || layers.ndvi) || lstData) return
     setLayerLoading('heatmap', true)
     fetchLst()
-      .then(setLstData)
+      .then(d => setLayerData('lst', d))
       .catch((e) => setError(e.message))
       .finally(() => setLayerLoading('heatmap', false))
-  }, [layers.heatmap, layers.ndvi])
+  }, [layers.heatmap, layers.ndvi, lstData])
 
   // Hotspots — triggered with heatmap, no global loading state (silent)
   useEffect(() => {
-    if (!layers.heatmap || fetchedRef.current.hotspots) return
-    fetchedRef.current.hotspots = true
-    fetchHotspots().then(setHotspotData).catch(() => {})
-  }, [layers.heatmap])
+    if (!layers.heatmap || hotspotData) return
+    fetchHotspots().then(d => setLayerData('hotspots', d)).catch(() => {})
+  }, [layers.heatmap, hotspotData])
 
   // Trees
   useEffect(() => {
-    if (!layers.trees || fetchedRef.current.trees) return
-    fetchedRef.current.trees = true
+    if (!layers.trees || treeData) return
     setLayerLoading('trees', true)
     fetchTrees()
-      .then(setTreeData)
+      .then(d => setLayerData('trees', d))
       .catch(() => {})
       .finally(() => setLayerLoading('trees', false))
-  }, [layers.trees])
+  }, [layers.trees, treeData])
 
   // Stadtbezirke
   useEffect(() => {
-    if (!layers.stadtbezirke || fetchedRef.current.stadtbezirke) return
-    fetchedRef.current.stadtbezirke = true
+    if (!layers.stadtbezirke || bezirkeData) return
     setLayerLoading('stadtbezirke', true)
     fetchStadtbezirke()
-      .then(setBezirkeData)
+      .then(d => setLayerData('stadtbezirke', d))
       .catch(() => {})
       .finally(() => setLayerLoading('stadtbezirke', false))
-  }, [layers.stadtbezirke])
+  }, [layers.stadtbezirke, bezirkeData])
 
   const { bezirkMin, bezirkMedian, bezirkMax } = useMemo(() => {
     if (!bezirkeData) return {}

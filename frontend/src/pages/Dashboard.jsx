@@ -5,6 +5,7 @@ import Spinner from '../components/ui/Spinner'
 import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fetchEntsiegelung } from '../api/entsiegelung'
 import { fmt } from '../utils/format'
+import useAppStore from '../store/useAppStore'
 
 const ICONS = {
   flame: (
@@ -47,23 +48,19 @@ function topByProperty(features, key) {
 }
 
 export default function Dashboard() {
-  const [bezirke, setBezirke] = useState(null)
-  const [entsiegelung, setEntsiegelung] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const bezirke      = useAppStore(s => s.layerData.stadtbezirke)
+  const entsiegelung = useAppStore(s => s.layerData.entsiegelung)
+  const setLayerData = useAppStore(s => s.setLayerData)
+  const loading      = !bezirke || !entsiegelung
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    Promise.all([
-      fetchStadtbezirke(),
-      fetchEntsiegelung(),
-    ])
-      .then(([bez, ents]) => {
-        setBezirke(bez)
-        setEntsiegelung(ents)
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+    const fetches = []
+    if (!bezirke)      fetches.push(fetchStadtbezirke().then(d => setLayerData('stadtbezirke', d)))
+    if (!entsiegelung) fetches.push(fetchEntsiegelung().then(d => setLayerData('entsiegelung', d)))
+    if (fetches.length === 0) return
+    Promise.all(fetches).catch((err) => setError(err.message))
+  }, [bezirke, entsiegelung])
 
   const kpis = useMemo(() => {
     if (!bezirke || !entsiegelung) return null

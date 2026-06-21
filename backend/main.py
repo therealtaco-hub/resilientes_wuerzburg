@@ -8,6 +8,7 @@ erreichen. Erlaubte Origins werden aus ALLOWED_ORIGINS gelesen.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 import os
 
@@ -19,6 +20,7 @@ allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",
 
 app = FastAPI(title="Resilientes Würzburg API")
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
