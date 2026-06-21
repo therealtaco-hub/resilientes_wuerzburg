@@ -27,7 +27,7 @@ def get_lst(refresh: bool = False):
     has_ndvi = "ndvi" in gdf.columns
     has_ndbi = "ndbi" in gdf.columns
     has_bestand = "bestand_pct" in gdf.columns
-    has_seal = "seal_pct" in gdf.columns
+    has_seal = {"seal_pct", "dominant_type_key"} <= set(gdf.columns)
 
     features = []
     for _, row in gdf.iterrows():
