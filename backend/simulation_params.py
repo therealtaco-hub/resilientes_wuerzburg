@@ -10,6 +10,8 @@ Simulation logic (formulas, input/output contracts) is documented at:
   C:\\Code\\Obsidian\\Urban Heat Mapping\\wiki\\simulation-logic.md
 """
 
+import math
+
 # ── TREE COOLING (Bäume → ΔLST) ───────────────────────────────────────────────
 # Source: wiki/sources/garcia-de-leon-lst-trees-munich
 # García de León et al., München Sommer 2020, >166.000 Bäume, lineare Regression
@@ -93,9 +95,8 @@ MONTHLY_RAINFALL_WUERZBURG_MM: dict[int, float] = {
 CO2_KG_PER_TREE_YEAR = 12.5
 
 # ── VERSIEGELUNGSGRADE JE FLÄCHENTYP ─────────────────────────────────────────
-# v1: Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024, DIN 18005)
-# ⚠ v2: Durch Copernicus Imperviousness Layer ersetzen
-#   (GEE: JRC/GHSL/P2023A/GHS_BUILT_S, 10 m, via spatial join auf selektierte Polygone)
+# v1: Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024)
+# v2 (TODO): gemessene Per-Zellen-Versiegelung statt Typ-Schätzung
 # Flachdächer (osm_flat_roof_industrial) explizit ausgeschlossen — kein Bodenbelag.
 SEAL_RATE_BY_TYPE: dict[str, float] = {
     "osm_parking":                              0.95,
@@ -110,3 +111,36 @@ SEAL_RATE_BY_TYPE: dict[str, float] = {
     "AX_Friedhof":                              0.20,
     "_default":                                 0.70,
 }
+
+# ── GITTER-KONSTANTE ──────────────────────────────────────────────────────────
+CELL_AREA_M2 = 10_000  # Fläche einer 100×100-m Zensus/LST-Gitterkachel
+
+# ── ÜBERLAPPUNGSMODELL-HELPER (Crookston & Stage 1999) ─────────────────────────
+# Einzige Definition der Vorwärts- und Inversformel für den gesamten Backend-Stack.
+# data_loader._compute_bestand_pct, routers.simulate und tests nutzen diese Helper.
+# Das Frontend (BaumSimPanel.jsx) spiegelt die Formel eigenständig — bei Änderung
+# hier auch dort aktualisieren.
+
+def projected_cover_pct(ratio: float) -> float:
+    """Projizierte Kronendeckung (%) aus Flächen-Verhältnis (Crookston & Stage 1999).
+
+    ratio = Σ Kronenfläche / Bezugsfläche. Rückgabe in [0, 100) — asymptotisch,
+    kein clip nötig.
+    """
+    return (1.0 - math.exp(-ratio)) * 100.0
+
+
+def inverse_ratio(pct: float) -> float:
+    """Invertierte Formel: Kronendeckung (%) → äquivalentes Flächen-Verhältnis.
+
+    Klemmt auf [0, 99.9] zum Schutz vor log(0) bei pct → 100.
+    """
+    pct_safe = min(max(pct, 0.0), 99.9)
+    return -math.log(1.0 - pct_safe / 100.0)
+
+
+# ── WASSERKONTEXT-KONSTANTE ───────────────────────────────────────────────────
+# Source: BDEW Wasserstatistik 2023 (Wasserfachvorstudie), Deutschland-Mittel
+# Frontend spiegelt: WasserSimPanel.jsx WATER_USE_M3_PER_PERSON ≈ 46.4 m³/Jahr
+DAILY_WATER_USE_L_PER_PERSON = 127  # L/Person/Tag
+CONTEXT_PERSONS_M3_PER_YEAR = DAILY_WATER_USE_L_PER_PERSON * 365 / 1000.0  # ≈ 46.4 m³

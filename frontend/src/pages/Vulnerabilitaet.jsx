@@ -16,6 +16,7 @@ import { fmt } from '../utils/format'
 import { LST_SENSOR } from '../utils/sources'
 import { tooltipPos, tapToHover } from '../utils/tooltip'
 import useIsMobile from '../hooks/useIsMobile'
+import LstHinweisBar from '../components/ui/LstHinweisBar'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -479,6 +480,8 @@ export default function Vulnerabilitaet() {
           </span>
         )}
       </div>
+
+      <LstHinweisBar />
 
       {/* Map + Right Rail */}
       <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">

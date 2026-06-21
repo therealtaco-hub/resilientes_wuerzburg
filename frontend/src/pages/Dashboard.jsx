@@ -3,6 +3,7 @@ import KpiCard from '../components/ui/KpiCard'
 import TopList from '../components/dashboard/TopList'
 import Spinner from '../components/ui/Spinner'
 import { fetchStadtbezirke } from '../api/stadtbezirke'
+import { fetchEntsiegelung } from '../api/entsiegelung'
 import { fmt } from '../utils/format'
 
 const ICONS = {
@@ -47,18 +48,25 @@ function topByProperty(features, key) {
 
 export default function Dashboard() {
   const [bezirke, setBezirke] = useState(null)
+  const [entsiegelung, setEntsiegelung] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchStadtbezirke()
-      .then(setBezirke)
+    Promise.all([
+      fetchStadtbezirke(),
+      fetchEntsiegelung(),
+    ])
+      .then(([bez, ents]) => {
+        setBezirke(bez)
+        setEntsiegelung(ents)
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
 
   const kpis = useMemo(() => {
-    if (!bezirke) return null
+    if (!bezirke || !entsiegelung) return null
     const feats = bezirke.features
 
     const hottest        = topByProperty(feats, 'lst_max')
@@ -67,7 +75,7 @@ export default function Dashboard() {
     const mostEntsiegel  = topByProperty(feats, 'entsiegelung_m2')
 
     const totalTrees = feats.reduce((s, f) => s + (f.properties.tree_count || 0), 0)
-    const totalEnts  = feats.reduce((s, f) => s + (f.properties.entsiegelung_m2 || 0), 0)
+    const totalEnts  = (entsiegelung.features || []).reduce((s, f) => s + (f.properties.area_m2 || 0), 0)
 
     const top3 = (key, format, subBuilder) => feats
       .filter(f => Number.isFinite(f.properties[key]))
@@ -88,9 +96,11 @@ export default function Dashboard() {
     const topTrees    = top3('tree_count',      (v) => fmt.num(v))
     const topEntsieg  = top3('entsiegelung_m2', (v) => fmt.area(v))
 
+    const cityCanopyPct = bezirke.meta?.city_canopy_pct ?? null
+
     return { hottest, mostVulnerable, mostTrees, mostEntsiegel, totalTrees, totalEnts,
-             topHot, topVuln, topTrees, topEntsieg }
-  }, [bezirke])
+             topHot, topVuln, topTrees, topEntsieg, cityCanopyPct }
+  }, [bezirke, entsiegelung])
 
   return (
     <div className="p-4 lg:p-8">
@@ -150,15 +160,19 @@ export default function Dashboard() {
             label="Bäume in Würzburg"
             value={fmt.num(kpis.totalTrees)}
             unit="Stück"
-            sub={`Top: ${kpis.mostTrees.properties.name} · ${fmt.num(kpis.mostTrees.properties.tree_count)}`}
+            sub={
+              kpis.cityCanopyPct != null
+                ? `${fmt.pct(kpis.cityCanopyPct)} Kronenbeschattung · Top: ${kpis.mostTrees.properties.name}`
+                : `Top: ${kpis.mostTrees.properties.name} · ${fmt.num(kpis.mostTrees.properties.tree_count)}`
+            }
             color="green"
             icon={ICONS.tree}
           />
           <KpiCard
-            label="Entsiegelungspotenzial"
+            label="Potenzialflächen"
             value={splitArea(kpis.totalEnts).value}
             unit={splitArea(kpis.totalEnts).unit}
-            sub={`Top: ${kpis.mostEntsiegel.properties.name} · ${fmt.area(kpis.mostEntsiegel.properties.entsiegelung_m2)}`}
+            sub={`ATKIS + OSM · Kandidaten · Top: ${kpis.mostEntsiegel.properties.name}`}
             color="blue"
             icon={ICONS.layers}
           />

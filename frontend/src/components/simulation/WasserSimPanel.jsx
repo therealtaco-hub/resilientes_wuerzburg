@@ -11,14 +11,15 @@ import {
   RUNOFF_COEFFICIENTS,
   TYPICAL_REALIZATION_RATE,
   getTypicalRealizationRate,
+  WATER_USE_M3_PER_PERSON_YEAR,
 } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import EntsiegelungLegend from '../map/EntsiegelungLegend'
 
 const DEBOUNCE_MS = 300
 
-// Trinkwasserbedarf pro Person (BDEW Wasserstatistik 2023, 127 L/Tag)
-const WATER_USE_M3_PER_PERSON = (127 * 365) / 1000  // 46,4 m³/Jahr
+// Trinkwasserbedarf aus simulate.js (BDEW 2023, gespiegelt aus simulation_params.py)
+const WATER_USE_M3_PER_PERSON = WATER_USE_M3_PER_PERSON_YEAR
 
 // Anteil der Versickerung, der das Grundwasser erreicht (LfU Bayern, Richtwert für Bayern)
 const GW_RATE_LOW  = 0.15

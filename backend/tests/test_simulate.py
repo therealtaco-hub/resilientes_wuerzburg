@@ -6,8 +6,6 @@ Ausführen:
     python -m pytest tests/test_simulate.py -v
 """
 
-import math
-
 import pytest
 from httpx import AsyncClient, ASGITransport
 
@@ -15,22 +13,24 @@ from main import app
 from simulation_params import (
     ANNUAL_RAINFALL_WUERZBURG_M,
     CO2_KG_PER_TREE_YEAR,
+    CONTEXT_PERSONS_M3_PER_YEAR,
     CROWN_AREA_M2_DEFAULT,
     LST_PER_PCT_CANOPY_MIXED,
     RUNOFF_COEFFICIENTS,
+    inverse_ratio,
+    projected_cover_pct,
 )
 
 
 def _projected_cover_pct(n_trees, area_m2, existing_pct=0.0):
-    """Spiegelt die Backend-Formel (Crookston & Stage 1999) für Test-Erwartungen.
+    """Berechnet (total_coverage_pct, effective_new_pct) mit simulation_params-Helpern.
 
-    Gibt (total_coverage_pct, effective_new_pct) als *ungerundete* Werte zurück —
-    die Tests runden analog zum Router.
+    Nutzt dieselben inverse_ratio / projected_cover_pct wie der Router — ein
+    gespiegelter Vorzeichenfehler würde beide treffen und so sichtbar bleiben.
     """
     new_ratio = n_trees * CROWN_AREA_M2_DEFAULT / area_m2
-    existing_safe = min(existing_pct, 99.9)
-    existing_ratio = -math.log(1.0 - existing_safe / 100.0)
-    total = max(existing_pct, (1.0 - math.exp(-(existing_ratio + new_ratio))) * 100.0)
+    existing_r = inverse_ratio(existing_pct)
+    total = max(existing_pct, projected_cover_pct(existing_r + new_ratio))
     return total, total - existing_pct
 
 
@@ -57,9 +57,10 @@ class TestSimulateBaeume:
         assert data["effective_new_pct"] == round(eff, 1)
         assert data["delta_lst_celsius"] == round(LST_PER_PCT_CANOPY_MIXED * eff, 2)
         assert data["co2_kg_year"] == round(100 * CO2_KG_PER_TREE_YEAR, 1)
-        # delta_coverage_pct existiert nicht mehr (durch crown_area_ratio ersetzt)
+        # delta_coverage_pct existiert nicht mehr; crown_area_ratio → new_crown_area_ratio
         assert "delta_coverage_pct" not in data
-        assert data["crown_area_ratio"] == 0.5
+        assert "crown_area_ratio" not in data
+        assert data["new_crown_area_ratio"] == 0.5
 
     @pytest.mark.asyncio
     async def test_ratio_1_ergibt_63_prozent(self, client):
@@ -128,11 +129,12 @@ class TestSimulateBaeume:
         resp = await client.get("/api/simulate/baeume?n_trees=50&area_m2=5000")
         assert resp.status_code == 200
         data = resp.json()
-        for field in ["n_trees", "area_m2", "crown_area_ratio", "effective_new_pct",
+        for field in ["n_trees", "area_m2", "new_crown_area_ratio", "effective_new_pct",
                       "total_coverage_pct", "delta_lst_celsius", "co2_kg_year",
                       "coefficients_used", "caveats"]:
             assert field in data, f"Pflichtfeld fehlt: {field}"
         assert "delta_coverage_pct" not in data
+        assert "crown_area_ratio" not in data
 
     @pytest.mark.asyncio
     async def test_caveats_nicht_leer(self, client):
@@ -240,7 +242,7 @@ class TestSimulateWasser:
         expected_infil = round(1000 * ANNUAL_RAINFALL_WUERZBURG_M * (c_from - c_to), 1)
         assert data["infiltration_m3_year"] == expected_infil
         assert data["retention_pct"] == round((1 - c_to) * 100, 1)
-        assert data["context_persons"] == round(expected_infil / 54.75, 1)
+        assert data["context_persons"] == round(expected_infil / CONTEXT_PERSONS_M3_PER_YEAR, 1)
 
     @pytest.mark.asyncio
     async def test_maximale_entsiegelung(self, client):
@@ -356,6 +358,6 @@ class TestSimulateWasser:
         data = resp.json()
         delta_c = RUNOFF_COEFFICIENTS["asphalt"] - RUNOFF_COEFFICIENTS["rasengitter"]
         expected_infil = round(area * ANNUAL_RAINFALL_WUERZBURG_M * delta_c, 1)
-        expected_persons = round(expected_infil / 54.75, 1)
+        expected_persons = round(expected_infil / CONTEXT_PERSONS_M3_PER_YEAR, 1)
         assert data["infiltration_m3_year"] == expected_infil
         assert data["context_persons"] == expected_persons

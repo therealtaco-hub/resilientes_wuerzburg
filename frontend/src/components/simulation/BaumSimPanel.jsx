@@ -76,7 +76,7 @@ function BeforeAfterRow({ label, barFill, beforeFill, beforeFmt, afterFmt, delta
   )
 }
 
-export default function BaumSimPanel({ lstData, treeData }) {
+export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
   const selectedCells       = useAppStore((s) => s.sim.selectedCells)
   const selectedCellsAreaM2 = useAppStore((s) => s.sim.selectedCellsAreaM2)
   const selectedCount       = selectedCells.length
@@ -189,6 +189,17 @@ export default function BaumSimPanel({ lstData, treeData }) {
     return () => debounceRef.current && clearTimeout(debounceRef.current)
   }, [hasSel, anzahl, selectedCellsAreaM2, existingPct])
 
+  // Stadtweite Kronenbeschattung – Baseline aus dem Backend (nur In-Stadt-Kacheln,
+  // korrekt gegen Stadtbezirke-Polygone gefiltert). Fallback auf Frontend-Berechnung
+  // über alle LST-Features wenn cityMeta noch nicht geladen.
+  const cityBestandPct = useMemo(() => {
+    if (cityMeta?.city_canopy_pct != null) return cityMeta.city_canopy_pct
+    if (!lstData?.features?.length) return null
+    const N = lstData.features.length
+    const sum = lstData.features.reduce((s, f) => s + (f.properties?.bestand_pct ?? 0), 0)
+    return sum / N
+  }, [cityMeta, lstData])
+
   // Projizierte Kronendeckung (Crookston & Stage 1999) — spiegelt die Backend-Formel
   // für die unmittelbare Slider-Vorschau. Bestand & Neu werden im Flächen-Verhältnis
   // addiert, nicht als Prozente. Backend bleibt die Wahrheit.
@@ -201,6 +212,21 @@ export default function BaumSimPanel({ lstData, treeData }) {
     const total = Math.max(existingPct, (1 - Math.exp(-(existingRatio + newRatio))) * 100)
     return { totalPct: total, effectiveNewPct: total - existingPct, naiveNewPct: newRatio * 100 }
   }, [hasSel, anzahl, selectedCellsAreaM2, existingPct])
+
+  // Stadtweiter Zuwachs: effectiveNewPct wirkt nur auf Selektionsfläche, skaliert auf Stadtgebiet.
+  // Nenner = city_cell_count × 10.000 m² (nur In-Stadt-Kacheln); Fallback auf LST-Gesamtzahl.
+  const { cityAfterPct, deltaCityPct } = useMemo(() => {
+    if (cityBestandPct == null) return { cityAfterPct: null, deltaCityPct: 0 }
+    if (!hasSel || effectiveNewPct <= 0 || selectedCellsAreaM2 <= 0) {
+      return { cityAfterPct: cityBestandPct, deltaCityPct: 0 }
+    }
+    const cellCount       = cityMeta?.city_cell_count ?? lstData?.features?.length ?? 0
+    if (cellCount === 0)  return { cityAfterPct: cityBestandPct, deltaCityPct: 0 }
+    const cityTotalAreaM2 = cellCount * 10000
+    const addedShadedM2   = (effectiveNewPct / 100) * selectedCellsAreaM2
+    const delta           = (addedShadedM2 / cityTotalAreaM2) * 100
+    return { cityAfterPct: cityBestandPct + delta, deltaCityPct: delta }
+  }, [cityBestandPct, hasSel, effectiveNewPct, selectedCellsAreaM2, cityMeta, lstData])
 
   const co2 = result ? formatCo2(result.co2_kg_year) : null
 
@@ -296,6 +322,11 @@ export default function BaumSimPanel({ lstData, treeData }) {
               {hasGap && (
                 <div className="text-accent-amber text-[10px] mt-0.5 leading-snug">
                   ⚠ Teils keine ATKIS-Siedlungs-/Verkehrsfläche → dort als unversiegelt (Grün-/Freifläche) angenommen.
+                </div>
+              )}
+              {cityBestandPct != null && (
+                <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
+                  Stadtgebiet: {fmt.pct(cityBestandPct)} Kronenbeschattung gesamt
                 </div>
               )}
             </>
@@ -455,7 +486,7 @@ export default function BaumSimPanel({ lstData, treeData }) {
 
               {/* Kronendeckung */}
               <BeforeAfterRow
-                label="Kronendeckung"
+                label="Kronendeckung (Auswahl)"
                 barFill={totalPct / 100}
                 beforeFill={existingPct / 100}
                 beforeFmt={fmt.pct(existingPct)}
@@ -464,6 +495,20 @@ export default function BaumSimPanel({ lstData, treeData }) {
                 deltaColor="var(--amber)"
                 barColor="var(--amber)"
               />
+
+              {/* Stadtweite Beschattung */}
+              {cityBestandPct != null && (
+                <BeforeAfterRow
+                  label="Beschattung Stadtgebiet"
+                  barFill={(cityAfterPct ?? cityBestandPct) / 100}
+                  beforeFill={cityBestandPct / 100}
+                  beforeFmt={fmt.pct(cityBestandPct)}
+                  afterFmt={cityAfterPct != null ? fmt.pct(cityAfterPct) : '—'}
+                  deltaFmt={deltaCityPct > 0.005 ? `+${fmt.pct(deltaCityPct, 2)}` : '0,00%'}
+                  deltaColor={deltaCityPct > 0.005 ? 'var(--green)' : 'var(--text-3)'}
+                  barColor="rgba(34,197,94,0.5)"
+                />
+              )}
             </div>
           )}
 
@@ -491,6 +536,7 @@ export default function BaumSimPanel({ lstData, treeData }) {
         {methodikOpen && (
           <div className="mt-3 space-y-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
             {result?.caveats?.map((c, i) => <p key={i}>• {c}</p>)}
+            <p>• <strong>Pflanzbare Fläche:</strong> Das Slider-Maximum ergibt sich aus der unversiegelten Kachelfläche geteilt durch 100 m²/Baum (empfohlener Pflanzabstand für Bäume 2. Ordnung, FLL-Richtlinie „Empfehlungen für Baumpflanzungen", Teil 1, 2. Ausgabe 2015). Die tatsächlich verfügbaren Pflanzorte können deutlich geringer sein, da ein Teil der unversiegelten Fläche auf unterkellertem Boden, privaten Grundstücken oder Flächen mit Leitungskonflikten liegt. Die angezeigte Maximalzahl ist daher als rechnerische Obergrenze zu verstehen.</p>
             {result?.coefficients_used && (
               <p className="font-mono text-[10px] pt-1" style={{ color: 'var(--text-3)' }}>
                 LST/% Krone: {result.coefficients_used.lst_per_pct_canopy} ·

@@ -61,7 +61,7 @@ async def get_stadtbezirke(refresh: bool = False):
 
     # --- LST per Stadtbezirk ---
     lst_join = gpd.sjoin(
-        lst[["lst_celsius", "geometry"]],
+        lst[["lst_celsius", "bestand_pct", "geometry"]],
         bz_keys[["bz_idx", "geometry"]],
         how="inner",
         predicate="intersects",
@@ -145,9 +145,24 @@ async def get_stadtbezirke(refresh: bool = False):
             },
         })
 
+    # city_canopy_pct: Mittelwert nur über In-Stadt-Kacheln (inner sjoin gegen Stadtbezirke),
+    # nicht über den gesamten GeoTIFF-Extent. Grenzzel­len können in mehreren Bezirken
+    # auftauchen → deduplizieren via originalen LST-Index.
+    if "bestand_pct" in lst.columns:
+        in_city_idx = lst_join.index.unique()
+        city_canopy_pct = float(lst.loc[in_city_idx, "bestand_pct"].mean())
+        city_cell_count = int(len(in_city_idx))
+    else:
+        city_canopy_pct = None
+        city_cell_count = None
+
     _cache = {
         "type": "FeatureCollection",
         "features": features,
-        "meta": {"total_count": len(features)},
+        "meta": {
+            "total_count": len(features),
+            "city_canopy_pct": round(city_canopy_pct, 2) if city_canopy_pct is not None else None,
+            "city_cell_count": city_cell_count,
+        },
     }
     return _cache

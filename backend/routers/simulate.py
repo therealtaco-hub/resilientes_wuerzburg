@@ -6,7 +6,6 @@ Formeln und Koeffizienten ausschließlich aus simulation_params.py.
 Wissenschaftliche Herleitung: urban-heat-wiki/wiki/simulation-logic.md
 """
 
-import math
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -15,9 +14,12 @@ from fastapi.responses import JSONResponse
 from simulation_params import (
     ANNUAL_RAINFALL_WUERZBURG_M,
     CO2_KG_PER_TREE_YEAR,
+    CONTEXT_PERSONS_M3_PER_YEAR,
     CROWN_AREA_M2_DEFAULT,
     LST_PER_PCT_CANOPY_MIXED,
     RUNOFF_COEFFICIENTS,
+    inverse_ratio,
+    projected_cover_pct,
 )
 
 router = APIRouter()
@@ -68,10 +70,7 @@ _WASSER_CAVEATS = [
         "Klimawandel kann zukünftige Niederschlagsmengen verändern."
     ),
     "Kein Δ°C in v1 — Tervooren-Koeffizient gilt auf Stadtbezirksebene, nicht für Einzelflächen.",
-    (
-        "Versiegelungsgrade sind Literaturwerte (v1); v2 verwendet Copernicus Imperviousness "
-        "Layer (GEE JRC/GHSL/P2023A/GHS_BUILT_S, 10 m)."
-    ),
+    "Versiegelungsgrade sind Literaturwerte (v1); v2 (TODO): gemessene Per-Zellen-Versiegelung statt Typ-Schätzung.",
 ]
 
 
@@ -119,19 +118,16 @@ def simulate_baeume(
     """
     crown_area_total = n_trees * CROWN_AREA_M2_DEFAULT
 
-    # Bestehende projizierte Deckung → äquivalentes Kronenflächen-Verhältnis (inverse Formel).
-    # Schutz gegen log(0) bei existing_coverage_pct → 100.
-    existing_pct_safe = min(existing_coverage_pct, 99.9)
-    existing_ratio = -math.log(1.0 - existing_pct_safe / 100.0)
+    # Bestehende Deckung → äquivalentes Ratio (inverse Formel, log-sicher bei → 100).
+    existing_r = inverse_ratio(existing_coverage_pct)
 
-    # Neue Bäume als zusätzliches Flächen-Verhältnis, im selben Raum addieren.
+    # Neue Bäume als zusätzliches Flächen-Verhältnis, im selben Projektionsraum addieren.
     new_ratio = crown_area_total / area_m2
-    total_ratio = existing_ratio + new_ratio
+    total_ratio = existing_r + new_ratio
 
-    # max() gegen Artefakt am Rand: bei existing_coverage_pct ∈ (99.9, 100] liefert die
-    # auf 99.9 geklemmte existing_ratio eine Gesamtdeckung knapp < existing → sonst negativ.
-    total_coverage_pct = max(existing_coverage_pct, (1.0 - math.exp(-total_ratio)) * 100.0)
-    effective_new_pct = total_coverage_pct - existing_coverage_pct  # physikalisch begrenzt, ≥ 0
+    # max() gegen Artefakt bei existing_coverage_pct ∈ (99.9, 100] (Klemm-Residual).
+    total_coverage_pct = max(existing_coverage_pct, projected_cover_pct(total_ratio))
+    effective_new_pct = total_coverage_pct - existing_coverage_pct  # ≥ 0
     delta_lst_celsius = LST_PER_PCT_CANOPY_MIXED * effective_new_pct
     co2_kg_year = n_trees * CO2_KG_PER_TREE_YEAR
 
@@ -141,7 +137,7 @@ def simulate_baeume(
         "n_trees": n_trees,
         "area_m2": area_m2,
         "existing_coverage_pct": round(existing_coverage_pct, 1),
-        "crown_area_ratio": round(new_ratio, 3),
+        "new_crown_area_ratio": round(new_ratio, 3),
         "effective_new_pct": round(effective_new_pct, 1),
         "total_coverage_pct": round(total_coverage_pct, 1),
         "delta_lst_celsius": round(delta_lst_celsius, 2),
@@ -171,7 +167,7 @@ def simulate_wasser(
       3. delta_C             = C_from - C_to
       4. infiltration_m3_yr  = max(0, area_m2 × ANNUAL_RAINFALL_WUERZBURG_M × delta_C)
       5. retention_pct       = (1 - C_to) × 100
-      6. context_persons     = infiltration_m3_yr / 54.75   (150 L/Tag × 365)
+      6. context_persons     = infiltration_m3_yr / CONTEXT_PERSONS_M3_PER_YEAR   (BDEW 2023, 127 L/Tag × 365)
     """
     # Unbekannte Belagstypen → 422
     errors = []
@@ -192,7 +188,7 @@ def simulate_wasser(
 
     infiltration_m3_year = max(0.0, area_m2 * ANNUAL_RAINFALL_WUERZBURG_M * delta_c)
     retention_pct = (1.0 - c_to) * 100.0
-    context_persons = infiltration_m3_year / 54.75
+    context_persons = infiltration_m3_year / CONTEXT_PERSONS_M3_PER_YEAR
 
     caveats = list(_WASSER_CAVEATS)
     if delta_c <= 0:

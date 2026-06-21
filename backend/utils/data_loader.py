@@ -21,7 +21,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
-from simulation_params import SEAL_RATE_BY_TYPE
+from simulation_params import CELL_AREA_M2, SEAL_RATE_BY_TYPE, projected_cover_pct
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 _TREES_SOURCE = _DATA_DIR / "baumkataster_stadt_wuerzburg.parquet"  # Bulk-Export (alle 44.647 Records)
@@ -39,6 +39,12 @@ _ATKIS_ZIP          = _DATA_DIR / "bkg_shape_712.zip"
 _ENTSIEGELUNG_CACHE = _DATA_DIR / "entsiegelung.parquet"
 
 _STADTBEZIRKE_CACHE = _DATA_DIR / "stadtbezirke.parquet"
+
+# Versionskonstanten für den lst.parquet-Cache.
+# Erhöhen, wenn sich die Berechnungslogik einer abgeleiteten Spalte ändert →
+# load_lst() erkennt den veralteten Cache automatisch und berechnet neu.
+_BESTAND_MODEL_VERSION = 2  # 1 = naiv (Σ/10.000, clip), 2 = Crookston-Exp
+_SEAL_MODEL_VERSION    = 1  # 1 = flächengewichteter Ψ aus Entsiegelungs-Polygonen
 _STADTBEZIRKE_URL   = (
     "https://opendata.wuerzburg.de/api/explore/v2.1/"
     "catalog/datasets/stadtbezirke/records?limit=20"
@@ -150,11 +156,10 @@ def _compute_bestand_pct(lst_gdf: gpd.GeoDataFrame) -> pd.Series:
         return pd.Series(0.0, index=lst_gdf.index)
 
     sum_per_cell = joined.groupby("index_right")["crown_area_m2"].sum()
-    # Projizierte Kronendeckung nach Crookston & Stage (1999):
-    # Annahme zufälliger Kronenüberlappung → 1 − exp(−Σ Kronenfläche / Zellfläche).
-    # Zellgröße ist 100×100 m = 10.000 m². Liefert per Konstruktion [0, 100) — kein clip nötig.
-    ratio = sum_per_cell / 10_000.0
-    pct = (1.0 - np.exp(-ratio)) * 100.0
+    # Projizierte Kronendeckung nach Crookston & Stage (1999).
+    # Verwendet simulation_params.projected_cover_pct — einzige Definition der Formel.
+    ratio = sum_per_cell / CELL_AREA_M2
+    pct = ratio.apply(projected_cover_pct)
     return lst_gdf.index.to_series().map(pct).fillna(0.0).round(1)
 
 
@@ -168,8 +173,8 @@ def _compute_seal_pct(lst_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
     dominant=None) — Abwesenheit von sie02/ver01 ≈ Grün-/Freifläche (E2).
 
     Der Clip [0, 1] fängt die Doppelzählung sich überlappender Polygone ab (z. B. OSM-Dach
-    innerhalb einer ATKIS-Wohnbaufläche) — bewusste Vereinfachung der groben Typ-Schätzung
-    (v2: GHSL-Imperviousness ersetzt das). Gibt (seal_pct, dominant_type_key) zurück.
+    innerhalb einer ATKIS-Wohnbaufläche) — bewusste Vereinfachung (v2 TODO: gemessene
+    Per-Zellen-Versiegelung). Gibt (seal_pct, dominant_type_key) zurück.
     """
     none_dom = pd.Series([None] * len(lst_gdf), index=lst_gdf.index, dtype=object)
     try:
@@ -229,12 +234,28 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
     if not force_refresh and _LST_CACHE.exists():
         gdf = gpd.read_parquet(_LST_CACHE)
         changed = False
-        if "bestand_pct" not in gdf.columns:
+
+        # Versionscheck bestand_pct: Spalte fehlt ODER Version unter aktuellem Modell.
+        # Verhindert stille Fehlergebnisse nach Formeländerungen (z. B. naiv → Crookston-Exp).
+        cached_bmv = (
+            int(gdf["_bestand_model_version"].iloc[0])
+            if "_bestand_model_version" in gdf.columns else 0
+        )
+        if cached_bmv < _BESTAND_MODEL_VERSION:
             gdf["bestand_pct"] = _compute_bestand_pct(gdf)
+            gdf["_bestand_model_version"] = _BESTAND_MODEL_VERSION
             changed = True
-        if "seal_pct" not in gdf.columns:
+
+        # Versionscheck seal_pct: Spalten fehlen ODER Version unter aktuell.
+        cached_smv = (
+            int(gdf["_seal_model_version"].iloc[0])
+            if "_seal_model_version" in gdf.columns else 0
+        )
+        if cached_smv < _SEAL_MODEL_VERSION or not {"seal_pct", "dominant_type_key"}.issubset(gdf.columns):
             gdf["seal_pct"], gdf["dominant_type_key"] = _compute_seal_pct(gdf)
+            gdf["_seal_model_version"] = _SEAL_MODEL_VERSION
             changed = True
+
         if changed:
             gdf.to_parquet(_LST_CACHE)
         return gdf
@@ -304,6 +325,8 @@ def load_lst(force_refresh: bool = False) -> gpd.GeoDataFrame:
 
     gdf["bestand_pct"] = _compute_bestand_pct(gdf)
     gdf["seal_pct"], gdf["dominant_type_key"] = _compute_seal_pct(gdf)
+    gdf["_bestand_model_version"] = _BESTAND_MODEL_VERSION
+    gdf["_seal_model_version"] = _SEAL_MODEL_VERSION
 
     gdf.to_parquet(_LST_CACHE)
     return gdf

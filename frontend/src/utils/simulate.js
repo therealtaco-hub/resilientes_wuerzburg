@@ -82,10 +82,14 @@ export const TYPE_KEY_LABELS = {
 export const CROWN_AREA_M2_DEFAULT = 50
 
 // Mindeststandfläche je Neupflanzung (UX-/Plausibilitäts-Cap fürs Slider-Maximum,
-// KEIN Modell-Cap). ~25 m²/Baum ≈ 5 m Standabstand — dichte, aber sinnvolle
-// jugendliche Neupflanzung. Größenordnung: reife Kronendurchmesser ~9–12 m
-// (Moser-Reischl 2021; Platanus ~12 m, Tilia ~8,9 m aus CPA); 25 m² ist bewusst großzügig.
-export const MIN_GROUND_PER_TREE_M2 = 25
+// KEIN Modell-Cap). 100 m²/Baum ≈ 10 m Pflanzabstand — empfohlener Abstand für
+// Bäume 2. Ordnung (bis 20 m Höhe) nach FLL-Richtlinie „Empfehlungen für
+// Baumpflanzungen", Teil 1, 2. Ausgabe 2015.
+// Hinweis: Die pflanzbare Fläche (unversiegelte Kachelanteil) überschätzt die
+// tatsächlich verfügbaren Pflanzorte, da ein Teil davon auf unterkellertem Boden,
+// privaten Hinterhöfen oder zu engen Zwischenräumen liegt. Das Slider-Maximum ist
+// daher als rechnerische Obergrenze zu verstehen, nicht als Planungsziel.
+export const MIN_GROUND_PER_TREE_M2 = 100
 
 // Ψ-Abflussbeiwerte je Belagstyp (gespiegelt aus simulation_params.py RUNOFF_COEFFICIENTS)
 // Quellen: DWA-A138 / LfU Bayern; Leitfaden Flächenentsiegelung Landkreis Bayreuth 2024
@@ -118,3 +122,7 @@ export const TYPICAL_REALIZATION_RATE = {
 }
 export const getTypicalRealizationRate = (type_key) =>
   TYPICAL_REALIZATION_RATE[type_key] ?? TYPICAL_REALIZATION_RATE['_default']
+
+// Gespiegelt aus simulation_params.py CONTEXT_PERSONS_M3_PER_YEAR (≈ 46,4 m³/Jahr).
+// BDEW Wasserstatistik 2023: 127 L/Tag × 365 Tage.
+export const WATER_USE_M3_PER_PERSON_YEAR = 127 * 365 / 1000  // ≈ 46.4

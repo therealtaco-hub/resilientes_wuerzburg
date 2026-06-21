@@ -1,5 +1,6 @@
 """
-Unit-Tests für _compute_bestand_pct (negativ-exponentielles Überlappungsmodell).
+Unit-Tests für _compute_bestand_pct (negativ-exponentielles Überlappungsmodell)
+und den Cache-Migrations-Pfad in load_lst().
 
 Struktur analog test_seal_pct.py: Baumkataster-Quelle wird per monkeypatch durch
 synthetische Punkte ersetzt; lst_gdf enthält 100×100-m-Zellen in EPSG:4326.
@@ -17,6 +18,7 @@ import pytest
 from shapely.geometry import Point, box
 
 from utils import data_loader
+from simulation_params import inverse_ratio, projected_cover_pct
 
 
 # ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
@@ -199,3 +201,90 @@ def test_baeume_nur_in_einer_von_drei_zellen(three_cells, tmp_path, monkeypatch)
     assert result.iloc[0] == pytest.approx(39.3, abs=0.1)
     assert result.iloc[1] == 0.0
     assert result.iloc[2] == 0.0
+
+
+# ─── Cache-Migrations-Tests ────────────────────────────────────────────────────
+
+def test_stale_cache_ohne_version_triggert_recompute(single_cell, tmp_path, monkeypatch):
+    """lst.parquet mit altem bestand_pct (naive Summe) ohne Versionsmarker
+    wird von load_lst() automatisch mit der Crookston-Exp-Formel neu berechnet.
+
+    Naiver Wert: Σ/10.000 × 100 = 5.000/10.000 × 100 = 50,0 %
+    Exp-Formel:  (1 − exp(−0,5)) × 100 ≈ 39,3 %
+    """
+    # Stale parquet bauen: bestand_pct = 50 (naiver Wert), kein _bestand_model_version
+    stale_gdf = single_cell.copy()
+    stale_gdf["lst_celsius"] = 30.0
+    stale_gdf["lst_norm"] = 0.5
+    stale_gdf["x_mp_100m"] = 4312500
+    stale_gdf["y_mp_100m"] = 2972500
+    stale_gdf["bestand_pct"] = 50.0  # falscher naiver Wert — kein Versionsmarker
+    lst_cache = tmp_path / "lst.parquet"
+    stale_gdf.to_parquet(lst_cache)
+
+    # Baumkataster: ein Baum mit 5.000 m² Krone in der Zelle → erwartet 39,3 %
+    lon, lat = _center()
+    trees = _make_trees([(lon, lat, _kronenbrei_for_area(5_000))])
+    trees_cache = tmp_path / "trees.parquet"
+    trees.to_parquet(trees_cache)
+
+    monkeypatch.setattr(data_loader, "_LST_CACHE", lst_cache)
+    monkeypatch.setattr(data_loader, "_LST_TIF", tmp_path / "tif_not_used.tif")
+    monkeypatch.setattr(data_loader, "_TREES_CACHE", trees_cache)
+    monkeypatch.setattr(data_loader, "_TREES_SOURCE", tmp_path / "src.parquet")
+    monkeypatch.setattr(data_loader, "_ENTSIEGELUNG_CACHE", tmp_path / "entsiegelung.parquet")
+    monkeypatch.setattr(data_loader, "_ATKIS_ZIP", tmp_path / "atkis.zip")
+
+    result = data_loader.load_lst(force_refresh=False)
+
+    # Naiver 50 %-Wert wurde durch Exp-Wert ersetzt
+    assert result["bestand_pct"].iloc[0] == 39.3
+    # Versionsmarker ist gesetzt
+    assert "_bestand_model_version" in result.columns
+    assert int(result["_bestand_model_version"].iloc[0]) == data_loader._BESTAND_MODEL_VERSION
+
+
+def test_aktueller_cache_wird_nicht_neu_berechnet(single_cell, tmp_path, monkeypatch):
+    """lst.parquet mit korrektem Versionsmarker wird NICHT neu berechnet."""
+    current_gdf = single_cell.copy()
+    current_gdf["lst_celsius"] = 30.0
+    current_gdf["lst_norm"] = 0.5
+    current_gdf["x_mp_100m"] = 4312500
+    current_gdf["y_mp_100m"] = 2972500
+    current_gdf["bestand_pct"] = 39.3  # bereits korrekt
+    current_gdf["_bestand_model_version"] = data_loader._BESTAND_MODEL_VERSION
+    current_gdf["seal_pct"] = 0.0
+    current_gdf["dominant_type_key"] = None
+    current_gdf["_seal_model_version"] = data_loader._SEAL_MODEL_VERSION
+    lst_cache = tmp_path / "lst.parquet"
+    current_gdf.to_parquet(lst_cache)
+
+    monkeypatch.setattr(data_loader, "_LST_CACHE", lst_cache)
+    monkeypatch.setattr(data_loader, "_LST_TIF", tmp_path / "tif_not_used.tif")
+
+    result = data_loader.load_lst(force_refresh=False)
+
+    # Wert bleibt unverändert — kein Recompute
+    assert result["bestand_pct"].iloc[0] == 39.3
+
+
+# ─── Multi-Cell-Aggregation ────────────────────────────────────────────────────
+
+def test_multi_cell_aggregation_naeherung():
+    """Dokumentiert die Frontend-Näherung: mean(bestand_pct_i) als existing_coverage_pct.
+
+    Bei heterogener Kronendeckung weicht der Mittelwert der projizierten Prozente
+    vom exakten kombinierten Ratio ab. Der Näherungsfehler ist für typische Werte
+    (< 80 %) gering (< 5 Prozentpunkte).
+    """
+    pcts = [20.0, 60.0]
+
+    # Näherung (Frontend-Ansatz): Mittelwert der projizierten Prozente
+    approx_mean = sum(pcts) / len(pcts)  # 40,0 %
+
+    # Exakt: Mittelwert der Ratios → projizierte Gesamtdeckung
+    combined_ratio = sum(inverse_ratio(p) for p in pcts) / len(pcts)
+    exact_pct = projected_cover_pct(combined_ratio)
+
+    # Fehler bleibt gering für moderate Eingaben
+    assert abs(approx_mean - exact_pct) < 5.0

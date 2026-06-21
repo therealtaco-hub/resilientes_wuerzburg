@@ -11,6 +11,8 @@ import useAppStore from '../store/useAppStore'
 import { fetchLst } from '../api/lst'
 import { fetchTrees } from '../api/trees'
 import { fetchEntsiegelung } from '../api/entsiegelung'
+import { fetchStadtbezirke } from '../api/stadtbezirke'
+import LstHinweisBar from '../components/ui/LstHinweisBar'
 
 function TabButton({ active, onClick, icon, label }) {
   return (
@@ -34,6 +36,7 @@ export default function Simulation() {
   const [lstData, setLstData]     = useState(null)
   const [treeData, setTreeData]   = useState(null)
   const [entsData, setEntsData]   = useState(null)
+  const [cityMeta, setCityMeta]   = useState(null)
   const [error, setError]         = useState(null)
 
   const selectedCells     = useAppStore((s) => s.sim.selectedCells)
@@ -55,6 +58,12 @@ export default function Simulation() {
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_lst', false))
     }
+    if (tab === 'baeume' && !cityMeta) {
+      // Nur meta.city_canopy_pct + meta.city_cell_count nötig — Backend ist in-memory gecacht.
+      fetchStadtbezirke()
+        .then((d) => setCityMeta(d.meta ?? null))
+        .catch(() => {/* non-fatal */})
+    }
     if (tab === 'baeume' && !treeData) {
       setLayerLoading('sim_trees', true)
       fetchTrees()
@@ -72,13 +81,12 @@ export default function Simulation() {
         .catch((e) => setError(e.message))
         .finally(() => setLayerLoading('sim_ents', false))
     }
-  }, [tab, lstData, treeData, entsData, showSimAtkis])
+  }, [tab, lstData, treeData, entsData, cityMeta, showSimAtkis])
 
   // Clear selections wenn die zugehörigen Daten gewechselt werden — Indizes sonst ungültig.
   // (kein Refresh-Trigger hier, aber Initialload kann auch invalidieren)
   useEffect(() => {
     if (selectedCells.length > 0 && !lstData) clearSimCells()
-
   }, [lstData])
   useEffect(() => {
     if (selectedPolygons.length > 0 && !entsData) clearSimPolygons()
@@ -120,6 +128,8 @@ export default function Simulation() {
         />
       </div>
 
+      {tab === 'baeume' && <LstHinweisBar />}
+
       {/* Map + Panel */}
       <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">
         {/* Map – Desktop: feste Breite (100vw - 220sidebar - 64padding - 16gap - 420panel). Mobil: volle Breite, feste Höhe. */}
@@ -153,7 +163,7 @@ export default function Simulation() {
 
         {/* Panel – Desktop: flex-1 (nimmt Platz vom Sidebar-Collapse auf). Mobil: volle Breite, stapelt unter der Karte. */}
         <div className="w-full lg:w-auto lg:flex-1 min-w-0 lg:overflow-y-auto">
-          {tab === 'baeume' ? <BaumSimPanel lstData={lstData} treeData={treeData} /> : <WasserSimPanel />}
+          {tab === 'baeume' ? <BaumSimPanel lstData={lstData} treeData={treeData} cityMeta={cityMeta} /> : <WasserSimPanel />}
         </div>
       </div>
     </div>
