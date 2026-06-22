@@ -195,15 +195,17 @@ Nutzer wählt LST-Kacheln (100 m × 100 m) in der Karte aus und stellt die Anzah
 
 | Parameter | Wert | Quelle |
 |---|---|---|
-| ΔLST pro 1 % Kronendeckungszunahme (Mischgebiet) | **−0,083 °C** | García de León et al. (2022), München |
-| ΔLST pro 1 % Kronendeckung (Gesamtstadt) | −0,069 °C | García de León et al. (2022), München |
-| ΔLST pro 1 % Kronendeckung (Erholungsflächen) | −0,038 °C | García de León et al. (2022), München |
+| ΔLST pro 1 % Kronendeckungszunahme (Mischgebiet) | **−0,083 °C** | García de León et al. (2025), München |
+| ΔLST pro 1 % Kronendeckung (Gesamtstadt) | −0,069 °C | García de León et al. (2025), München |
+| ΔLST pro 1 % Kronendeckung (Erholungsflächen) | −0,038 °C | García de León et al. (2025), München |
 | CO₂-Bindung pro Baum und Jahr | 12,5 kg | Dr. Daniel Klein, Universität Münster |
 | Kronenfläche pro Baum (Default) | 50 m² | Literaturmittelwert |
-| Transpiration feuchtigkeitsadaptierte Arten (LB3) | 0,19 kg H₂O m⁻² Tag⁻¹ | Bayerisches Amt für Waldgenetik |
-| Transpiration trockenheitstolerante Arten (LB6) | 0,17 kg H₂O m⁻² Tag⁻¹ | Bayerisches Amt für Waldgenetik |
+| Transpiration feuchtigkeitsadaptierte Arten (LB3) † | 0,19 kg H₂O m⁻² Tag⁻¹ | Stratopoulos-Le Chalony (2020), TU München (Dissertation) |
+| Transpiration trockenheitstolerante Arten (LB6) † | 0,17 kg H₂O m⁻² Tag⁻¹ | Stratopoulos-Le Chalony (2020), TU München (Dissertation) |
 
-**Quelle zu García de León:** García de León, A. et al. (2022): *Tree canopy cover and its effects on Land Surface Temperature in Munich*. Methodisch verwendete Koeffizienten aus OLS-Regression LST ~ Baumkronenanteil, stratifiziert nach ATKIS-Nutzungsklassen. Daten: Landsat 8, Sommer 2020. R² = 0,41 (Erholungsfl.) bis 0,61 (Verkehrsfl.). Würzburg-Forscher-Gruppe, Institut für Geographie JMU Würzburg.
+† Die Transpirationsraten sind als Koeffizienten hinterlegt, fließen in **v1 aber noch nicht** in die Berechnung ein (die Transpirationskühlleistung in kWh ist für v2 vorgesehen — siehe `simulation-logic.md`, Schritt 3).
+
+**Quelle zu García de León:** García de León, A. S. et al. (2025): *The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing*. Joint Urban Remote Sensing Event (JURSE) 2025, IEEE (DOI 10.1109/JURSE…). Methodisch verwendete Koeffizienten aus linearer Regression LST ~ Baumkronenanteil über 8.584 ATKIS-Nutzungspolygone. Studienstadt München, Daten: downscaled LST-Produkt Sommer 2020 + >166.000 Einzelbäume aus Luftbild-Segmentierung. R² = 0,41 (Erholungsfl.) bis 0,61 (Verkehrsfl.). Autoren überwiegend Univ. Würzburg / DLR.
 
 #### Berechnungsschritte (Backend: `GET /api/simulate/baeume`)
 
@@ -229,7 +231,7 @@ Schritt 3 — CO₂-Bindung:
 |---|---|
 | `area_m2` | Σ Fläche ausgewählter LST-Kacheln (n × 10.000 m²) |
 | `existing_coverage_pct` | Ø Kronendeckung der ausgewählten Kacheln (Feld `bestand_pct` aus LST-GeoJSON) |
-| `n_trees` | Slider-/Texteingabe, Max = pflanzbare Fläche / 25 m² (Mindeststandfläche je Baum, Plausibilitäts-Cap) |
+| `n_trees` | Slider-/Texteingabe, Max = pflanzbare Fläche / 100 m² (Mindeststandfläche je Baum nach FLL-Richtlinie, Bäume 2. Ordnung; Plausibilitäts-Cap) |
 
 #### Pflanzbare Fläche (Versiegelungsgrad)
 
@@ -363,8 +365,8 @@ Diese Faktoren basieren auf fachlicher Plausibilitätsschätzung. Sie dienen aus
 | **DWD** | Klimanormalperiode 1991–2020, Station 05705 Würzburg | Jahresniederschlag N = 573,5 mm | frei, DWD Open Data |
 | **DWA-A138 / LfU Bayern** | Abflussbeiwerte nach Belagstyp | Versickerungsberechnung | Normwerk (kaufpflichtig) |
 | **LRÄ Bayreuth 2024** | Leitfaden Flächenentsiegelung | Ergänzende Ψ-Werte, Kostenkennwerte | öffentlich |
-| **García de León et al. (2022)** | Regressionskoeffizienten LST × Baumkrone (München) | Δ°C je Baum in Simulation | Wissenschaftliche Publikation |
-| **Bayerisches Amt für Waldgenetik** | Klimabäume-Programm, Transpirationsraten LB3/LB6 | Artengruppen-Transpiration in Simulation | öffentlich |
+| **García de León et al. (2025), München** | Regressionskoeffizienten LST × Baumkrone (München) | Δ°C je Baum in Simulation | Wissenschaftliche Publikation |
+| **Stratopoulos-Le Chalony (2020), TU München** | Dissertation „Klimabäume für die Stadt", Transpirationsraten LB3/LB6 | Koeffizient hinterlegt, in v1 noch nicht in der Berechnung eingebunden | wissenschaftliche Publikation |
 | **BDEW (2023)** | Wasserstatistik, Trinkwasserverbrauch 127 L/Tag | Ergebniseinordnung Simulation | öffentlich |
 | **LfU Bayern** | Grundwasserneubildungsrichtwert 15–30 % | Grundwasserschätzwert in Simulation | öffentlich |
 
@@ -376,8 +378,8 @@ Diese Faktoren basieren auf fachlicher Plausibilitätsschätzung. Sie dienen aus
 
 | Koeffizient | Ursprungsort | Würzburg-Transfer | Status |
 |---|---|---|---|
-| −0,083 °C / % Kronendeckung | München (Cfb/Dfb) | Gleiche Klimazone, ähnliche Stadtstruktur | Plausibel, nicht validiert |
-| −0,03 °C / % Entsiegelung | Potsdam (Cfb) | Würzburg etwas kontinentaler (Dfb) | Plausibel, nicht validiert |
+| −0,083 °C / % Kronendeckung | München (Cfb/Dfb) | Gleiche Klimazone, ähnliche Stadtstruktur | **Angewendet** (Baum-Simulation), plausibel, nicht validiert |
+| −0,03 °C / % Entsiegelung | Potsdam (Cfb) | Würzburg etwas kontinentaler (Dfb) | Koeffizient vorhanden, in **v1 nicht angewendet** (nur Stadtbezirksebene gültig) |
 | Abflussbeiwerte Ψ | Bayern (DWA-A138) | Normwerk für Bayern direkt anwendbar | **Gültig** |
 | Versiegelungsgrade | Literaturmittel | Keine Würzburg-spezifische Messung | Schätzung |
 

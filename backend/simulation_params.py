@@ -1,20 +1,20 @@
 """
 Simulation coefficients for Resilientes Würzburg.
 
-All values are sourced from the research wiki at:
-  C:\\Code\\Obsidian\\Urban Heat Mapping\\wiki\\
+All values are sourced from the research wiki submodule at:
+  urban-heat-wiki/wiki/
 
 Before changing any coefficient, update the relevant wiki source page first,
 then reflect the change here with an updated source reference.
 Simulation logic (formulas, input/output contracts) is documented at:
-  C:\\Code\\Obsidian\\Urban Heat Mapping\\wiki\\simulation-logic.md
+  urban-heat-wiki/wiki/simulation-logic.md
 """
 
 import math
 
 # ── TREE COOLING (Bäume → ΔLST) ───────────────────────────────────────────────
 # Source: wiki/sources/garcia-de-leon-lst-trees-munich
-# García de León et al., München Sommer 2020, >166.000 Bäume, lineare Regression
+# García de León et al. (2025, JURSE), Studie München; Daten Sommer 2020, >166.000 Bäume, lineare Regression
 # R² = 0.41 (Recreational) – 0.61 (Traffic); Würzburg-Forscher → direkt übertragbar
 
 LST_PER_PCT_CANOPY_OVERALL      = -0.069  # °C pro 1 % Baumkronendeckung, gesamtes Stadtgebiet

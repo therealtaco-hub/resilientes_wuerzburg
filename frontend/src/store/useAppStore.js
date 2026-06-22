@@ -3,7 +3,7 @@ import { create } from 'zustand'
 
 // ── Simulationskonstanten (gespiegelt aus simulation_params.py / utils/simulate.js) ──
 const _CROWN_AREA_M2          = 50      // m² pro Baum (CROWN_AREA_M2_DEFAULT)
-const _MIN_GROUND_PER_TREE_M2 = 25      // m²/Baum, pflanzpraktischer Slider-Cap
+const _MIN_GROUND_PER_TREE_M2 = 100     // m²/Baum, pflanzpraktischer Slider-Cap (FLL, Bäume 2. Ordnung)
 const _CELL_AREA_M2           = 10_000  // m² pro LST-Kachel (100×100 m)
 
 const _SEAL_RATE = {

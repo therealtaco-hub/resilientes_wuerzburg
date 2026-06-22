@@ -42,7 +42,7 @@ _BAEUME_CAVEATS = [
         "Kühlwirkung entsprechend geringer."
     ),
     (
-        "−0,083 °C/% basiert auf García de León et al. (München Sommer 2020), kalibriert "
+        "−0,083 °C/% basiert auf García de León et al. (2025; Studie München, Daten Sommer 2020), kalibriert "
         "gegen projizierte Kronendeckung — noch nicht lokal für Würzburg kalibriert."
     ),
     (

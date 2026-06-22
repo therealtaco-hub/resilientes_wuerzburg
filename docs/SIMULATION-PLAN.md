@@ -62,7 +62,7 @@ Vollständige Herleitung in `urban-heat-wiki/wiki/simulation-logic.md` und `urba
 | Δ°C in v1? | **Ja** | **Nein** — reference_m2-Problem |
 | Δ°C in v2? | Ja | Nur mit Stadtbezirk als Bezugsfläche |
 | Primäroutput v1 | Δ°C · CO₂ kg/Jahr · Kronendeckung % | m³/Jahr · Retention % · Personen-Kontext |
-| Datenherkunft | García de León et al., München 2020 | Leitfaden Landkreis Bayreuth 2024 |
+| Datenherkunft | García de León et al. 2025 (Studie München, Daten 2020) | Leitfaden Landkreis Bayreuth 2024 |
 | CO₂-Quelle | Dr. Klein, Uni Münster (⚠ nicht im Wiki) | — |
 | Niederschlag | — | DWD Station Würzburg (573,5 mm/Jahr, 1991–2020) |
 | Lokale Validierung | Ausstehend | Ausstehend |

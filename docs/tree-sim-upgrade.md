@@ -37,7 +37,7 @@ Der `headroom`-Cap (`100 % − bestand_pct`) erbt diesen Fehler, weil er auf dem
 
 ### Warum das fachlich (nicht nur kosmetisch) falsch ist
 
-Der Kühlkoeffizient −0,083 °C/% stammt aus **García de León et al. (München 2020)** und ist gegen **projizierte Kronendeckung** (canopy cover) kalibriert: Die Studie segmentiert >166.000 Einzelkronen aus Luftbildern und berechnet pro ATKIS-Polygon den Anteil der Bodenfläche, der von der Kronenprojektion bedeckt ist — Überlappungen sind dort bereits eliminiert (Vereinigungsfläche, nicht Summe). Unsere naive Summen-Prozente sind also **nicht die Größe, gegen die der Koeffizient kalibriert wurde.** Bei niedriger Deckung (wenige, einzeln stehende Bäume) ist der Unterschied vernachlässigbar; bei hoher Deckung überschätzt die Summe die echte Kronendeckung massiv — genau dort, wo die Simulation Δ°C berechnet.
+Der Kühlkoeffizient −0,083 °C/% stammt aus **García de León et al. (2025, Studie München; Daten Sommer 2020)** und ist gegen **projizierte Kronendeckung** (canopy cover) kalibriert: Die Studie segmentiert >166.000 Einzelkronen aus Luftbildern und berechnet pro ATKIS-Polygon den Anteil der Bodenfläche, der von der Kronenprojektion bedeckt ist — Überlappungen sind dort bereits eliminiert (Vereinigungsfläche, nicht Summe). Unsere naive Summen-Prozente sind also **nicht die Größe, gegen die der Koeffizient kalibriert wurde.** Bei niedriger Deckung (wenige, einzeln stehende Bäume) ist der Unterschied vernachlässigbar; bei hoher Deckung überschätzt die Summe die echte Kronendeckung massiv — genau dort, wo die Simulation Δ°C berechnet.
 
 > **Kernargument für die Uni-Ausarbeitung:** Die Umstellung auf projizierte Kronendeckung ist **keine Verschärfung gegenüber dem Koeffizienten, sondern stellt erst die methodische Konsistenz mit der Kalibrierungsgröße von García de León her.** Der ursprüngliche Plan führte das unter „offene Risiken" — tatsächlich ist es ein Argument *für* die Änderung.
 
@@ -216,7 +216,7 @@ const effectiveNewPct = totalPct - existingPct
 
 **(c) Texte:** Hinweis unter dem Slider (Z. 275–278) und der „überschreitet Headroom"-Warnhinweis (Z. 346–350) müssen weg von „bis zur vollen Kronendeckung (100 %)" hin zu „abnehmender Grenznutzen — jede weitere Pflanzung deckt zunehmend bereits beschattete Fläche". Der Stacked-Bar (Bestand/Neu/Frei) bleibt strukturell korrekt, nur die Werte ändern sich.
 
-> ⚠ **Verwaister `sliderMax === 0`-Zweig:** Mit Entscheidung 1B (`sliderMax = floor(area / 25)`) hängt `sliderMax` **nicht mehr** von `existingPct` ab. Der Warnzweig „Kronendeckung bereits bei X — kein Platz für weitere Bäume" (Z. 340–344) wird damit praktisch unerreichbar (nur noch bei Fläche 0). Diesen Zweig entfernen oder die Bedingung neu fassen (z. B. auf „keine Kachel selektiert").
+> ⚠ **Verwaister `sliderMax === 0`-Zweig:** Mit Entscheidung 1B (`sliderMax = floor(area / 100)` — finaler Wert, siehe Hinweis in Abschnitt 5) hängt `sliderMax` **nicht mehr** von `existingPct` ab. Der Warnzweig „Kronendeckung bereits bei X — kein Platz für weitere Bäume" (Z. 340–344) wird damit praktisch unerreichbar (nur noch bei Fläche 0). Diesen Zweig entfernen oder die Bedingung neu fassen (z. B. auf „keine Kachel selektiert").
 
 ---
 
@@ -229,9 +229,17 @@ const effectiveNewPct = totalPct - existingPct
 | **A — physikalisch** (`TARGET_RATIO ≈ 4,6` → 99 % Deckung) | ~920 Bäume | Modellkonsistent, aber 920 Bäume/Zelle sind als planerischer Vorschlag absurd; Slider-Auflösung leidet. |
 | **B — pflanzpraktisch** (Mindeststandfläche je Baum) | ~200–400 Bäume | Realistisch begründbar, gute Slider-Auflösung, klarer Hinweistext. **Empfohlen.** |
 
-**Empfehlung B:** Slider auf eine realistische maximale Pflanzdichte begrenzen, z. B. **eine Mindeststandfläche von ~25 m²/Baum** (= dichte, aber noch sinnvolle Neupflanzung; entspricht ~5 m Pflanzabstand):
+> 🛑 **ÜBERHOLT (historischer Vorschlag).** Der hier vorgeschlagene Wert **25 m²/Baum**
+> wurde **nicht** umgesetzt. Die finale Implementierung verwendet
+> **`MIN_GROUND_PER_TREE_M2 = 100`** (≈ 10 m Pflanzabstand, FLL-Richtlinie „Empfehlungen
+> für Baumpflanzungen", Teil 1, 2. Ausgabe 2015, Bäume 2. Ordnung). Maßgeblich sind
+> `frontend/src/utils/simulate.js` und `frontend/src/store/useAppStore.js`. Der folgende
+> Absatz dokumentiert nur die ursprüngliche Entscheidungsfindung.
+
+**Empfehlung B (historisch):** Slider auf eine realistische maximale Pflanzdichte begrenzen, z. B. **eine Mindeststandfläche von ~25 m²/Baum** (= dichte, aber noch sinnvolle Neupflanzung; entspricht ~5 m Pflanzabstand):
 
 ```js
+// ⚠ Überholt — finale Implementierung nutzt 100 (FLL, Bäume 2. Ordnung)
 const MIN_GROUND_PER_TREE_M2 = 25
 const sliderMax = Math.max(0, Math.floor(selectedCellsAreaM2 / MIN_GROUND_PER_TREE_M2))
 ```
@@ -495,7 +503,7 @@ Fix E + F (Overlay-Toggle)         unabhängig parallelisierbar
 1. **Crookston, N. L. & Stage, A. R. (1999).** *Percent Canopy Cover and Stand Structure Statistics from the Forest Vegetation Simulator.* USDA Forest Service, Rocky Mountain Research Station, Gen. Tech. Rep. RMRS-GTR-24. — **Primärquelle der Gleichung** `CCpct = 100·(1 − exp(−Σ CAᵢ / A))`, Annahme zufälliger horizontaler Kronenüberlappung (Beer-Lambert).
 2. **Jennings, S. B., Brown, N. D. & Sheil, D. (1999).** Assessing forest canopies and understorey illumination: canopy closure, canopy cover and other measures. *Forestry* 72(1), 59–73. — Begriffliche Grundlage canopy cover vs. closure; Standardreferenz.
 3. **Gray, A. N. et al. (2021).** Predicting canopy cover of diverse forest types from individual tree measurements. *Forest Ecology and Management* 501, 119682. — Empirische Grenzen der Zufallsüberlappung (Unterschätzung in dichten Beständen, RMSE ~14 %).
-4. **García de León, A. S. et al. (2020/IEEE).** The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing (München). — Kühlkoeffizient −0,083 °C/% (Misch-/Wohngebiet), kalibriert gegen **projizierte** Kronendeckung. Siehe `urban-heat-wiki/wiki/sources/garcia-de-leon-lst-trees-munich.md`.
+4. **García de León, A. S. et al. (2025, JURSE/IEEE).** The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing (Studie München, Daten Sommer 2020). — Kühlkoeffizient −0,083 °C/% (Misch-/Wohngebiet), kalibriert gegen **projizierte** Kronendeckung. Siehe `urban-heat-wiki/wiki/sources/garcia-de-leon-lst-trees-munich.md`.
 5. **Pretzsch, H. et al. (2015).** Crown size and growing space requirement of common tree species in urban centres, parks, and forests. *Urban Forestry & Urban Greening* 14(3), 466–479. — Kronengrößen/Standraum, 22 Arten, Innenstadt vs. Park.
 6. **Moser-Reischl, A., Rötzer, T., Pauleit, S. & Pretzsch, H. (2021).** Urban tree growth characteristics of four common species in South Germany. *Arboriculture & Urban Forestry* 47(4), 150–169. — Kronenprojektionsflächen süddeutscher Stadtbäume (u. a. *Platanus × hispanica* ~113,7 m²).
 7. **USDA Forest Service — iTree** (i-Tree Canopy / Eco). — Operative Nutzung des Überlappungsmodells in der Stadtbaumbewertung.
