@@ -44,7 +44,7 @@ _STADTBEZIRKE_CACHE = _DATA_DIR / "stadtbezirke.parquet"
 # Erhöhen, wenn sich die Berechnungslogik einer abgeleiteten Spalte ändert →
 # load_lst() erkennt den veralteten Cache automatisch und berechnet neu.
 _BESTAND_MODEL_VERSION = 2  # 1 = naiv (Σ/10.000, clip), 2 = Crookston-Exp
-_SEAL_MODEL_VERSION    = 1  # 1 = flächengewichteter Ψ aus Entsiegelungs-Polygonen
+_SEAL_MODEL_VERSION    = 2  # 1 = naive Summe (clip), 2 = Priority-Union (überlappungsbereinigt)
 _STADTBEZIRKE_URL   = (
     "https://opendata.wuerzburg.de/api/explore/v2.1/"
     "catalog/datasets/stadtbezirke/records?limit=20"
@@ -167,14 +167,18 @@ def _compute_seal_pct(lst_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
     """Berechnet pro LST-Kachel den flächengewichteten Versiegelungsgrad (0–1) aus den
     Entsiegelungs-Polygonen (ATKIS sie02/ver01 + OSM) sowie die dominante Flächenkategorie.
 
-    seal_pct = Σ(Überlappungsfläche × seal_rate) / 10.000 m², geklemmt auf [0, 1].
+    Priority-Union (überlappungsbereinigt, _SEAL_MODEL_VERSION 2): ATKIS und OSM liegen
+    als sich überlappende Polygone übereinander (concat in load_entsiegelung, kein
+    Verschnitt). Jeder m² Boden zählt daher genau einmal, und zwar zur höchsten
+    seal_rate der ihn überdeckenden Polygone — Rate-Gruppen absteigend abgearbeitet,
+    bereits beanspruchte Fläche per difference() abgezogen. Die Summe kann die
+    Zellfläche so nicht mehr überschreiten (v1 klemmte doppelt gezählte Flächen auf
+    ein falsches „100 %").
+
     Versiegelungsgrade je type_key aus SEAL_RATE_BY_TYPE (Literaturwerte), unbekannte
     Typen → _default. Kacheln ohne Polygon-Überdeckung gelten als unversiegelt (seal=0,
     dominant=None) — Abwesenheit von sie02/ver01 ≈ Grün-/Freifläche (E2).
-
-    Der Clip [0, 1] fängt die Doppelzählung sich überlappender Polygone ab (z. B. OSM-Dach
-    innerhalb einer ATKIS-Wohnbaufläche) — bewusste Vereinfachung (v2 TODO: gemessene
-    Per-Zellen-Versiegelung). Gibt (seal_pct, dominant_type_key) zurück.
+    Gibt (seal_pct, dominant_type_key) zurück.
     """
     none_dom = pd.Series([None] * len(lst_gdf), index=lst_gdf.index, dtype=object)
     try:
@@ -198,12 +202,28 @@ def _compute_seal_pct(lst_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
     if inter.empty:
         return pd.Series(0.0, index=lst_gdf.index), none_dom
 
-    # Überlappungsfläche metrisch in EPSG:25832 (UTM 32N) berechnen.
-    inter["overlap_area"] = inter.to_crs("EPSG:25832").geometry.area
+    # Flächen metrisch in EPSG:25832 (UTM 32N) berechnen.
+    inter_m = inter.to_crs("EPSG:25832")
+    inter["overlap_area"] = inter_m.geometry.area
 
-    # Flächengewichteter Versiegelungsgrad je Zelle, geklemmt gegen Polygon-Doppelzählung.
-    weighted = inter["overlap_area"] * inter["seal_rate"]
-    seal = (inter.assign(_w=weighted).groupby("cell_id")["_w"].sum() / 10_000.0).clip(0.0, 1.0)
+    # Priority-Union je Zelle: Rate-Gruppen absteigend, jeder m² zählt genau einmal
+    # zur höchsten seal_rate. Clip bleibt als reiner Float-Rausch-Guard.
+    def _priority_union_seal(group: gpd.GeoDataFrame) -> float:
+        claimed = None
+        weighted = 0.0
+        for rate in sorted(group["seal_rate"].unique(), reverse=True):
+            geom = group.loc[group["seal_rate"] == rate].geometry.union_all()
+            if claimed is not None:
+                geom = geom.difference(claimed)
+            if geom.is_empty:
+                continue
+            weighted += geom.area * rate
+            claimed = geom if claimed is None else claimed.union(geom)
+        return weighted / 10_000.0
+
+    seal = pd.Series(
+        {cid: _priority_union_seal(grp) for cid, grp in inter_m.groupby("cell_id")}
+    ).clip(0.0, 1.0)
 
     # Dominante Kategorie = type_key mit der größten Überlappungsfläche je Zelle (nur fürs Label).
     area_by = inter.groupby(["cell_id", "type_key"])["overlap_area"].sum().reset_index()

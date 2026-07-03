@@ -63,15 +63,29 @@ def test_flaechengewichteter_mischwert(cells, monkeypatch):
     assert dom.iloc[2] == "AX_Wohnbauflaeche"
 
 
-def test_clip_bei_polygon_doppelzaehlung(cells, monkeypatch):
-    """Überlappende Polygone (z. B. Dach in Wohnbau) → seal auf 1,0 geklemmt, kein Wert > 1."""
+def test_keine_doppelzaehlung_bei_ueberlappung(cells, monkeypatch):
+    """Regression (ATKIS/OSM-Doppelzählung): zwei deckungsgleiche Polygone dürfen nicht
+    aufsummiert werden. Priority-Union → höchste Rate gewinnt (0,95), nicht clip auf 1,0."""
     ents = _ents([
         ("AX_IndustrieUndGewerbeflaeche", box(0, 0, 100, 100)),  # 0,80, volle Kachel
         ("osm_parking",                   box(0, 0, 100, 100)),  # 0,95, volle Kachel (Überlappung)
     ])
     monkeypatch.setattr(data_loader, "load_entsiegelung", lambda: ents)
     seal, _ = data_loader._compute_seal_pct(cells)
-    assert seal.iloc[0] == 1.0
+    assert seal.iloc[0] < 1.0
+    assert seal.iloc[0] == pytest.approx(0.95, abs=1e-3)
+
+
+def test_teilueberlappung_priority_union(cells, monkeypatch):
+    """Teilüberlappung: OSM-Parkplatz (0,95, halbe Kachel) über ATKIS-Mischnutzung
+    (0,65, volle Kachel) → 0,5×0,95 + 0,5×0,65 = 0,80 — nie mehr als die Union-Fläche."""
+    ents = _ents([
+        ("AX_FlaecheGemischterNutzung", box(0, 0, 100, 100)),  # volle Kachel
+        ("osm_parking",                 box(0, 0, 50, 100)),   # linke Hälfte, überlappend
+    ])
+    monkeypatch.setattr(data_loader, "load_entsiegelung", lambda: ents)
+    seal, _ = data_loader._compute_seal_pct(cells)
+    assert seal.iloc[0] == pytest.approx(0.80, abs=1e-3)
 
 
 def test_leere_entsiegelung_alles_unversiegelt(cells, monkeypatch):
