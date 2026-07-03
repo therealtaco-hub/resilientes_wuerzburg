@@ -392,6 +392,19 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
           className="w-full accent-[color:var(--green)]"
         />
 
+        {hasSel && avgSealPct > 0 && (
+          <div
+            className="flex items-start gap-2 mt-2.5 px-3 py-2 rounded-[8px]"
+            style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}
+          >
+            <span className="text-[12px] shrink-0" style={{ color: 'var(--blue)' }}>ℹ</span>
+            <p className="text-[11px] leading-snug" style={{ color: 'var(--text-1)' }}>
+              „max {fmt.num(sliderMax)}" gilt nur für unversiegelten Boden. Zusätzliche Pflanzungen in
+              versiegelter Fläche sind über Baumscheiben möglich (nicht im Modell erfasst).
+            </p>
+          </div>
+        )}
+
         {/* Kronendeckungs-Balken */}
         <div className="mt-3">
           <div className="flex h-[8px] rounded-full overflow-hidden gap-[2px]">

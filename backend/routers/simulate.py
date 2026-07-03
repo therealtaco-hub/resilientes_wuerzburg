@@ -69,8 +69,6 @@ _WASSER_CAVEATS = [
         "Niederschlag: DWD Station Würzburg (573,5 mm/Jahr, Referenzperiode 1991–2020). "
         "Klimawandel kann zukünftige Niederschlagsmengen verändern."
     ),
-    "Kein Δ°C in v1 — Tervooren-Koeffizient gilt auf Stadtbezirksebene, nicht für Einzelflächen.",
-    "Versiegelungsgrade sind Literaturwerte (v1); v2 (TODO): gemessene Per-Zellen-Versiegelung statt Typ-Schätzung.",
 ]
 
 

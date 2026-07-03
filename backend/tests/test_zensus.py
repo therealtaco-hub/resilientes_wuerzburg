@@ -84,7 +84,7 @@ async def test_polygon_has_5_points(client):
 @pytest.mark.asyncio
 async def test_properties_have_required_keys(client):
     body = (await client.get("/api/zensus")).json()
-    required = {"gitter_id", "anteil_65plus", "einwohner"}
+    required = {"gitter_id", "anteil_65plus", "Einwohner"}
     for feat in body["features"][:5]:
         assert required <= set(feat["properties"].keys())
 
@@ -141,7 +141,7 @@ async def test_nan_serialized_as_null(client):
 async def test_einwohner_non_negative(client):
     body = (await client.get("/api/zensus")).json()
     for feat in body["features"]:
-        ew = feat["properties"]["einwohner"]
+        ew = feat["properties"]["Einwohner"]
         if ew is None:
             continue
         assert ew >= 0, f"Negative Einwohnerzahl: {ew}"
