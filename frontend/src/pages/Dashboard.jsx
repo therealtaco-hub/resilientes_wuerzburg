@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import KpiCard from '../components/ui/KpiCard'
 import TopList from '../components/dashboard/TopList'
 import Spinner from '../components/ui/Spinner'
@@ -48,6 +49,7 @@ function topByProperty(features, key) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const bezirke      = useAppStore(s => s.layerData.stadtbezirke)
   const entsiegelung = useAppStore(s => s.layerData.entsiegelung)
   const setLayerData = useAppStore(s => s.setLayerData)
@@ -102,16 +104,16 @@ export default function Dashboard() {
   return (
     <div className="p-4 lg:p-8">
       <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
-        Dashboard
+        {t('dashboard.title')}
       </h1>
       <p className="text-fg-2 text-[13px] mt-0.5">
-        Übersicht zentraler Stadtkennzahlen nach Stadtbezirk
+        {t('dashboard.subtitle')}
       </p>
 
       {loading && (
         <div className="flex items-center gap-3 mt-6">
           <Spinner />
-          <span className="text-fg-1 text-[13px]">Lade Stadtdaten …</span>
+          <span className="text-fg-1 text-[13px]">{t('dashboard.loading')}</span>
         </div>
       )}
 
@@ -128,7 +130,7 @@ export default function Dashboard() {
               }}
             />
             <span className="text-fg-0 text-[13px] font-medium">
-              Daten nicht erreichbar
+              {t('dashboard.errorTitle')}
             </span>
           </div>
           <span className="text-fg-3 text-[11px] font-mono pl-4">{error}</span>
@@ -138,38 +140,38 @@ export default function Dashboard() {
       {kpis && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           <KpiCard
-            label="Heißeste Zone"
+            label={t('dashboard.kpiHottest')}
             value={fmt.num(kpis.hottest.properties.lst_max, 1)}
             unit="°C"
-            sub={`${kpis.hottest.properties.name} · LST Max`}
+            sub={t('dashboard.kpiHottestSub', { name: kpis.hottest.properties.name })}
             color="amber"
             icon={ICONS.flame}
           />
           <KpiCard
-            label="Max. Vulnerabilität"
+            label={t('dashboard.kpiVuln')}
             value={fmt.index(kpis.mostVulnerable.properties.hvi_max)}
-            unit="Index"
-            sub={`${kpis.mostVulnerable.properties.name} · HVI Max`}
+            unit={t('dashboard.kpiVulnUnit')}
+            sub={t('dashboard.kpiVulnSub', { name: kpis.mostVulnerable.properties.name })}
             color="purple"
             icon={ICONS.shield}
           />
           <KpiCard
-            label="Bäume in Würzburg"
+            label={t('dashboard.kpiTrees')}
             value={fmt.num(kpis.totalTrees)}
-            unit="Stück"
+            unit={t('dashboard.kpiTreesUnit')}
             sub={
               kpis.cityCanopyPct != null
-                ? `${fmt.pct(kpis.cityCanopyPct)} Kronenbeschattung · Top: ${kpis.mostTrees.properties.name}`
-                : `Top: ${kpis.mostTrees.properties.name} · ${fmt.num(kpis.mostTrees.properties.tree_count)}`
+                ? t('dashboard.kpiTreesSubCanopy', { pct: fmt.pct(kpis.cityCanopyPct), name: kpis.mostTrees.properties.name })
+                : t('dashboard.kpiTreesSubPlain', { name: kpis.mostTrees.properties.name, count: fmt.num(kpis.mostTrees.properties.tree_count) })
             }
             color="green"
             icon={ICONS.tree}
           />
           <KpiCard
-            label="Potenzialflächen"
+            label={t('dashboard.kpiPotential')}
             value={splitArea(kpis.totalEnts).value}
             unit={splitArea(kpis.totalEnts).unit}
-            sub={`ATKIS + OSM · Kandidaten · Top: ${kpis.mostEntsiegel.properties.name}`}
+            sub={t('dashboard.kpiPotentialSub', { name: kpis.mostEntsiegel.properties.name })}
             color="blue"
             icon={ICONS.layers}
           />
@@ -179,26 +181,26 @@ export default function Dashboard() {
       {kpis && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
           <TopList
-            title="Heißeste Bezirke"
-            sub="LST Max · ⌀"
+            title={t('dashboard.topHot')}
+            sub={t('dashboard.topHotSub')}
             color="amber"
             items={kpis.topHot}
           />
           <TopList
-            title="Vulnerabelste Bezirke"
-            sub="HVI Max"
+            title={t('dashboard.topVuln')}
+            sub={t('dashboard.topVulnSub')}
             color="purple"
             items={kpis.topVuln}
           />
           <TopList
-            title="Meiste Bäume"
-            sub="Bestand"
+            title={t('dashboard.topTrees')}
+            sub={t('dashboard.topTreesSub')}
             color="green"
             items={kpis.topTrees}
           />
           <TopList
-            title="Top Entsiegelung"
-            sub="ATKIS + OSM"
+            title={t('dashboard.topEntsieg')}
+            sub={t('dashboard.topEntsiegSub')}
             color="blue"
             items={kpis.topEntsieg}
           />

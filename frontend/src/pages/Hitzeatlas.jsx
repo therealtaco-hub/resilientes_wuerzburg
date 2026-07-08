@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
@@ -15,7 +16,7 @@ import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fetchHotspots } from '../api/hotspots'
 import { fmt } from '../utils/format'
 import { COLORS } from '../utils/colors'
-import { LST_LABEL } from '../utils/sources'
+import { LST_SENSOR } from '../utils/sources'
 import { tooltipPos, tapToHover } from '../utils/tooltip'
 import useIsMobile from '../hooks/useIsMobile'
 import LstHinweisBar from '../components/ui/LstHinweisBar'
@@ -23,34 +24,35 @@ import LstHinweisBar from '../components/ui/LstHinweisBar'
 const HINTS = [
   {
     icon: <><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>,
-    title: '100 m Rasterauflösung',
-    text: 'Jede Zelle entspricht einer 100 × 100 m Fläche. Feinere Unterschiede innerhalb einer Zelle sind nicht dargestellt.',
+    titleKey: 'hitzeatlas.hints.rasterTitle',
+    textKey: 'hitzeatlas.hints.rasterText',
   },
   {
     icon: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>,
-    title: 'Land Surface Temperature (LST)',
-    text: 'Gemessene Oberflächentemperatur — nicht die Lufttemperatur. Versiegelte Flächen wie Asphalt und Dächer erreichen deutlich höhere LST-Werte als die gefühlte Temperatur.',
+    titleKey: 'hitzeatlas.hints.lstTitle',
+    textKey: 'hitzeatlas.hints.lstText',
   },
   {
     icon: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
-    title: 'Fehlende Färbung',
-    text: 'Ungefärbte Flächen liegen außerhalb der Würzburger Stadtgrenze oder wurden vom Landsat-Sensor nicht erfasst (z. B. durch Wolkenbedeckung im Komposit-Zeitraum).',
+    titleKey: 'hitzeatlas.hints.missingTitle',
+    textKey: 'hitzeatlas.hints.missingText',
   },
   {
     icon: <><path d="M12 22v-7"/><path d="M9 15l3-3 3 3"/><path d="M5 10a7 7 0 0 1 14 0c0 4-3 6-7 8-4-2-7-4-7-8z"/></>,
-    title: 'Baumkataster: Stadtbäume',
-    text: 'Dargestellt sind ausschließlich Bäume im Bestand der Stadt Würzburg. Privatbäume auf Wohngrundstücken oder Firmengeländen sind nicht erfasst.',
+    titleKey: 'hitzeatlas.hints.treesTitle',
+    textKey: 'hitzeatlas.hints.treesText',
   },
 ]
 
 function HinweisBox() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(null)
   const toggle = (i) => setOpen(prev => prev === i ? null : i)
 
   return (
     <div className="bg-bg-2 border border-border rounded-xl p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-4">
-        Hinweise zur Karte
+        {t('hitzeatlas.hintsTitle')}
       </p>
       {HINTS.map((h, i) => (
         <div key={i}>
@@ -62,7 +64,7 @@ function HinweisBox() {
             <svg className="shrink-0 text-fg-3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               {h.icon}
             </svg>
-            <span className="flex-1 text-fg-0 text-[13px] leading-snug">{h.title}</span>
+            <span className="flex-1 text-fg-0 text-[13px] leading-snug">{t(h.titleKey)}</span>
             <svg
               className="shrink-0 text-fg-3 transition-transform duration-200"
               style={{ transform: open === i ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -72,7 +74,7 @@ function HinweisBox() {
             </svg>
           </button>
           {open === i && (
-            <p className="text-fg-2 text-[12px] leading-relaxed mt-2 pl-[28px]">{h.text}</p>
+            <p className="text-fg-2 text-[12px] leading-relaxed mt-2 pl-[28px]">{t(h.textKey)}</p>
           )}
         </div>
       ))}
@@ -81,13 +83,14 @@ function HinweisBox() {
 }
 
 function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
+  const { t } = useTranslation()
   const [infoOpen, setInfoOpen] = useState(false)
 
   if (!hotspots) {
     return (
       <div className="bg-bg-2 border border-border rounded-xl p-5">
         <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
-          Top 5 Hitzespots
+          {t('hitzeatlas.top5Title')}
         </div>
         <div className="flex items-center gap-2 text-fg-3 text-[12px]">
           <span
@@ -98,7 +101,7 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
               display: 'inline-block', animation: 'spin 0.8s linear infinite',
             }}
           />
-          Berechne Hitzespots …
+          {t('hitzeatlas.top5Loading')}
         </div>
       </div>
     )
@@ -107,11 +110,11 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
   return (
     <div className="bg-bg-2 border border-border rounded-xl p-5">
       <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
-        Top 5 Hitzespots
+        {t('hitzeatlas.top5Title')}
       </div>
       <div className="flex flex-col gap-0">
         {hotspots.features.map((f) => {
-          const { rank, lst_celsius, lst_celsius_smooth } = f.properties
+          const { rank, lst_celsius_smooth } = f.properties
           const isHovered = hoveredRank === rank
           return (
             <div
@@ -123,7 +126,6 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
               onMouseEnter={() => onHoverRank(rank)}
               onMouseLeave={() => onHoverRank(null)}
             >
-              {/* Rank */}
               <span
                 className="font-mono text-[11px] shrink-0 w-5 text-center"
                 style={{ color: isHovered ? 'var(--text-0)' : 'var(--text-3)' }}
@@ -131,7 +133,6 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
                 #{rank}
               </span>
 
-              {/* Temperature */}
               <div className="flex-1 min-w-0">
                 <span
                   className="font-mono tabular-nums text-[15px] font-medium"
@@ -143,13 +144,12 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
                   className="font-mono text-[10px] ml-1.5"
                   style={{ color: 'var(--text-3)' }}
                 >
-                  Ø 200m
+                  {t('hitzeatlas.top5Avg')}
                 </span>
               </div>
 
-              {/* FlyTo button */}
               <button
-                title="Zu diesem Ort springen"
+                title={t('hitzeatlas.top5FlyTitle')}
                 onClick={() => onFlyTo(f)}
                 className="shrink-0 flex items-center justify-center rounded-md transition-colors duration-150"
                 style={{
@@ -181,20 +181,16 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          Methodik {infoOpen ? 'ausblenden' : 'anzeigen'}
+          {infoOpen ? t('hitzeatlas.top5MethodikHide') : t('hitzeatlas.top5MethodikShow')}
         </button>
 
         {infoOpen && (
           <div className="mt-3">
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
-              Die Hotspots markieren die fünf stärksten Hitzezentren im erfassten Stadtgebiet.
-              Die angezeigte Temperatur ist der Durchschnittswert im Umkreis von <span style={{ color: 'var(--text-1)' }}>200&thinsp;m</span>,
-              um kleinteilige Ausreißer (z. B. einzelne Blechdächer) auszufiltern.
-              Ein Mindestabstand von <span style={{ color: 'var(--text-1)' }}>600&thinsp;m</span> zwischen den Markierungen verhindert, dass sich
-              großflächige Hitzeinseln mehrfach im Ranking wiederholen.
+              {t('hitzeatlas.top5MethodikBody')}
             </p>
             <p className="text-[10px] font-mono mt-2" style={{ color: 'var(--text-3)' }}>
-              Focal Mean 200 m · NMS 600 m
+              {t('hitzeatlas.top5MethodikTag')}
             </p>
           </div>
         )}
@@ -205,6 +201,7 @@ function Top5HitzeCard({ hotspots, hoveredRank, onHoverRank, onFlyTo }) {
 
 export default function Hitzeatlas() {
   const { layers, setLayerLoading } = useAppStore()
+  const { t } = useTranslation()
   const isMobile = useIsMobile()
   const mapRef = useRef(null)
 
@@ -339,15 +336,15 @@ export default function Hitzeatlas() {
       <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 lg:pb-4 flex-shrink-0">
         <div>
           <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
-            Hitzeatlas
+            {t('hitzeatlas.title')}
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Land Surface Temperature · {LST_LABEL}
+            {t('hitzeatlas.subtitlePrefix')} · {LST_SENSOR} · {t('common.lstPeriod')}
           </p>
         </div>
         {error && (
           <span className="text-[11px] text-accent-red font-mono">
-            ● Backend nicht erreichbar – {error}
+            ● {t('common.backendUnreachable')} – {error}
           </span>
         )}
       </div>
@@ -412,7 +409,7 @@ export default function Hitzeatlas() {
         >
           <div>LST&nbsp;&nbsp;<span className="text-fg-0">{fmt.temp(hoveredCell.object.properties.lst_celsius)}</span></div>
           {hoveredCell.object.properties.ndvi != null && (
-            <div className="text-fg-2">NDVI <span className="text-fg-0">{hoveredCell.object.properties.ndvi.toFixed(3)}</span></div>
+            <div className="text-fg-2">{t('hitzeatlas.ndvi')} <span className="text-fg-0">{hoveredCell.object.properties.ndvi.toFixed(3)}</span></div>
           )}
         </div>
       )}
@@ -452,7 +449,7 @@ export default function Hitzeatlas() {
               <button
                 onClick={() => setClickedTree(null)}
                 className="shrink-0 ml-2 mt-0.5 text-fg-3 hover:text-fg-0 transition-colors"
-                title="Schließen (ESC)"
+                title={t('hitzeatlas.closeEsc')}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M18 6L6 18M6 6l12 12"/>
@@ -463,31 +460,31 @@ export default function Hitzeatlas() {
             <div className="px-4 py-3 space-y-1.5 font-mono text-[11px]">
               {p.baumtyp && (
                 <div className="flex justify-between">
-                  <span className="text-fg-3">Typ</span>
+                  <span className="text-fg-3">{t('hitzeatlas.treeType')}</span>
                   <span className="text-fg-1">{p.baumtyp}</span>
                 </div>
               )}
               {p.baumhoehe != null && (
                 <div className="flex justify-between">
-                  <span className="text-fg-3">Höhe</span>
+                  <span className="text-fg-3">{t('hitzeatlas.treeHeight')}</span>
                   <span className="text-fg-0">{p.baumhoehe} m</span>
                 </div>
               )}
               {p.kronenbrei != null && (
                 <div className="flex justify-between">
-                  <span className="text-fg-3">Kronendurchm.</span>
+                  <span className="text-fg-3">{t('hitzeatlas.treeCrown')}</span>
                   <span className="text-fg-0">{p.kronenbrei} m</span>
                 </div>
               )}
               {p.stammumfan != null && (
                 <div className="flex justify-between">
-                  <span className="text-fg-3">Stammumfang</span>
+                  <span className="text-fg-3">{t('hitzeatlas.treeTrunk')}</span>
                   <span className="text-fg-0">{p.stammumfan} cm</span>
                 </div>
               )}
               {p.source_id && (
                 <div className="flex justify-between pt-1 mt-1" style={{ borderTop: '1px solid var(--border-soft)' }}>
-                  <span className="text-fg-3">ID</span>
+                  <span className="text-fg-3">{t('hitzeatlas.treeId')}</span>
                   <span className="text-fg-3">{p.source_id}</span>
                 </div>
               )}
@@ -511,11 +508,11 @@ export default function Hitzeatlas() {
             {hoveredBezirk.object.properties.name}
           </div>
           <div className="text-fg-2 text-[11px] font-mono space-y-0.5">
-            <div>LST Max · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
-            <div>LST Median · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_median)}</span></div>
-            <div>HVI Max · <span className="text-fg-0">{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
-            <div>Einwohner · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
-            <div>Bäume · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.tree_count)}</span></div>
+            <div>{t('hitzeatlas.bezLstMax')} · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
+            <div>{t('hitzeatlas.bezLstMedian')} · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_median)}</span></div>
+            <div>{t('hitzeatlas.bezHviMax')} · <span className="text-fg-0">{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
+            <div>{t('hitzeatlas.bezEinwohner')} · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
+            <div>{t('hitzeatlas.bezTrees')} · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.tree_count)}</span></div>
           </div>
         </div>
       )}

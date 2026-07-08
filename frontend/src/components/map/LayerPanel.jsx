@@ -1,44 +1,24 @@
+import { useTranslation } from 'react-i18next'
 import useAppStore from '../../store/useAppStore'
 import { LST_SENSOR } from '../../utils/sources'
 
-// Layer der Hitzeatlas-Seite. /vulnerabilitaet hat ein eigenes VulnLayerPanel
-// mit zusätzlichen Layern (HVI, Demografie).
 const LAYER_CONFIG = [
-  {
-    key: 'heatmap',
-    label: 'Hitzeinsel (LST)',
-    sub: LST_SENSOR,
-    color: 'var(--amber)',
-  },
-  {
-    key: 'trees',
-    label: 'Baumkataster',
-    sub: '44.647 Bäume · Stadt Würzburg',
-    color: 'var(--green)',
-  },
-  {
-    key: 'stadtbezirke',
-    label: 'Stadtbezirke',
-    sub: '13 Bezirke · LST Max-Choropleth',
-    color: 'var(--blue)',
-  },
-  {
-    key: 'ndvi',
-    label: 'Vegetationsindex (NDVI)',
-    sub: 'Landsat 8+9 · Sommer 2023–2025',
-    color: 'var(--green)',
-  },
+  { key: 'heatmap',      labelKey: 'layerPanel.heatmap',      sub: LST_SENSOR,                subKey: null,                     color: 'var(--amber)' },
+  { key: 'trees',        labelKey: 'layerPanel.trees',        sub: null,                      subKey: 'layerPanel.treesSub',    color: 'var(--green)' },
+  { key: 'stadtbezirke', labelKey: 'layerPanel.stadtbezirke', sub: null,                      subKey: 'layerPanel.stadtbezirkeSub', color: 'var(--blue)' },
+  { key: 'ndvi',         labelKey: 'layerPanel.ndvi',         sub: null,                      subKey: 'layerPanel.ndviSub',     color: 'var(--green)' },
 ]
 
 export default function LayerPanel() {
+  const { t } = useTranslation()
   const { layers, toggleLayer } = useAppStore()
 
   return (
     <div className="bg-bg-1 border border-border rounded-xl p-4 space-y-1">
       <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">
-        Layer
+        {t('layerPanel.title')}
       </p>
-      {LAYER_CONFIG.map(({ key, label, sub, color }) => (
+      {LAYER_CONFIG.map(({ key, labelKey, sub, subKey, color }) => (
         <button
           key={key}
           onClick={() => toggleLayer(key)}
@@ -48,11 +28,10 @@ export default function LayerPanel() {
           aria-checked={layers[key]}
         >
           <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: color }} />
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
             <div className="text-left">
-              <p className="text-fg-0 text-[13px] font-medium">{label}</p>
-              <p className="text-fg-3 text-[11px]">{sub}</p>
+              <p className="text-fg-0 text-[13px] font-medium">{t(labelKey)}</p>
+              <p className="text-fg-3 text-[11px]">{subKey ? t(subKey) : sub}</p>
             </div>
           </div>
           <div

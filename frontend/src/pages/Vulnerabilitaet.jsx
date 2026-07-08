@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState, useMemo } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
@@ -77,34 +78,35 @@ function KpiCard({ label, value, unit, sub, color, icon }) {
 // ── Local Layer Panel (with count pills) ──────────────────────────────────────
 
 function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
+  const { t } = useTranslation()
   const { layers, toggleLayer } = useAppStore()
 
   const items = [
     {
       key: 'vulnerabilitaet',
-      label: 'Vulnerabilitäts-Index',
-      sub: `HVI · Zensus 2022 + ${LST_SENSOR}`,
+      label: t('vuln.layerVuln'),
+      sub: t('vuln.layerVulnSub', { sensor: LST_SENSOR }),
       color: 'var(--purple)',
       count: vulnCount,
     },
     {
       key: 'heatmap',
-      label: 'Hitzeinsel (LST)',
-      sub: 'Vergleichs-Overlay',
+      label: t('vuln.layerHeat'),
+      sub: t('vuln.layerHeatSub'),
       color: 'var(--amber)',
       count: lstCount,
     },
     {
       key: 'zensus',
-      label: 'Demografie 65+',
-      sub: 'Zensus 2022 · 100 m-Gitter',
+      label: t('vuln.layerZensus'),
+      sub: t('vuln.layerZensusSub'),
       color: 'var(--blue)',
       count: zensusCount,
     },
     {
       key: 'stadtbezirke',
-      label: 'Stadtbezirke (HVI)',
-      sub: '13 Bezirke · HVI max',
+      label: t('vuln.layerBezirke'),
+      sub: t('vuln.layerBezirkeSub'),
       color: 'var(--purple)',
       count: null,
     },
@@ -112,7 +114,7 @@ function VulnLayerPanel({ vulnCount, lstCount, zensusCount }) {
 
   return (
     <div className="bg-bg-1 border border-border rounded-xl p-4 space-y-1">
-      <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">Layer</p>
+      <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">{t('vuln.layerTitle')}</p>
       {items.map(({ key, label, sub, color, count }) => (
         <button
           key={key}
@@ -188,28 +190,27 @@ function HviLegend() {
 // ── Interpretation Box ────────────────────────────────────────────────────────
 
 function InterpretationBox() {
+  const { t } = useTranslation()
   return (
     <div className="bg-bg-2 border border-border rounded-xl p-4 flex gap-3">
       <div className="w-1 rounded-full flex-shrink-0 self-stretch" style={{ background: 'var(--purple)' }} />
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--purple)' }}>
-            Interpretation
+            {t('vuln.interpTitle')}
           </p>
           <span
             className="font-mono text-[11px] px-2 py-0.5 rounded-full"
             style={{ background: 'var(--bg-3)', color: 'var(--text-3)' }}
           >
-            auto-generiert
+            {t('vuln.interpBadge')}
           </span>
         </div>
         <p className="text-fg-1 text-[13px] italic leading-[1.55]">
-          Zellen mit hohem HVI vereinen überdurchschnittliche Oberflächentemperatur
-          und einen erhöhten Anteil älterer Bewohner. Diese Flächen haben Priorität
-          für Baumpflanzungen und Entsiegelungsmaßnahmen.
+          {t('vuln.interpBody')}
         </p>
         <p className="text-fg-3 text-[10px] font-mono mt-2">
-          Zensus 2022 · {LST_SENSOR} · Modell: HVI v1
+          {t('vuln.interpFooter', { sensor: LST_SENSOR })}
         </p>
       </div>
     </div>
@@ -219,6 +220,7 @@ function InterpretationBox() {
 // ── Formula Card ──────────────────────────────────────────────────────────────
 
 function FormelCard({ weights, meta }) {
+  const { t } = useTranslation()
   const lst    = weights?.lst_norm ?? 0.6
   const alt    = weights?.anteil_65plus ?? 0.4
   const nPrior = meta?.n_prior ?? 50
@@ -229,10 +231,10 @@ function FormelCard({ weights, meta }) {
     <div className="bg-bg-1 border border-border rounded-xl p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest">Formel</p>
+        <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest">{t('vuln.formTitle')}</p>
         <button
           onClick={() => setOpen(v => !v)}
-          title="Erklärung anzeigen"
+          title={t('vuln.formExplTitle')}
           className="w-5 h-5 flex items-center justify-center rounded-full transition-colors duration-150"
           style={{
             color: open ? 'var(--purple)' : 'var(--text-3)',
@@ -270,19 +272,19 @@ function FormelCard({ weights, meta }) {
       {/* Parameter */}
       <div className="space-y-1.5">
         <p className="font-mono text-[12px] text-fg-1">
-          LST-Gewicht:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          {t('vuln.formLstWeight')}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <span style={{ color: 'var(--amber)' }}>{lst.toFixed(2)}</span>
         </p>
         <p className="font-mono text-[12px] text-fg-1">
-          Alter 65+-Gewicht:&nbsp;
+          {t('vuln.formAltWeight')}&nbsp;
           <span style={{ color: 'var(--purple)' }}>{alt.toFixed(2)}</span>
         </p>
         <p className="font-mono text-[12px] text-fg-1">
-          N-Prior:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          {t('vuln.formNPrior')}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <span style={{ color: 'var(--purple)' }}>{nPrior}</span>
         </p>
         <p className="font-mono text-[12px] text-fg-1">
-          Stadt-Ø 65+:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          {t('vuln.formCityAvg')}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <span className="text-fg-2">{g65}</span>
         </p>
       </div>
@@ -294,27 +296,19 @@ function FormelCard({ weights, meta }) {
           style={{ borderTop: '1px solid var(--border)' }}
         >
           <p>
-            Der <span className="text-fg-1">HVI</span> kombiniert Oberflächentemperatur
-            und Seniorenanteil zu einem Index von 1 (niedrig) bis 10 (hoch).
+            {t('vuln.formP1')}
           </p>
           <p>
-            <span style={{ color: 'var(--purple)' }}>65+<sub>adj</sub></span> korrigiert
-            das <span className="text-fg-1">Small-Numbers-Problem</span>: Zellen mit wenigen
-            Einwohnern erhalten unverhältnismäßig hohe Werte, wenn zufällig alle Bewohner
-            über 65 sind. Der Bayesian-Schätzer zieht kleine Zellen zur
-            stadtweiten Mittelrate ({g65}) — je dünner besiedelt, desto stärker.
-            Ab ~{nPrior} Einwohnern dominiert der beobachtete Wert.
+            <span style={{ color: 'var(--purple)' }}>65+<sub>adj</sub></span> {t('vuln.formP2Pre')}{' '}<span className="text-fg-1">{t('vuln.formP2Bold')}</span>{t('vuln.formP2Post', { g65, nPrior })}
           </p>
           <p>
-            <span style={{ color: 'var(--amber)' }}>LST<sub>norm</sub></span> ist
-            rang-normiert (0–1), sodass jeder Temperaturwert relativ zur
-            Gesamtverteilung im Stadtgebiet eingeordnet wird.
+            <span style={{ color: 'var(--amber)' }}>LST<sub>norm</sub></span> {t('vuln.formP3')}
           </p>
         </div>
       )}
 
       <p className="text-fg-3 text-[10px] font-mono mt-3">
-        Konfiguration: <span className="text-fg-2">vuln_formula.py</span>
+        {t('vuln.formFooterPre')} <span className="text-fg-2">vuln_formula.py</span>
       </p>
     </div>
   )
@@ -323,6 +317,7 @@ function FormelCard({ weights, meta }) {
 // ── Hover Tooltip ─────────────────────────────────────────────────────────────
 
 function Tooltip({ cell, mobile }) {
+  const { t } = useTranslation()
   if (!cell) return null
   const p = cell.object.properties
   return (
@@ -335,17 +330,17 @@ function Tooltip({ cell, mobile }) {
         zIndex: 9999,
       }}
     >
-      <p className="text-fg-3 text-[10px] mb-1 uppercase tracking-widest">Zensus-Zelle</p>
+      <p className="text-fg-3 text-[10px] mb-1 uppercase tracking-widest">{t('vuln.tipTitle')}</p>
       {p.hvi       != null && <p className="text-fg-0">HVI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--purple)' }}>{fmt.index(p.hvi)}</span></p>}
       {p.lst_celsius != null && <p className="text-fg-1">LST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--amber)' }}>{fmt.temp(p.lst_celsius)}</span></p>}
-      {p.anteil_65plus != null && <p className="text-fg-1">Anteil 65+&nbsp;&nbsp;<span className="text-fg-0">{fmt.pct(p.anteil_65plus * 100)}</span><span className="text-fg-3">&nbsp;(roh)</span></p>}
-      {p.anteil_65plus_adj != null && <p className="text-fg-1">65+ korr.&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--purple)' }}>{fmt.pct(p.anteil_65plus_adj * 100)}</span></p>}
-      {p.Einwohner != null && <p className="text-fg-2">Einwohner&nbsp;&nbsp;&nbsp;<span className="text-fg-1">{fmt.num(p.Einwohner)}</span></p>}
+      {p.anteil_65plus != null && <p className="text-fg-1">{t('vuln.tipAnteil')}&nbsp;&nbsp;<span className="text-fg-0">{fmt.pct(p.anteil_65plus * 100)}</span><span className="text-fg-3">&nbsp;{t('vuln.tipRoh')}</span></p>}
+      {p.anteil_65plus_adj != null && <p className="text-fg-1">{t('vuln.tipKorr')}&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--purple)' }}>{fmt.pct(p.anteil_65plus_adj * 100)}</span></p>}
+      {p.Einwohner != null && <p className="text-fg-2">{t('vuln.tipEinwohner')}&nbsp;&nbsp;&nbsp;<span className="text-fg-1">{fmt.num(p.Einwohner)}</span></p>}
       {p.anteil_65plus_clamped && (
-        <p className="text-fg-3 text-[10px] mt-0.5">⚠ Zensus-Rundung (§ 16 BStatG)</p>
+        <p className="text-fg-3 text-[10px] mt-0.5">{t('vuln.tipClamped')}</p>
       )}
       {p.anteil_65plus == null && p.Einwohner != null && (
-        <p className="text-fg-3 text-[10px] mt-0.5">⚠ Altersstruktur nicht verfügbar (Datenschutz)</p>
+        <p className="text-fg-3 text-[10px] mt-0.5">{t('vuln.tipNoAge')}</p>
       )}
     </div>
   )
@@ -355,6 +350,7 @@ function Tooltip({ cell, mobile }) {
 
 export default function Vulnerabilitaet() {
   const { layers, vulnWeights, setVulnWeights, setLayerLoading } = useAppStore()
+  const { t } = useTranslation()
   const isMobile = useIsMobile()
 
   // Mobil: Tooltips per Tap (onClick) statt Hover.
@@ -462,16 +458,16 @@ export default function Vulnerabilitaet() {
       <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 lg:pb-4 flex-shrink-0">
         <div>
           <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
-            Vulnerabilität
+            {t('vulnerabilitaet.title')}
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Heat Vulnerability Index · Zensus 2022 · {LST_SENSOR}
+            {t('vulnerabilitaet.subtitlePrefix')} · {LST_SENSOR}
           </p>
         </div>
         {error && (
           <span className="flex items-center gap-2 text-[11px] font-mono text-accent-red">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-red" />
-            Backend nicht erreichbar – {error}
+            {t('common.backendUnreachable')} – {error}
           </span>
         )}
       </div>
@@ -494,18 +490,18 @@ export default function Vulnerabilitaet() {
         {/* Right Rail – 360 px */}
         <div className="w-full lg:w-[360px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto">
           <KpiCard
-            label="Vulnerabelster Bereich"
+            label={t('vuln.kpiBereich')}
             value={maxHvi != null ? fmt.index(maxHvi) : '—'}
-            sub="Höchster HVI-Score im Datensatz"
+            sub={t('vuln.kpiBereichSub')}
             color="purple"
             icon="shield"
           />
 
           <KpiCard
-            label="Betroffene Bevölkerung"
+            label={t('vuln.kpiBetroffen')}
             value={affectedPop != null ? fmt.num(Math.round(affectedPop)) : '—'}
-            unit="Pers."
-            sub="Zellen mit HVI > 7,0"
+            unit={t('vuln.kpiBetroffenUnit')}
+            sub={t('vuln.kpiBetroffenSub')}
             color="amber"
             icon="users"
           />
@@ -541,13 +537,13 @@ export default function Vulnerabilitaet() {
             {hoveredBezirk.object.properties.name}
           </div>
           <div className="text-fg-2 text-[11px] font-mono space-y-0.5">
-            <div>HVI Max · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
+            <div>{t('vuln.bezHviMax')} · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_max ?? 0)}</span></div>
             <div className="flex items-baseline gap-1">
-              <span>HVI Ø · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_mean ?? 0)}</span></span>
-              <span className="text-[9px] text-fg-3">ew-gew.</span>
+              <span>{t('vuln.bezHviAvg')} · <span style={{ color: 'var(--purple)' }}>{fmt.index(hoveredBezirk.object.properties.hvi_mean ?? 0)}</span></span>
+              <span className="text-[9px] text-fg-3">{t('vuln.bezEwWeighted')}</span>
             </div>
-            <div>LST Max · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
-            <div>Einwohner · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
+            <div>{t('vuln.bezLstMax')} · <span className="text-fg-0">{fmt.temp(hoveredBezirk.object.properties.lst_max)}</span></div>
+            <div>{t('vuln.bezEinwohner')} · <span className="text-fg-0">{fmt.num(hoveredBezirk.object.properties.einwohner)}</span></div>
           </div>
         </div>
       )}

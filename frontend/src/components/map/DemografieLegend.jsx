@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 export default function DemografieLegend() {
+  const { t } = useTranslation()
   return (
     <div
       style={{
@@ -13,7 +15,7 @@ export default function DemografieLegend() {
         className="font-semibold uppercase tracking-widest mb-2"
         style={{ fontSize: '10px', color: 'var(--text-3)' }}
       >
-        Seniorenanteil 65+
+        {t('legend.demografieTitle')}
       </p>
       <div
         style={{

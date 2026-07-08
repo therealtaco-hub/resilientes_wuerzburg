@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 export default function NdviLegend() {
+  const { t } = useTranslation()
   return (
     <div
       style={{
@@ -10,7 +12,7 @@ export default function NdviLegend() {
       }}
     >
       <p className="text-fg-3 text-[10px] font-semibold uppercase tracking-[0.1em] mb-2">
-        Vegetationsindex (NDVI)
+        {t('legend.ndviTitle')}
       </p>
       <div
         style={{
@@ -26,7 +28,7 @@ export default function NdviLegend() {
         <span className="font-mono text-[10px] text-fg-3">0,7+</span>
       </div>
       <p className="text-fg-3 text-[10px] mt-2 leading-snug">
-        Transparent = kein Vegetationssignal
+        {t('legend.ndviTransparent')}
       </p>
     </div>
   )

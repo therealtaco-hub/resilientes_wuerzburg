@@ -33,3 +33,5 @@ backend/data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv
 # OS
 .DS_Store
 Thumbs.db
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json

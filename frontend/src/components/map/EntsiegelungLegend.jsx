@@ -1,19 +1,20 @@
-// Farben und Labels müssen mit TYPE_COLORS in EntsiegelungLayer.jsx übereinstimmen.
+import { useTranslation } from 'react-i18next'
+
 const ATKIS_ENTRIES = [
-  { typeKey: 'AX_IndustrieUndGewerbeflaeche',            color: 'rgb(220,80,20)',   label: 'Industrie & Gewerbe' },
-  { typeKey: 'AX_Strassenverkehr',                        color: 'rgb(55,60,72)',    label: 'Straßenverkehr' },
-  { typeKey: 'AX_Platz',                                  color: 'rgb(175,135,5)',   label: 'Platz' },
-  { typeKey: 'AX_Wohnbauflaeche',                         color: 'rgb(170,130,75)',  label: 'Wohnbaufläche' },
-  { typeKey: 'AX_FlaecheGemischterNutzung',              color: 'rgb(150,105,65)',  label: 'Gemischte Nutzung' },
-  { typeKey: 'AX_SportFreizeitUndErholungsflaeche',       color: 'rgb(75,135,75)',   label: 'Sport & Freizeit' },
-  { typeKey: 'AX_Friedhof',                               color: 'rgb(95,115,95)',   label: 'Friedhof' },
-  { typeKey: 'AX_FlaecheBesondererFunktionalerPraegung', color: 'rgb(85,100,130)',  label: 'Bes. Funkt. Prägung' },
+  { typeKey: 'AX_IndustrieUndGewerbeflaeche',            color: 'rgb(220,80,20)'  },
+  { typeKey: 'AX_Strassenverkehr',                        color: 'rgb(55,60,72)'   },
+  { typeKey: 'AX_Platz',                                  color: 'rgb(175,135,5)'  },
+  { typeKey: 'AX_Wohnbauflaeche',                         color: 'rgb(170,130,75)' },
+  { typeKey: 'AX_FlaecheGemischterNutzung',              color: 'rgb(150,105,65)' },
+  { typeKey: 'AX_SportFreizeitUndErholungsflaeche',       color: 'rgb(75,135,75)'  },
+  { typeKey: 'AX_Friedhof',                               color: 'rgb(95,115,95)'  },
+  { typeKey: 'AX_FlaecheBesondererFunktionalerPraegung', color: 'rgb(85,100,130)' },
 ]
 
 const OSM_ENTRIES = [
-  { typeKey: 'osm_parking',              color: 'rgb(245,158,11)',   label: 'Parkplatz (OSM)' },
-  { typeKey: 'osm_square',               color: 'rgb(59,130,246)',   label: 'Platz (OSM)' },
-  { typeKey: 'osm_flat_roof_industrial', color: 'rgb(134,239,172)',  label: 'Flachdach / Gewerbebau' },
+  { typeKey: 'osm_parking',              color: 'rgb(245,158,11)'  },
+  { typeKey: 'osm_square',               color: 'rgb(59,130,246)'  },
+  { typeKey: 'osm_flat_roof_industrial', color: 'rgb(134,239,172)' },
 ]
 
 function LegendRow({ color, label }) {
@@ -26,6 +27,7 @@ function LegendRow({ color, label }) {
 }
 
 export default function EntsiegelungLegend() {
+  const { t } = useTranslation()
   return (
     <div
       style={{
@@ -36,16 +38,16 @@ export default function EntsiegelungLegend() {
         padding: '12px',
       }}
     >
-      <p className="font-mono text-[10px] text-fg-3 mb-2 uppercase tracking-widest">ATKIS</p>
+      <p className="font-mono text-[10px] text-fg-3 mb-2 uppercase tracking-widest">{t('legend.atkis')}</p>
       <div className="space-y-1.5">
-        {ATKIS_ENTRIES.map(e => <LegendRow key={e.typeKey} color={e.color} label={e.label} />)}
+        {ATKIS_ENTRIES.map(e => <LegendRow key={e.typeKey} color={e.color} label={t('legend.cat.' + e.typeKey)} />)}
       </div>
 
       <hr style={{ borderColor: 'var(--border)', margin: '10px 0' }} />
 
-      <p className="font-mono text-[10px] text-fg-3 mb-2 uppercase tracking-widest">OSM</p>
+      <p className="font-mono text-[10px] text-fg-3 mb-2 uppercase tracking-widest">{t('legend.osm')}</p>
       <div className="space-y-1.5">
-        {OSM_ENTRIES.map(e => <LegendRow key={e.typeKey} color={e.color} label={e.label} />)}
+        {OSM_ENTRIES.map(e => <LegendRow key={e.typeKey} color={e.color} label={t('legend.cat.' + e.typeKey)} />)}
       </div>
     </div>
   )

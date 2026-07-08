@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import useAppStore from '../../store/useAppStore.js'
 import useIsMobile from '../../hooks/useIsMobile.js'
 
 const NAV_ANALYSE = [
   {
     to: '/',
-    label: 'Dashboard',
+    labelKey: 'nav.dashboard',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -17,7 +18,7 @@ const NAV_ANALYSE = [
   },
   {
     to: '/hitzeatlas',
-    label: 'Hitzeatlas',
+    labelKey: 'nav.hitzeatlas',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2v6M12 22v-3M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M22 12h-3M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24" />
@@ -26,7 +27,7 @@ const NAV_ANALYSE = [
   },
   {
     to: '/vulnerabilitaet',
-    label: 'Vulnerabilität',
+    labelKey: 'nav.vulnerabilitaet',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -37,7 +38,7 @@ const NAV_ANALYSE = [
   },
   {
     to: '/entsiegelung',
-    label: 'Entsiegelung',
+    labelKey: 'nav.entsiegelung',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -50,7 +51,7 @@ const NAV_ANALYSE = [
 const NAV_SIMULATION = [
   {
     to: '/simulation',
-    label: 'Simulation',
+    labelKey: 'nav.simulation',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 19c0-8 6-14 16-14 0 10-6 16-14 16-1 0-2-1-2-2z" />
@@ -60,7 +61,19 @@ const NAV_SIMULATION = [
   },
 ]
 
-// Icon: chevron links / rechts
+const NAV_REFERENZ = [
+  {
+    to: '/dokumentation',
+    labelKey: 'nav.dokumentation',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+    ),
+  },
+]
+
 function ChevronIcon({ left }) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -107,28 +120,25 @@ function NavItem({ to, label, icon, end, collapsed, onNavigate }) {
 }
 
 export default function Sidebar() {
+  const { t } = useTranslation()
   const collapsed        = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar    = useAppStore((s) => s.toggleSidebar)
   const isMobile         = useIsMobile()
   const mobileNavOpen    = useAppStore((s) => s.mobileNavOpen)
   const setMobileNavOpen = useAppStore((s) => s.setMobileNavOpen)
 
-  // Auf Mobil ist die Schublade immer ausgeklappt (Collapse-Affordanz nur Desktop).
   const effectiveCollapsed = isMobile ? false : collapsed
   const width = effectiveCollapsed ? 48 : 220
 
   const closeMobile = () => setMobileNavOpen(false)
   const handleNavigate = () => { if (isMobile) closeMobile() }
 
-  // Desktop: feste Sidebar mit Breiten-Animation. Mobil: Off-Canvas, per
-  // translateX ein-/ausgeblendet (Breite konstant 220px).
   const asideStyle = isMobile
     ? { width: 256, transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)' }
     : { width }
 
   return (
     <>
-      {/* Backdrop nur Mobil + geöffnet */}
       {isMobile && mobileNavOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50"
@@ -141,7 +151,6 @@ export default function Sidebar() {
         className="fixed left-0 top-0 bottom-0 z-50 flex flex-col border-r border-border bg-bg-1 overflow-y-auto transition-[width,transform] duration-200"
         style={asideStyle}
       >
-        {/* Logo */}
         <div className={`flex items-center gap-2.5 shrink-0 ${isMobile ? 'justify-between' : ''} ${effectiveCollapsed ? 'justify-center px-0 py-5' : 'px-4 py-5'}`}>
           <div className="flex items-center gap-2.5 min-w-0">
             <div
@@ -155,14 +164,14 @@ export default function Sidebar() {
             </div>
             {!effectiveCollapsed && (
               <span className="text-[13px] font-semibold text-fg-0 leading-tight whitespace-nowrap overflow-hidden">
-                Resilientes Würzburg
+                {t('nav.appName')}
               </span>
             )}
           </div>
           {isMobile && (
             <button
               onClick={closeMobile}
-              aria-label="Menü schließen"
+              aria-label={t('nav.closeMenu')}
               className="shrink-0 p-1.5 rounded-md text-fg-3 hover:bg-white/5 hover:text-fg-0 transition-colors"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,23 +181,22 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Nav */}
         <nav className={`flex-1 pb-4 ${effectiveCollapsed ? 'px-1' : 'px-3'}`}>
           {!effectiveCollapsed && (
             <p className="px-3 pt-2 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
-              Analyse
+              {t('nav.groupAnalyse')}
             </p>
           )}
           {effectiveCollapsed && <div className="pt-2" />}
           <div className="flex flex-col gap-0.5">
             {NAV_ANALYSE.map((item) => (
-              <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon} end={item.to === '/'} collapsed={effectiveCollapsed} onNavigate={handleNavigate} />
+              <NavItem key={item.to} to={item.to} label={t(item.labelKey)} icon={item.icon} end={item.to === '/'} collapsed={effectiveCollapsed} onNavigate={handleNavigate} />
             ))}
           </div>
 
           {!effectiveCollapsed && (
             <p className="px-3 pt-5 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
-              Simulation
+              {t('nav.groupSimulation')}
             </p>
           )}
           {effectiveCollapsed && <div className="pt-3" />}
@@ -197,7 +205,7 @@ export default function Sidebar() {
               <NavItem
                 key={item.to}
                 to={item.to}
-                label={item.label}
+                label={t(item.labelKey)}
                 icon={item.icon}
                 collapsed={effectiveCollapsed}
                 onNavigate={() => {
@@ -207,18 +215,29 @@ export default function Sidebar() {
               />
             ))}
           </div>
+
+          {!effectiveCollapsed && (
+            <p className="px-3 pt-5 pb-2 text-[11px] uppercase tracking-widest font-semibold text-fg-3">
+              {t('nav.groupReferenz')}
+            </p>
+          )}
+          {effectiveCollapsed && <div className="pt-3" />}
+          <div className="flex flex-col gap-0.5">
+            {NAV_REFERENZ.map((item) => (
+              <NavItem key={item.to} to={item.to} label={t(item.labelKey)} icon={item.icon} collapsed={effectiveCollapsed} onNavigate={handleNavigate} />
+            ))}
+          </div>
         </nav>
 
-        {/* Collapse-Toggle — nur Desktop */}
         {!isMobile && (
           <div className={`shrink-0 border-t border-border ${collapsed ? 'flex justify-center py-3' : 'px-3 py-3'}`}>
             <button
               onClick={toggleSidebar}
-              title={collapsed ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
+              title={collapsed ? t('nav.expandTitle') : t('nav.collapseTitle')}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-fg-3 hover:bg-white/5 hover:text-fg-1 transition-colors text-[12px] select-none w-full justify-center"
             >
               <ChevronIcon left={!collapsed} />
-              {!collapsed && <span>Einklappen</span>}
+              {!collapsed && <span>{t('nav.collapse')}</span>}
             </button>
           </div>
         )}

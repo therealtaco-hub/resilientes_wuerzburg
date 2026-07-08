@@ -8,6 +8,7 @@ const Hitzeatlas     = lazy(() => import('../pages/Hitzeatlas.jsx'))
 const Vulnerabilitaet = lazy(() => import('../pages/Vulnerabilitaet.jsx'))
 const Entsiegelung   = lazy(() => import('../pages/Entsiegelung.jsx'))
 const Simulation     = lazy(() => import('../pages/Simulation.jsx'))
+const Dokumentation  = lazy(() => import('../pages/Dokumentation.jsx'))
 
 export default function AppRoutes() {
   return (
@@ -18,6 +19,7 @@ export default function AppRoutes() {
         <Route path="/vulnerabilitaet"    element={<Vulnerabilitaet />} />
         <Route path="/entsiegelung"       element={<Entsiegelung />} />
         <Route path="/simulation"          element={<Simulation />} />
+        <Route path="/dokumentation"       element={<Dokumentation />} />
       </Routes>
     </Suspense>
   )

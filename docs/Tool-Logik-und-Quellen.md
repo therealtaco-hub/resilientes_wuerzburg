@@ -1,3 +1,5 @@
+> ⚠️ **Veraltet.** Dieses Dokument wird durch [`Dokumentation.md`](./Dokumentation.md) abgelöst (vollständiger, mit In-App-Seite `/dokumentation`). Bitte dort nachschlagen; diese Datei kann entfernt werden, sobald die neue Doku-Seite steht.
+
 # Resilientes Würzburg — Tool-Logik und Quellen
 
 **Stand:** Juni 2026 | **Version:** 1.0  

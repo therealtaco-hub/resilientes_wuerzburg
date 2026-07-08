@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import { fmt } from '../../utils/format'
 
 export default function StadtbezirkeLegend({ min, median, max }) {
+  const { t } = useTranslation()
   if (min == null || median == null || max == null) return null
 
   return (
@@ -14,7 +16,7 @@ export default function StadtbezirkeLegend({ min, median, max }) {
       }}
     >
       <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-3 mb-2">
-        Stadtbezirke · LST max
+        {t('legend.bezirkeLst')}
       </p>
       <div
         style={{

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useAppStore from '../../store/useAppStore'
 import { fetchSimulateBaeume } from '../../api/simulate'
@@ -35,13 +36,14 @@ function LayerToggle({ active, onToggle, label, badge }) {
   )
 }
 
-function formatCo2(kgYear) {
-  if (kgYear < 1000) return { value: fmt.num(kgYear, 0), unit: 'kg/Jahr' }
-  return { value: fmt.num(kgYear / 1000, 1), unit: 't/Jahr' }
+function formatCo2(kgYear, t) {
+  if (kgYear < 1000) return { value: fmt.num(kgYear, 0), unit: t('baum.co2UnitKg') }
+  return { value: fmt.num(kgYear / 1000, 1), unit: t('baum.co2UnitT') }
 }
 
 // Vorher/Nachher-Zeile mit Progress-Bar und Delta-Badge
 function BeforeAfterRow({ label, barFill, beforeFill, beforeFmt, afterFmt, deltaFmt, deltaColor, barColor }) {
+  const { t } = useTranslation()
   const pct     = Math.max(0, Math.min(100, (barFill ?? 0) * 100))
   const prevPct = beforeFill != null ? Math.max(0, Math.min(100, beforeFill * 100)) : null
   const showGhost = prevPct != null && Math.abs(prevPct - pct) > 0.5
@@ -69,14 +71,15 @@ function BeforeAfterRow({ label, barFill, beforeFill, beforeFmt, afterFmt, delta
         />
       </div>
       <div className="flex justify-between mt-1">
-        <span className="text-fg-3 text-[10px] font-mono">{beforeFmt} vorher</span>
-        <span className="text-fg-3 text-[10px] font-mono">{afterFmt} nachher</span>
+        <span className="text-fg-3 text-[10px] font-mono">{beforeFmt} {t('baum.before')}</span>
+        <span className="text-fg-3 text-[10px] font-mono">{afterFmt} {t('baum.after')}</span>
       </div>
     </div>
   )
 }
 
 export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
+  const { t } = useTranslation()
   const selectedCells       = useAppStore((s) => s.sim.selectedCells)
   const selectedCellsAreaM2 = useAppStore((s) => s.sim.selectedCellsAreaM2)
   const selectedCount       = selectedCells.length
@@ -94,7 +97,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
     if (selectedCount === 0 || !lstData) return 0
     const vals = selectedCells.map((idx) => lstData.features[idx]?.properties?.bestand_pct ?? 0)
     return vals.reduce((s, v) => s + v, 0) / vals.length
-  }, [selectedCells, selectedCount, lstData])
+  }, [selectedCells, selectedCount, lstData, t])
 
   // Ø LST der selektierten Kacheln
   const avgLstCelsius = useMemo(() => {
@@ -104,7 +107,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
       .filter((v) => v != null)
     if (!vals.length) return null
     return vals.reduce((s, v) => s + v, 0) / vals.length
-  }, [selectedCells, selectedCount, lstData])
+  }, [selectedCells, selectedCount, lstData, t])
 
   // Bestandsbäume in selektierten Zellen via Bbox-Check
   const treeCount = useMemo(() => {
@@ -143,10 +146,10 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
     const topDom = Object.entries(domCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
     return {
       avgSealPct: avg,
-      dominantLabel: topDom ? (TYPE_KEY_LABELS[topDom] ?? topDom) : null,
+      dominantLabel: topDom ? t('legend.cat.' + topDom, topDom) : null,
       hasGap: gap,
     }
-  }, [selectedCells, selectedCount, lstData])
+  }, [selectedCells, selectedCount, lstData, t])
 
   const plantableAreaM2 = selectedCellsAreaM2 * (1 - avgSealPct)
 
@@ -228,14 +231,14 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
     return { cityAfterPct: cityBestandPct + delta, deltaCityPct: delta }
   }, [cityBestandPct, hasSel, effectiveNewPct, selectedCellsAreaM2, cityMeta, lstData])
 
-  const co2 = result ? formatCo2(result.co2_kg_year) : null
+  const co2 = result ? formatCo2(result.co2_kg_year, t) : null
 
   // CO₂-Bindung Vorher/Nachher: Bestand aus treeCount × Koeffizient, gleiche Formel wie Backend
   const co2PerTree    = result?.coefficients_used?.co2_kg_per_tree_year ?? null
   const co2BeforeKg   = co2PerTree != null && treeCount != null ? treeCount * co2PerTree : null
   const co2AfterKg    = result != null ? (co2BeforeKg ?? 0) + result.co2_kg_year : null
-  const co2Before     = co2BeforeKg != null ? formatCo2(co2BeforeKg) : null
-  const co2After      = co2AfterKg  != null ? formatCo2(co2AfterKg)  : null
+  const co2Before     = co2BeforeKg != null ? formatCo2(co2BeforeKg, t) : null
+  const co2After      = co2AfterKg  != null ? formatCo2(co2AfterKg, t)  : null
   const co2BeforeFill = co2AfterKg > 0 ? (co2BeforeKg ?? 0) / co2AfterKg : 0
 
   const { lstMin, lstMedian, lstMax } = useMemo(() => {
@@ -281,11 +284,9 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
         >
           <span style={{ fontSize: 20 }}>👆</span>
           <div className="min-w-0">
-            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">So startest du die Simulation</div>
+            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">{t('baum.startTitle')}</div>
             <div className="text-fg-2 text-[12px] leading-snug">
-              Klicke auf eine oder mehrere <span className="font-medium text-fg-0">Kacheln</span> in der
-              Karte, um Flächen für die Baumpflanzung auszuwählen. Anschließend stellst du die Anzahl der
-              Neupflanzungen ein und siehst den Kühl- und CO₂-Effekt.
+              {t('baum.startBodyPre')}<span className="font-medium text-fg-0">{t('baum.startBodyWord')}</span>{t('baum.startBodyPost')}
             </div>
           </div>
         </div>
@@ -295,7 +296,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
       {showSimLst && lstMin != null && (
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">
-            Oberflächentemperatur (LST)
+            {t('baum.lstLegendTitle')}
           </p>
           <LSTLegend min={lstMin} median={lstMedian} max={lstMax} />
         </div>
@@ -308,31 +309,31 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
           {hasSel ? (
             <>
               <div className="text-fg-0 text-[14px] font-medium">
-                {fmt.area(selectedCellsAreaM2)} · {selectedCount} {selectedCount === 1 ? 'Kachel' : 'Kacheln'}
+                {fmt.area(selectedCellsAreaM2)} · {selectedCount} {t('common.cell', { count: selectedCount })}
               </div>
               <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
-                Bestand: {fmt.pct(existingPct)} Kronendeckung
-                {treeCount != null && ` · ${fmt.num(treeCount)} ${treeCount === 1 ? 'Baum' : 'Bäume'}`}
+                {t('baum.bestandPrefix')} {fmt.pct(existingPct)} {t('baum.canopy')}
+                {treeCount != null && ` · ${fmt.num(treeCount)} ${t('common.tree', { count: treeCount })}`}
               </div>
               {/* Versiegelungs-Readout — genau die Größe, die in sliderMax eingeht */}
               <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
-                {dominantLabel ? `überwiegend ${dominantLabel} · ` : ''}
-                ~{fmt.pct(avgSealPct * 100)} versiegelt · {fmt.area(plantableAreaM2)} pflanzbar · max {fmt.num(sliderMax)} Bäume
+                {dominantLabel ? t('baum.readoutDominant', { label: dominantLabel }) : ''}
+                {t('baum.readoutSealed', { pct: fmt.pct(avgSealPct * 100) })} · {t('baum.readoutPlantable', { area: fmt.area(plantableAreaM2) })} · {t('baum.readoutMaxTrees', { n: fmt.num(sliderMax) })}
               </div>
               {hasGap && (
                 <div className="text-accent-amber text-[10px] mt-0.5 leading-snug">
-                  ⚠ Teils keine ATKIS-Siedlungs-/Verkehrsfläche → dort als unversiegelt (Grün-/Freifläche) angenommen.
+                  {t('baum.gapWarn')}
                 </div>
               )}
               {cityBestandPct != null && (
                 <div className="text-fg-3 text-[11px] mt-0.5 font-mono">
-                  Stadtgebiet: {fmt.pct(cityBestandPct)} Kronenbeschattung gesamt
+                  {t('baum.cityCanopy', { pct: fmt.pct(cityBestandPct) })}
                 </div>
               )}
             </>
           ) : (
             <div className="text-fg-2 text-[12px] leading-snug">
-              Klicke auf Kacheln in der Karte, um die Simulation zu starten.
+              {t('baum.emptyBanner')}
             </div>
           )}
         </div>
@@ -342,24 +343,23 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
             className="text-fg-3 hover:text-fg-0 text-[11px] font-medium px-2 py-1 rounded transition-colors"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}
           >
-            Zurücksetzen
+            {t('common.reset')}
           </button>
         )}
       </div>
 
       {/* Layer-Toggles */}
-      <LayerToggle active={showSimLst}       onToggle={toggleSimLst}       label="LST-Farbcodierung" />
-      <LayerToggle active={showBaumkataster} onToggle={toggleBaumkataster} label="Baumkataster anzeigen" badge="44.647" />
-      <LayerToggle active={showSimAtkis}     onToggle={toggleSimAtkis}     label="Versiegelungsflächen (ATKIS/OSM)" />
+      <LayerToggle active={showSimLst}       onToggle={toggleSimLst}       label={t('baum.toggleLst')} />
+      <LayerToggle active={showBaumkataster} onToggle={toggleBaumkataster} label={t('baum.toggleTrees')} badge="44.647" />
+      <LayerToggle active={showSimAtkis}     onToggle={toggleSimAtkis}     label={t('baum.toggleAtkis')} />
 
       {/* Slider + Text-Input */}
       <div className={hasSel ? '' : 'opacity-50 pointer-events-none'}>
         <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-1">
-          Neupflanzungen
+          {t('baum.sliderTitle')}
         </div>
         <p className="text-fg-3 text-[10px] leading-snug mb-3">
-          Abnehmender Grenznutzen: jede weitere Pflanzung deckt zunehmend bereits
-          beschattete Fläche — die projizierte Kronendeckung wächst immer langsamer.
+          {t('baum.sliderHelp')}
         </p>
 
         {/* Wert-Zeile: Zahl (editierbar) + Einheit + Max-Hinweis */}
@@ -376,9 +376,9 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
             className="no-spinner font-mono tabular-nums text-fg-0 bg-transparent focus:outline-none text-left"
             style={{ fontSize: 28, fontWeight: 600, width: `${Math.max(String(sliderMax).length, 3) + 1}ch`, borderBottom: '1.5px solid var(--border)' }}
           />
-          <span className="text-fg-2 text-[13px]">Bäume</span>
+          <span className="text-fg-2 text-[13px]">{t('baum.unitTrees')}</span>
           {sliderMax > 0 && (
-            <span className="ml-auto text-fg-3 text-[10px] font-mono">max {fmt.num(sliderMax)}</span>
+            <span className="ml-auto text-fg-3 text-[10px] font-mono">{t('baum.max', { n: fmt.num(sliderMax) })}</span>
           )}
         </div>
 
@@ -399,8 +399,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
           >
             <span className="text-[12px] shrink-0" style={{ color: 'var(--blue)' }}>ℹ</span>
             <p className="text-[11px] leading-snug" style={{ color: 'var(--text-1)' }}>
-              „max {fmt.num(sliderMax)}" gilt nur für unversiegelten Boden. Zusätzliche Pflanzungen in
-              versiegelter Fläche sind über Baumscheiben möglich (nicht im Modell erfasst).
+              {t('baum.baumscheibe', { n: fmt.num(sliderMax) })}
             </p>
           </div>
         )}
@@ -424,21 +423,20 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
           </div>
           <div className="flex justify-between mt-1 text-[10px] font-mono text-fg-3">
             <span>
-              {existingBarPct > 0 && <><span style={{ color: 'rgba(34,197,94,0.6)' }}>■</span> {fmt.pct(existingPct)} Bestand</>}
-              {newBarPct > 0 && <> · <span style={{ color: 'var(--green)' }}>■</span> +{fmt.pct(effectiveNewPct)} neu</>}
+              {existingBarPct > 0 && <><span style={{ color: 'rgba(34,197,94,0.6)' }}>■</span> {t('baum.barBestand', { pct: fmt.pct(existingPct) })}</>}
+              {newBarPct > 0 && <> · <span style={{ color: 'var(--green)' }}>■</span> {t('baum.barNew', { pct: fmt.pct(effectiveNewPct) })}</>}
             </span>
             <span>
-              <span style={{ color: 'var(--text-3)' }}>□ {fmt.pct(Math.max(0, 100 - totalPct))} frei</span>
+              <span style={{ color: 'var(--text-3)' }}>□ {t('baum.barFree', { pct: fmt.pct(Math.max(0, 100 - totalPct)) })}</span>
               {' · '}
-              <span style={{ color: 'var(--text-1)' }}>{fmt.pct(totalPct)} gesamt</span>
+              <span style={{ color: 'var(--text-1)' }}>{t('baum.barTotal', { pct: fmt.pct(totalPct) })}</span>
             </span>
           </div>
         </div>
 
         {naiveNewPct - effectiveNewPct > 5 && hasSel && (
           <div className="text-accent-amber text-[10px] mt-1.5">
-            ⚠ Überlappung: ~{fmt.pct(naiveNewPct - effectiveNewPct)} der neuen Kronenfläche fällt auf
-            bereits beschatteten Boden — kein zusätzlicher Kühleffekt dort.
+            {t('baum.overlapWarn', { pct: fmt.pct(naiveNewPct - effectiveNewPct) })}
           </div>
         )}
       </div>
@@ -447,7 +445,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
       {hasSel && (
         <div className="rounded-[10px] p-4" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-4">
-            Vorher / Nachher
+            {t('baum.beforeAfter')}
           </div>
 
           {loading && !result ? (
@@ -460,11 +458,11 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
               {/* Baumanzahl */}
               {treeCount != null && (
                 <BeforeAfterRow
-                  label="Baumanzahl"
+                  label={t('baum.rowTrees')}
                   barFill={treeBarAfter}
                   beforeFill={treeBarBefore}
-                  beforeFmt={`${fmt.num(treeCount)} ${treeCount === 1 ? 'Baum' : 'Bäume'}`}
-                  afterFmt={`${fmt.num(treeCount + anzahl)} Bäume`}
+                  beforeFmt={`${fmt.num(treeCount)} ${t('common.tree', { count: treeCount })}`}
+                  afterFmt={`${fmt.num(treeCount + anzahl)} ${t('common.tree', { count: treeCount + anzahl })}`}
                   deltaFmt={`+${fmt.num(anzahl)}`}
                   deltaColor="var(--green)"
                   barColor="var(--green)"
@@ -474,7 +472,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
               {/* Temperatur */}
               {lstBefore != null && (
                 <BeforeAfterRow
-                  label="Temperatur (LST)"
+                  label={t('baum.rowTemp')}
                   barFill={lstBarAfter}
                   beforeFill={lstBarBefore}
                   beforeFmt={fmt.temp(lstBefore)}
@@ -487,7 +485,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
 
               {/* CO₂-Bindung */}
               <BeforeAfterRow
-                label="CO₂-Bindung"
+                label={t('baum.rowCo2')}
                 barFill={result ? 1 : 0}
                 beforeFill={co2BeforeFill}
                 beforeFmt={co2Before ? `${co2Before.value} ${co2Before.unit}` : '—'}
@@ -499,7 +497,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
 
               {/* Kronendeckung */}
               <BeforeAfterRow
-                label="Kronendeckung (Auswahl)"
+                label={t('baum.rowCanopy')}
                 barFill={totalPct / 100}
                 beforeFill={existingPct / 100}
                 beforeFmt={fmt.pct(existingPct)}
@@ -512,7 +510,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
               {/* Stadtweite Beschattung */}
               {cityBestandPct != null && (
                 <BeforeAfterRow
-                  label="Beschattung Stadtgebiet"
+                  label={t('baum.rowCityShade')}
                   barFill={(cityAfterPct ?? cityBestandPct) / 100}
                   beforeFill={cityBestandPct / 100}
                   beforeFmt={fmt.pct(cityBestandPct)}
@@ -527,7 +525,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
 
           {error && (
             <div className="mt-3 text-[12px] text-accent-red">
-              Berechnung fehlgeschlagen — bitte erneut versuchen.
+              {t('common.calcFailed')}
             </div>
           )}
         </div>
@@ -544,18 +542,18 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
             color:      methodikOpen ? 'var(--text-1)' : 'var(--text-3)',
           }}
         >
-          Methodik & Einschränkungen {methodikOpen ? 'ausblenden' : 'anzeigen'}
+          {methodikOpen ? t('common.methodikHide') : t('common.methodikShow')}
         </button>
         {methodikOpen && (
           <div className="mt-3 space-y-2 text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
             {result?.caveats?.map((c, i) => <p key={i}>• {c}</p>)}
-            <p>• <strong>Pflanzbare Fläche:</strong> Das Slider-Maximum ergibt sich aus der unversiegelten Kachelfläche geteilt durch 100 m²/Baum (empfohlener Pflanzabstand für Bäume 2. Ordnung, FLL-Richtlinie „Empfehlungen für Baumpflanzungen", Teil 1, 2. Ausgabe 2015). Die tatsächlich verfügbaren Pflanzorte können deutlich geringer sein, da ein Teil der unversiegelten Fläche auf unterkellertem Boden, privaten Grundstücken oder Flächen mit Leitungskonflikten liegt. Die angezeigte Maximalzahl ist daher als rechnerische Obergrenze zu verstehen.</p>
+            <p>• <strong>{t('baum.methPlantableTitle')}</strong> {t('baum.methPlantableBody')}</p>
             {result?.coefficients_used && (
               <p className="font-mono text-[10px] pt-1" style={{ color: 'var(--text-3)' }}>
-                LST/% Krone: {result.coefficients_used.lst_per_pct_canopy} ·
-                land_use: {result.coefficients_used.land_use} ·
-                Krone: {result.coefficients_used.crown_area_m2} m² ·
-                CO₂: {result.coefficients_used.co2_kg_per_tree_year} kg/Jahr
+                {t('baum.coefLst')} {result.coefficients_used.lst_per_pct_canopy} ·
+                {t('baum.coefLandUse')} {result.coefficients_used.land_use} ·
+                {t('baum.coefCrown')} {result.coefficients_used.crown_area_m2} m² ·
+                {t('baum.coefCo2')} {result.coefficients_used.co2_kg_per_tree_year} {t('baum.co2UnitKg')}
               </p>
             )}
           </div>

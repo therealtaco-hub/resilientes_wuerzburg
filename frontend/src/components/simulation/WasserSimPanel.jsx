@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useAppStore from '../../store/useAppStore'
 import { fetchSimulateWasser } from '../../api/simulate'
@@ -25,21 +26,22 @@ const WATER_USE_M3_PER_PERSON = WATER_USE_M3_PER_PERSON_YEAR
 const GW_RATE_LOW  = 0.15
 const GW_RATE_HIGH = 0.30
 
-function formatWasserKontext(m3year) {
+function formatWasserKontext(m3year, t) {
   if (m3year < 2) {
     const count = Math.round(m3year * 100)
-    return { count: fmt.num(count), unit: 'Eimer/Jahr', sub: 'à 10 L' }
+    return { count: fmt.num(count), unit: t('wasser.ctxBucket'), sub: t('wasser.ctxBucketSub') }
   } else if (m3year < 150) {
     const count = Math.round(m3year * 1000 / 150)
-    return { count: fmt.num(count), unit: 'Badewannen/Jahr', sub: 'à 150 L' }
+    return { count: fmt.num(count), unit: t('wasser.ctxBath'), sub: t('wasser.ctxBathSub') }
   } else {
     const count = (m3year / 50).toFixed(1)
-    return { count, unit: 'Schwimmbecken/Jahr', sub: 'à 50 m³' }
+    return { count, unit: t('wasser.ctxPool'), sub: t('wasser.ctxPoolSub') }
   }
 }
 
 // Farbiger Chip: zeigt Ψ-Wert + qualitative Einschätzung
 function PsiChip({ psi }) {
+  const { t } = useTranslation()
   const color = psi >= 0.75
     ? 'rgba(239,68,68,0.85)'
     : psi >= 0.40
@@ -51,12 +53,12 @@ function PsiChip({ psi }) {
       ? 'rgba(251,191,36,0.08)'
       : 'rgba(34,197,94,0.08)'
   const label = psi >= 0.75
-    ? 'Kaum Versickerung'
+    ? t('wasser.psiNone')
     : psi >= 0.40
-      ? 'Mäßige Versickerung'
+      ? t('wasser.psiLow')
       : psi >= 0.15
-        ? 'Gute Versickerung'
-        : 'Sehr gute Versickerung'
+        ? t('wasser.psiGood')
+        : t('wasser.psiVeryGood')
   return (
     <div
       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] text-[10px] font-mono"
@@ -114,6 +116,7 @@ function WasserBalanceBar({ label, runoffPct }) {
 }
 
 export default function WasserSimPanel() {
+  const { t } = useTranslation()
   const polygons    = useAppStore((s) => s.sim.selectedPolygons)
   const polysAreaM2 = useAppStore((s) => s.sim.selectedPolygonsAreaM2)
   const flaecheM2   = useAppStore((s) => s.sim.wasser.flaeche_m2)
@@ -228,7 +231,7 @@ export default function WasserSimPanel() {
     }, 0)
   }, [groups, groupConfig, hasSel, totalSealable])
 
-  const wasserCtx  = results ? formatWasserKontext(results.infiltration) : null
+  const wasserCtx  = results ? formatWasserKontext(results.infiltration, t) : null
   const surfaceKeys = Object.keys(SURFACE_LABELS)
 
   return (
@@ -241,11 +244,9 @@ export default function WasserSimPanel() {
         >
           <span style={{ fontSize: 20 }}>👆</span>
           <div className="min-w-0">
-            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">So startest du die Simulation</div>
+            <div className="text-fg-0 text-[13px] font-semibold mb-0.5">{t('wasser.startTitle')}</div>
             <div className="text-fg-2 text-[12px] leading-snug">
-              Klicke auf ein oder mehrere <span className="font-medium text-fg-0">Polygone</span> (Flächen)
-              in der Karte, um sie zu entsiegeln. Anschließend wählst du den neuen Belag und siehst die
-              jährliche Versickerung. <span className="text-fg-3">Flachdächer sind nicht auswählbar.</span>
+              {t('wasser.startBodyPre')}<span className="font-medium text-fg-0">{t('wasser.startBodyWord')}</span>{t('wasser.startBodyMid')}<span className="text-fg-3">{t('wasser.flachNote')}</span>
             </div>
           </div>
         </div>
@@ -253,7 +254,7 @@ export default function WasserSimPanel() {
 
       {/* Legende */}
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">Flächenarten</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-2">{t('wasser.surfaceTypesLegend')}</p>
         <EntsiegelungLegend />
       </div>
 
@@ -264,10 +265,10 @@ export default function WasserSimPanel() {
             <span style={{ fontSize: 18 }}>💧</span>
             {hasSel ? (
               <span className="text-fg-0 text-[13px] font-medium">
-                {polygons.length} {polygons.length === 1 ? 'Polygon' : 'Polygone'} ausgewählt
+                {polygons.length} {t('common.polygon', { count: polygons.length })} {t('wasser.selectedSuffix')}
               </span>
             ) : (
-              <span className="text-fg-2 text-[12px]">Keine Auswahl</span>
+              <span className="text-fg-2 text-[12px]">{t('wasser.noSelection')}</span>
             )}
           </div>
           {hasSel && (
@@ -276,7 +277,7 @@ export default function WasserSimPanel() {
               className="text-fg-3 hover:text-fg-0 text-[11px] font-medium px-2 py-1 rounded transition-colors"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}
             >
-              Zurücksetzen
+              {t('common.reset')}
             </button>
           )}
         </div>
@@ -284,20 +285,20 @@ export default function WasserSimPanel() {
         {hasSel ? (
           <div className="flex flex-col gap-3">
             <AreaRow
-              label="Gesamt"
+              label={t('wasser.areaTotal')}
               value={fmt.area(polysAreaM2)}
               pct={1}
               barColor="rgba(148,163,184,0.4)"
             />
             <AreaRow
-              label="Davon versiegelt"
+              label={t('wasser.areaSealed')}
               value={fmt.area(totalSealable)}
               pct={polysAreaM2 > 0 ? totalSealable / polysAreaM2 : 0}
               barColor="rgba(239,68,68,0.55)"
             />
             <div>
               <AreaRow
-                label="Typ. entsiegelbar"
+                label={t('wasser.areaTypical')}
                 value={`~${fmt.area(totalTypicalMax)}`}
                 pct={polysAreaM2 > 0 ? totalTypicalMax / polysAreaM2 : 0}
                 barColor="rgba(59,130,246,0.65)"
@@ -307,15 +308,15 @@ export default function WasserSimPanel() {
                 style={{ color: 'var(--text-3)' }}
                 title="In der Praxis entfällt ein Großteil der versiegelten Fläche auf Gebäude (z. B. Fabrikhallen, Wohnhäuser), die nicht entsiegelt werden können. Schätzwert nach Flächentyp — kein harter Cap."
               >
-                Schätzwert (kein harter Cap) · Hover für Details
+                {t('wasser.estimateHint')}
               </div>
             </div>
           </div>
         ) : (
           <div className="text-fg-2 text-[12px] leading-snug">
-            Klicke auf Polygone in der Karte, um die Simulation zu starten.
+            {t('wasser.emptyBanner')}
             <br />
-            <span className="text-fg-3">Flachdächer sind nicht auswählbar.</span>
+            <span className="text-fg-3">{t('wasser.flachNote')}</span>
           </div>
         )}
       </div>
@@ -323,7 +324,7 @@ export default function WasserSimPanel() {
       {/* Belagstypen-Gruppen */}
       {hasSel && (
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">Belagstypen</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">{t('wasser.surfaceTypes')}</div>
           <div className="flex flex-col gap-3">
             {groups.map((g) => {
               const cfg = groupConfig[g.type_key] ?? {
@@ -345,7 +346,7 @@ export default function WasserSimPanel() {
                   {/* Kopfzeile */}
                   <div className="flex items-baseline justify-between mb-2">
                     <div className="text-fg-0 text-[12px] font-medium">
-                      {TYPE_KEY_LABELS[g.type_key] ?? g.type_key}
+                      {t('legend.cat.' + g.type_key, g.type_key)}
                     </div>
                     <div className="text-fg-3 text-[10px] font-mono">
                       {fmt.area(g.area_m2)} · {g.count}
@@ -355,7 +356,7 @@ export default function WasserSimPanel() {
                   {/* Versiegelungsgrad-Balken */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-fg-3 text-[10px]">Versiegelungsgrad</span>
+                      <span className="text-fg-3 text-[10px]">{t('wasser.sealDegree')}</span>
                       <span className="text-fg-2 text-[10px] font-mono">{Math.round(sealRate * 100)} %</span>
                     </div>
                     <div className="h-[4px] rounded-full overflow-hidden" style={{ background: 'var(--bg-3)' }}>
@@ -378,14 +379,14 @@ export default function WasserSimPanel() {
                       className="text-[11px] leading-snug px-2 py-1.5 rounded"
                       style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-3)', border: '1px solid var(--border)' }}
                     >
-                      Bereits vollversickernde Fläche – keine Entsiegelung möglich
+                      {t('wasser.greenest')}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
                       {/* Von */}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-fg-3 text-[10px] w-6 shrink-0">Von</span>
+                          <span className="text-fg-3 text-[10px] w-6 shrink-0">{t('wasser.from')}</span>
                           <select
                             value={cfg.from_surface}
                             onChange={(e) => setGroupSurface(g.type_key, 'from_surface', e.target.value)}
@@ -393,7 +394,7 @@ export default function WasserSimPanel() {
                           >
                             {surfaceKeys.map((k) => (
                               <option key={k} value={k}>
-                                {SURFACE_LABELS[k]} (Ψ {(RUNOFF_COEFFICIENTS[k] ?? 0).toFixed(2)})
+                                {t('surface.' + k)} (Ψ {(RUNOFF_COEFFICIENTS[k] ?? 0).toFixed(2)})
                               </option>
                             ))}
                           </select>
@@ -417,12 +418,12 @@ export default function WasserSimPanel() {
                           <span style={{ opacity: 0.5 }}>·</span>
                           <span>
                             {deltaPsi >= 0.40
-                              ? 'Starke Verbesserung'
+                              ? t('wasser.deltaStrong')
                               : deltaPsi >= 0.10
-                                ? 'Verbesserung'
+                                ? t('wasser.deltaImprove')
                                 : deltaPsi > 0.01
-                                  ? 'Geringe Verbesserung'
-                                  : 'Keine Veränderung'}
+                                  ? t('wasser.deltaSlight')
+                                  : t('wasser.deltaNone')}
                           </span>
                         </div>
                       </div>
@@ -430,7 +431,7 @@ export default function WasserSimPanel() {
                       {/* Zu */}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-fg-3 text-[10px] w-6 shrink-0">Zu</span>
+                          <span className="text-fg-3 text-[10px] w-6 shrink-0">{t('wasser.to')}</span>
                           <select
                             value={cfg.to_surface}
                             onChange={(e) => setGroupSurface(g.type_key, 'to_surface', e.target.value)}
@@ -438,7 +439,7 @@ export default function WasserSimPanel() {
                           >
                             {surfaceKeys.map((k) => (
                               <option key={k} value={k}>
-                                {SURFACE_LABELS[k]} (Ψ {(RUNOFF_COEFFICIENTS[k] ?? 0).toFixed(2)})
+                                {t('surface.' + k)} (Ψ {(RUNOFF_COEFFICIENTS[k] ?? 0).toFixed(2)})
                               </option>
                             ))}
                           </select>
@@ -459,7 +460,7 @@ export default function WasserSimPanel() {
       {/* Slider */}
       <div className={hasSel ? '' : 'opacity-50 pointer-events-none'}>
         <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">
-          Zu entsiegelnde Fläche
+          {t('wasser.sliderTitle')}
         </div>
         <div className="flex items-baseline gap-2 mb-2">
           <input
@@ -481,7 +482,7 @@ export default function WasserSimPanel() {
           />
           <span className="text-fg-2 text-[13px]">m²</span>
           {sliderMax > 0 && (
-            <span className="ml-auto text-fg-3 text-[10px] font-mono">max {fmt.num(sliderMax)}</span>
+            <span className="ml-auto text-fg-3 text-[10px] font-mono">{t('baum.max', { n: fmt.num(sliderMax) })}</span>
           )}
         </div>
         <input
@@ -495,7 +496,7 @@ export default function WasserSimPanel() {
         />
         <div className="flex flex-col gap-1 mt-1.5">
           <div className="text-fg-3 text-[10px] font-mono">
-            Max: {fmt.num(sliderMax)} m² (Σ versiegelte Fläche, Literaturwerte)
+            {t('wasser.sliderMaxHint', { n: fmt.num(sliderMax) })}
           </div>
           {hasSel && totalTypicalMax > 0 && (
             <div
@@ -505,8 +506,7 @@ export default function WasserSimPanel() {
             >
               <span>⚠</span>
               <span>
-                Typisch realistisch: ~{fmt.num(Math.round(totalTypicalMax))} m²
-                {polysAreaM2 > 0 && ` (~${Math.round(totalTypicalMax / polysAreaM2 * 100)} % der Gesamtfläche)`}
+                {polysAreaM2 > 0 ? t('wasser.typicalHintPct', { n: fmt.num(Math.round(totalTypicalMax)), p: Math.round(totalTypicalMax / polysAreaM2 * 100) }) : t('wasser.typicalHint', { n: fmt.num(Math.round(totalTypicalMax)) })}
               </span>
             </div>
           )}
@@ -516,7 +516,7 @@ export default function WasserSimPanel() {
       {/* Ergebnisse */}
       {hasSel && (
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">Ergebnisse</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-3 mb-3">{t('wasser.results')}</div>
           <div
             className="rounded-[10px] p-4 flex flex-col gap-4"
             style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
@@ -533,22 +533,22 @@ export default function WasserSimPanel() {
                 {/* Wasserbalance Vorher/Nachher */}
                 <div>
                   <div className="flex items-center gap-3 mb-2 text-[10px]" style={{ color: 'var(--text-3)' }}>
-                    <span className="uppercase tracking-[0.08em]">Abflussanteil</span>
+                    <span className="uppercase tracking-[0.08em]">{t('wasser.runoffShare')}</span>
                     <span className="flex items-center gap-1">
                       <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'rgba(239,68,68,0.55)' }} />
-                      Abfluss
+                      {t('wasser.runoff')}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'rgba(59,130,246,0.65)' }} />
-                      Versickerung
+                      {t('wasser.infiltration')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
                     {avgFromPsiStatic != null && (
-                      <WasserBalanceBar label="Vorher" runoffPct={avgFromPsiStatic} />
+                      <WasserBalanceBar label={t('wasser.balanceBefore')} runoffPct={avgFromPsiStatic} />
                     )}
                     <WasserBalanceBar
-                      label="Nachher"
+                      label={t('wasser.balanceAfter')}
                       runoffPct={results ? results.avgToPsi : (avgFromPsiStatic ?? 0)}
                     />
                   </div>
@@ -562,7 +562,7 @@ export default function WasserSimPanel() {
                       {/* Primärer Wert */}
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                          Zusätzliche Versickerung
+                          {t('wasser.addInfiltration')}
                         </p>
                         <div className="flex items-baseline gap-1.5 mb-2">
                           <span
@@ -571,7 +571,7 @@ export default function WasserSimPanel() {
                           >
                             {fmt.num(results.infiltration, 0)}
                           </span>
-                          <span className="text-fg-2 text-[13px] font-mono">m³/Jahr</span>
+                          <span className="text-fg-2 text-[13px] font-mono">{t('wasser.perYear')}</span>
                         </div>
                         {/* Einordnung */}
                         <div className="flex flex-col gap-1">
@@ -582,9 +582,9 @@ export default function WasserSimPanel() {
                                 ? '< 1'
                                 : fmt.num(Math.round(results.infiltration / WATER_USE_M3_PER_PERSON), 0)}
                             </span>
-                            {' '}Personen-Jahrestrinkwasserbedarf
+                            {' '}{t('wasser.personsSuffix')}
                             <span className="text-[10px] ml-1" style={{ color: 'var(--text-3)' }}>
-                              (127 L/Tag, BDEW 2023)
+                              {t('wasser.personsSource')}
                             </span>
                           </div>
                           {wasserCtx && (
@@ -602,7 +602,7 @@ export default function WasserSimPanel() {
                         style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}
                       >
                         <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'rgba(59,130,246,0.6)' }}>
-                          Grundwasserneubildung (Schätzwert)
+                          {t('wasser.gwTitle')}
                         </p>
                         <div className="flex items-baseline gap-1.5">
                           <span
@@ -611,15 +611,15 @@ export default function WasserSimPanel() {
                           >
                             ~{fmt.num(Math.round(results.infiltration * GW_RATE_LOW), 0)}–{fmt.num(Math.round(results.infiltration * GW_RATE_HIGH), 0)}
                           </span>
-                          <span className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>m³/Jahr</span>
+                          <span className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>{t('wasser.perYear')}</span>
                         </div>
                         <p className="text-[10px]" style={{ color: 'var(--text-3)' }}>
-                          Ca. 15–30 % der Versickerung erreichen das Grundwasser (LfU Bayern, Richtwert für Bayern).
+                          {t('wasser.gwNote')}
                         </p>
                         <div className="flex items-start gap-1.5 text-[10px]" style={{ color: 'rgba(251,191,36,0.75)' }}>
                           <span className="shrink-0 mt-px">⚠</span>
                           <span>
-                            Lokale Bodeneigenschaften, Grundwassertiefe und Bebauungsdichte im Einzugsgebiet sind nicht berücksichtigt — Wert dient nur als Orientierung.
+                            {t('wasser.gwWarn')}
                           </span>
                         </div>
                       </div>
@@ -628,7 +628,7 @@ export default function WasserSimPanel() {
                   ) : (
                     <div className="flex flex-col gap-1">
                       <span className="font-mono" style={{ fontSize: 26, fontWeight: 600, color: 'var(--text-3)' }}>—</span>
-                      <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>Fläche auswählen und Slider bedienen</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>{t('wasser.emptyResults')}</span>
                     </div>
                   )}
                 </div>
@@ -637,7 +637,7 @@ export default function WasserSimPanel() {
           </div>
           {error && (
             <div className="mt-2 text-[12px] text-accent-red">
-              Berechnung fehlgeschlagen — bitte erneut versuchen.
+              {t('common.calcFailed')}
             </div>
           )}
         </div>
@@ -654,7 +654,7 @@ export default function WasserSimPanel() {
             color: methodikOpen ? 'var(--text-1)' : 'var(--text-3)',
           }}
         >
-          Methodik & Einschränkungen {methodikOpen ? 'ausblenden' : 'anzeigen'}
+          {methodikOpen ? t('common.methodikHide') : t('common.methodikShow')}
         </button>
         {methodikOpen && (
           <div className="mt-3 flex flex-col gap-4 text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
@@ -669,33 +669,33 @@ export default function WasserSimPanel() {
             {/* Berechnungsformel */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Berechnungsformel
+                {t('wasser.methFormulaTitle')}
               </p>
               <p className="font-mono text-[10px] px-2 py-1.5 rounded" style={{ background: 'var(--bg-3)', color: 'var(--text-2)' }}>
-                Versickerung = A × N × (Ψ<sub>von</sub> − Ψ<sub>zu</sub>)
+                {t('wasser.infiltration')} = A × N × (Ψ<sub>von</sub> − Ψ<sub>zu</sub>)
               </p>
               <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-3)' }}>
-                A = entsiegelte Fläche (m²) · N = Jahresniederschlag (0,5735 m/Jahr, DWD Station 05705 Würzburg, Klimanormalperiode 1991–2020) · Ψ = Abflussbeiwert
+                {t('wasser.methFormulaNote')}
               </p>
             </div>
 
             {/* Abflussbeiwerte */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Abflussbeiwerte Ψ je Belagstyp
+                {t('wasser.methPsiTitle')}
               </p>
               <table className="w-full font-mono text-[10px]" style={{ color: 'var(--text-3)', borderSpacing: 0 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-soft)' }}>
-                    <th className="text-left pb-1 font-medium" style={{ color: 'var(--text-2)' }}>Belagstyp</th>
+                    <th className="text-left pb-1 font-medium" style={{ color: 'var(--text-2)' }}>{t('wasser.thSurface')}</th>
                     <th className="text-right pb-1 font-medium" style={{ color: 'var(--text-2)' }}>Ψ</th>
-                    <th className="text-right pb-1 font-medium pl-3" style={{ color: 'var(--text-2)' }}>Quelle</th>
+                    <th className="text-right pb-1 font-medium pl-3" style={{ color: 'var(--text-2)' }}>{t('wasser.thSource')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(RUNOFF_COEFFICIENTS).map(([k, v]) => (
                     <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <td className="py-0.5">{SURFACE_LABELS[k] ?? k}</td>
+                      <td className="py-0.5">{t('surface.' + k, k)}</td>
                       <td className="text-right py-0.5">{v.toFixed(2)}</td>
                       <td className="text-right py-0.5 pl-3" style={{ color: 'var(--text-3)', opacity: 0.6 }}>
                         {v === 0.90 || v === 0.75 || v === 0.50 || v === 0.30 && k === 'schotterrasen' || v === 0.15 && k === 'rasengitter' || v === 0.05
@@ -711,10 +711,10 @@ export default function WasserSimPanel() {
             {/* Versiegelungsgrade */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Versiegelungsgrade je Flächentyp
+                {t('wasser.methSealTitle')}
               </p>
               <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Anteil der Gesamtfläche, der als versiegelt gilt (Literaturwerte). Bestimmt den Slider-Maximalwert.
+                {t('wasser.methSealNote')}
               </p>
               <table className="w-full font-mono text-[10px]" style={{ color: 'var(--text-3)', borderSpacing: 0 }}>
                 <tbody>
@@ -722,7 +722,7 @@ export default function WasserSimPanel() {
                     .filter(([k]) => k !== '_default')
                     .map(([k, v]) => (
                       <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <td className="py-0.5">{TYPE_KEY_LABELS[k] ?? k}</td>
+                        <td className="py-0.5">{t('legend.cat.' + k, k)}</td>
                         <td className="text-right py-0.5">{(v * 100).toFixed(0)} %</td>
                       </tr>
                     ))}
@@ -733,10 +733,10 @@ export default function WasserSimPanel() {
             {/* Realisierbarkeitsfaktoren */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Realisierbarkeitsfaktoren (Schätzwerte)
+                {t('wasser.methRealTitle')}
               </p>
               <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                Anteil der versiegelten Fläche, der in der Praxis entsiegelt werden kann. Gebäudeflächen, Fundamente und infrastrukturell notwendige Versiegelungen sind ausgenommen. Kein harter Cap — dient nur als Orientierung.
+                {t('wasser.methRealNote')}
               </p>
               <table className="w-full font-mono text-[10px]" style={{ color: 'var(--text-3)', borderSpacing: 0 }}>
                 <tbody>
@@ -744,7 +744,7 @@ export default function WasserSimPanel() {
                     .filter(([k]) => k !== '_default')
                     .map(([k, v]) => (
                       <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <td className="py-0.5">{TYPE_KEY_LABELS[k] ?? k}</td>
+                        <td className="py-0.5">{t('legend.cat.' + k, k)}</td>
                         <td className="text-right py-0.5">{(v * 100).toFixed(0)} %</td>
                       </tr>
                     ))}

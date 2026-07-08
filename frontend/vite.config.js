@@ -10,4 +10,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    // Raw-Import von docs/Dokumentation.md (Repo-Root, eine Ebene ueber
+    // dem Vite-Root frontend/). Haelt die Doku als einzige Quelle.
+    fs: { allow: ['..'] },
+  },
 })

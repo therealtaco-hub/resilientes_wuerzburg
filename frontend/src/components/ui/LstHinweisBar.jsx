@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next'
+
 export default function LstHinweisBar() {
+  const { t } = useTranslation()
   return (
     <div className="px-4 lg:px-8 pb-3 flex-shrink-0">
       <div
@@ -16,10 +19,10 @@ export default function LstHinweisBar() {
             color: 'var(--amber)',
           }}
         >
-          LST ≠ Luft
+          {t('lst.badge')}
         </span>
         <p className="text-fg-2 text-[12.5px] leading-snug mt-px">
-          Die Landoberflächentemperatur ist ein fernerkundlicher Proxy. Bei Vollsonne liegt sie mehrere °C über der Lufttemperatur.
+          {t('lst.banner')}
         </p>
       </div>
     </div>

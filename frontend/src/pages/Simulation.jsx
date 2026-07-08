@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import MapSurface from '../components/map/MapSurface'
 import HeatLayer from '../components/map/overlays/HeatLayer'
@@ -34,6 +35,7 @@ function TabButton({ active, onClick, icon, label }) {
 export default function Simulation() {
   const [tab, setTab]     = useState('baeume')   // 'baeume' | 'wasser'
   const [error, setError] = useState(null)
+  const { t } = useTranslation()
 
   const lstData        = useAppStore(s => s.layerData.lst)
   const treeData       = useAppStore(s => s.layerData.trees)
@@ -101,15 +103,15 @@ export default function Simulation() {
       <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 flex-shrink-0">
         <div>
           <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">
-            Simulation
+            {t('simulation.title')}
           </h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Was-wäre-wenn: Baumpflanzung &amp; Flächenentsiegelung
+            {t('simulation.subtitle')}
           </p>
         </div>
         {error && (
           <span className="text-[11px] text-accent-red font-mono">
-            ● Daten nicht geladen – {error}
+            ● {t('simulation.errorData')} – {error}
           </span>
         )}
       </div>
@@ -120,13 +122,13 @@ export default function Simulation() {
           active={tab === 'baeume'}
           onClick={() => setTab('baeume')}
           icon="🌳"
-          label="Baumpflanzung"
+          label={t('simulation.tabBaeume')}
         />
         <TabButton
           active={tab === 'wasser'}
           onClick={() => setTab('wasser')}
           icon="💧"
-          label="Entsiegelung"
+          label={t('simulation.tabWasser')}
         />
       </div>
 

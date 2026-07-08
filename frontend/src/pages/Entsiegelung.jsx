@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import MapSurface from '../components/map/MapSurface'
 import EntsiegelungLayer from '../components/map/overlays/EntsiegelungLayer'
 import EntsiegelungLegend from '../components/map/EntsiegelungLegend'
@@ -7,8 +8,6 @@ import { fetchEntsiegelung } from '../api/entsiegelung'
 import { fmt } from '../utils/format'
 import { tooltipPos, tapToHover } from '../utils/tooltip'
 import useIsMobile from '../hooks/useIsMobile'
-
-// ── KPI Card ──────────────────────────────────────────────────────────────────
 
 const COLOR_TOKENS = {
   orange: { fg: 'var(--amber)',  bg: 'rgba(255,140,0,0.10)',  border: 'rgba(255,140,0,0.25)' },
@@ -64,24 +63,13 @@ function KpiCard({ label, value, unit, sub, color, icon }) {
   )
 }
 
-// ── Layer Panel ───────────────────────────────────────────────────────────────
-
 const LAYER_ITEMS = [
-  {
-    key:   'entsiegelung_atkis',
-    label: 'ATKIS-Flächen',
-    sub:   'ATKIS Basis-DLM · Flächenart',
-    color: '#c87050',
-  },
-  {
-    key:   'entsiegelung_osm',
-    label: 'OSM-Parkplätze & Plätze',
-    sub:   'OpenStreetMap · Amber / Blau',
-    color: '#ff8c00',
-  },
+  { key: 'entsiegelung_atkis', labelKey: 'entsiegelung.layerAtkis', subKey: 'entsiegelung.layerAtkisSub', color: '#c87050' },
+  { key: 'entsiegelung_osm',   labelKey: 'entsiegelung.layerOsm',   subKey: 'entsiegelung.layerOsmSub',   color: '#ff8c00' },
 ]
 
 function EntsiegelungLayerPanel({ meta }) {
+  const { t } = useTranslation()
   const { layers, toggleLayer } = useAppStore()
 
   const counts = {
@@ -91,8 +79,8 @@ function EntsiegelungLayerPanel({ meta }) {
 
   return (
     <div className="bg-bg-1 border border-border rounded-xl p-4 space-y-1">
-      <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">Layer</p>
-      {LAYER_ITEMS.map(({ key, label, sub, color }) => (
+      <p className="text-fg-3 text-[11px] font-semibold uppercase tracking-widest mb-3">{t('entsiegelung.layer')}</p>
+      {LAYER_ITEMS.map(({ key, labelKey, subKey, color }) => (
         <button
           key={key}
           onClick={() => toggleLayer(key)}
@@ -104,8 +92,8 @@ function EntsiegelungLayerPanel({ meta }) {
           <div className="flex items-center gap-3">
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
             <div className="text-left">
-              <p className="text-fg-0 text-[13px] font-medium">{label}</p>
-              <p className="text-fg-3 text-[11px]">{sub}</p>
+              <p className="text-fg-0 text-[13px] font-medium">{t(labelKey)}</p>
+              <p className="text-fg-3 text-[11px]">{t(subKey)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -133,9 +121,8 @@ function EntsiegelungLayerPanel({ meta }) {
   )
 }
 
-// ── Tooltip ───────────────────────────────────────────────────────────────────
-
 function Tooltip({ cell, mobile }) {
+  const { t } = useTranslation()
   if (!cell) return null
   const p = cell.object.properties
 
@@ -152,7 +139,7 @@ function Tooltip({ cell, mobile }) {
     >
       <div className="flex items-center gap-2 mb-1">
         <p className="text-fg-3 text-[10px] uppercase tracking-widest">
-          {p.label ?? p.type_key ?? 'Fläche'}
+          {p.label ?? p.type_key ?? t('entsiegelung.tooltipArea')}
         </p>
         {p.source != null && (
           <span style={{
@@ -167,39 +154,35 @@ function Tooltip({ cell, mobile }) {
       </div>
       {p.area_m2 != null && (
         <p className="text-fg-1">
-          Fläche&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-fg-0">{fmt.area(p.area_m2)}</span>
+          {t('entsiegelung.tooltipArea')}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-fg-0">{fmt.area(p.area_m2)}</span>
         </p>
       )}
     </div>
   )
 }
 
-// ── Interpretation Box ────────────────────────────────────────────────────────
-
 function InterpretationBox() {
+  const { t } = useTranslation()
   return (
     <div className="bg-bg-2 border border-border rounded-xl p-4 flex gap-3">
       <div className="w-1 rounded-full flex-shrink-0 self-stretch" style={{ background: 'var(--amber)' }} />
       <div className="flex-1">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-2" style={{ color: 'var(--amber)' }}>
-          Interpretation
+          {t('entsiegelung.interpretationTitle')}
         </p>
         <p className="text-fg-1 text-[13px] italic leading-[1.55]">
-          Jede Flächenart ist mit einer eigenen Farbe dargestellt — von
-          Straßenverkehr und Industrie bis hin zu Wohn- und Freizeitflächen.
-          OSM-Parkplätze (amber) und Plätze (blau) ergänzen die ATKIS-Daten.
+          {t('entsiegelung.interpretationBody')}
         </p>
         <p className="text-fg-3 text-[10px] font-mono mt-2">
-          ATKIS Basis-DLM · OpenStreetMap
+          {t('entsiegelung.interpretationFooter')}
         </p>
       </div>
     </div>
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export default function Entsiegelung() {
+  const { t } = useTranslation()
   const { layers, setLayerLoading } = useAppStore()
   const isMobile = useIsMobile()
   const data         = useAppStore(s => s.layerData.entsiegelung)
@@ -207,7 +190,6 @@ export default function Entsiegelung() {
   const [error, setError] = useState(null)
   const [hovered, setHovered] = useState(null)
 
-  // Beide Entsiegelungs-Layer teilen sich einen einzigen API-Call
   useEffect(() => {
     if (!(layers.entsiegelung_atkis || layers.entsiegelung_osm) || data) return
     setLayerLoading('entsiegelung_atkis', true)
@@ -227,28 +209,25 @@ export default function Entsiegelung() {
   const handleHover = ({ object, x, y }) =>
     setHovered(object ? { object, x, y } : null)
 
-  // Mobil: Tooltips per Tap (onClick) statt Hover.
   const pick = (handler) => (isMobile ? { onClick: tapToHover(handler) } : { onHover: handler })
 
   return (
     <div className="flex flex-col lg:h-[calc(100vh-48px)]">
-      {/* Page Header */}
       <div className="flex items-end justify-between px-4 lg:px-8 pt-5 lg:pt-8 pb-3 lg:pb-4 flex-shrink-0">
         <div>
-          <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">Entsiegelung</h1>
+          <h1 className="text-fg-0 text-[22px] lg:text-[28px] font-semibold tracking-tight">{t('entsiegelung.title')}</h1>
           <p className="text-fg-2 text-[13px] mt-0.5">
-            Versiegelungsgrad · ATKIS Basis-DLM · OpenStreetMap
+            {t('entsiegelung.subtitle')}
           </p>
         </div>
         {error && (
           <span className="flex items-center gap-2 text-[11px] font-mono text-accent-red">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-red" />
-            Backend nicht erreichbar – {error}
+            {t('common.backendUnreachable')} – {error}
           </span>
         )}
       </div>
 
-      {/* Map + Right Rail */}
       <div className="flex flex-col lg:flex-row flex-1 gap-4 px-4 lg:px-8 pb-6 lg:pb-8 min-h-0">
         <div className="relative h-[55vh] min-h-[320px] lg:h-auto lg:flex-1 rounded-xl overflow-hidden border border-border">
           <MapSurface>
@@ -263,16 +242,16 @@ export default function Entsiegelung() {
 
         <div className="w-full lg:w-[360px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto">
           <KpiCard
-            label="Erfasste Flächen"
+            label={t('entsiegelung.kpiCount')}
             value={totalCount != null ? fmt.num(totalCount) : '—'}
-            sub="ATKIS + OSM gesamt"
+            sub={t('entsiegelung.kpiCountSub')}
             color="orange"
             icon="layers"
           />
           <KpiCard
-            label="Gesamtfläche"
+            label={t('entsiegelung.kpiArea')}
             value={totalFlaeche != null ? fmt.area(Math.round(totalFlaeche)) : '—'}
-            sub="Gesamte erfasste Fläche"
+            sub={t('entsiegelung.kpiAreaSub')}
             color="red"
             icon="area"
           />
