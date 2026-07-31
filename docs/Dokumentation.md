@@ -5,17 +5,6 @@
 
 ---
 
-## 0 · Zweck dieses Dokuments
-
-Dieses Dokument beschreibt **ausnahmslos jede Funktion, jede Annahme, jeden Zahlenwert, jeden Koeffizienten und dessen Herkunft** in der App *Resilientes Würzburg*. Es ist so gegliedert, dass jede Aussage in der Benutzeroberfläche (Tooltip, KPI, Legende, Methodik-Box) hier ihre vollständige Herleitung findet.
-
-**Warum eine zentrale Doku statt vieler In-App-Hinweise?**
-Die App enthält aktuell an vielen Stellen aufklappbare Methodik- und Hinweisfelder (Hitzeatlas-Hinweisbox, HVI-Formelkarte, Baum- und Wasser-Methodikboxen, Realisierbarkeits-Tabellen). Diese Felder wiederholen teilweise denselben Inhalt und blähen die Panels auf. Die Empfehlung: In der App nur je **einen kurzen Kernhinweis** pro Tab belassen (z. B. den `LST ≠ Luft`-Banner) und für Details auf diese Doku-Seite verlinken. Kapitel 11 listet konkret auf, welche Felder reduziert werden können.
-
-**Wichtiger Grundsatz für die Verlässlichkeit:** Alle fachlichen Koeffizienten stammen aus `backend/simulation_params.py` (Backend) bzw. `frontend/src/utils/simulate.js` (gespiegelte Frontend-Kopie). Diese beiden Dateien sind die **einzige Wahrheit** — Zahlen werden nie im UI-Code hardcodiert. Sollten sich die Werte im Code und in dieser Doku je unterscheiden, gilt der Code.
-
----
-
 ## 1 · Systemüberblick
 
 Das Tool verbindet drei thematische Datenebenen zu einer Analyseoberfläche für die Stadt Würzburg:
