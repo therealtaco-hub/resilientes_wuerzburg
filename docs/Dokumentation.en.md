@@ -5,17 +5,6 @@
 
 ---
 
-## 0 · Purpose of this document
-
-This document describes **every function, every assumption, every numeric value, every coefficient and its origin without exception** in the *Resilientes Würzburg* app. It is structured so that every statement in the user interface (tooltip, KPI, legend, methodology box) finds its full derivation here.
-
-**Why one central document instead of many in-app hints?**
-The app currently contains expandable methodology and hint fields in many places (heat-atlas hint box, HVI formula card, tree and water methodology boxes, realisability tables). These fields partly repeat the same content and bloat the panels. The recommendation: keep only **one short core hint** per tab in the app (e.g. the `LST ≠ air` banner) and link to this documentation page for details. Chapter 11 lists concretely which fields can be reduced.
-
-**Key reliability principle:** All domain coefficients come from `backend/simulation_params.py` (backend) and `frontend/src/utils/simulate.js` (mirrored frontend copy). These two files are the **single source of truth** — numbers are never hard-coded in UI code. Should the values in the code and in this document ever differ, the code prevails.
-
----
-
 ## 1 · System overview
 
 The tool combines three thematic data layers into one analysis surface for the city of Würzburg:
