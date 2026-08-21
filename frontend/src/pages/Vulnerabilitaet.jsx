@@ -189,8 +189,55 @@ function HviLegend() {
 
 // ── Interpretation Box ────────────────────────────────────────────────────────
 
-function InterpretationBox() {
+// Anteil, ab dem eine der beiden HVI-Komponenten als "dominierend" bezeichnet
+// wird. Reine DARSTELLUNGSSCHWELLE für den Interpretationstext — sie geht
+// nicht in die HVI-Berechnung ein und ist kein wissenschaftlicher Koeffizient
+// (die Gewichte selbst kommen aus utils/vuln_formula.py über meta.weights).
+const DOMINANCE_SHARE = 0.55
+
+/**
+ * Zerlegt den HVI der übergebenen Zelle in seine beiden gewichteten Beiträge
+ * und benennt den größeren. Die Zerlegung spiegelt exakt compute_hvi() in
+ * backend/utils/vuln_formula.py: gewichtet wird lst_norm mit weights.lst_norm
+ * und der SHRINKAGE-KORRIGIERTE Seniorenanteil (anteil_65plus_adj) mit
+ * weights.anteil_65plus — nicht der Rohanteil.
+ *
+ * Gibt null zurück, wenn die Zelle keine HVI-Zelle ist (der Hover-Handler der
+ * Seite bedient auch den LST- und den Demografie-Layer) oder Werte fehlen.
+ */
+function interpretCell(cell, weights, t) {
+  if (!cell) return null
+
+  const wLst = weights?.lst_norm ?? 0.6
+  const wAlt = weights?.anteil_65plus ?? 0.4
+  const lstNorm = cell.lst_norm
+  const altAdj  = cell.anteil_65plus_adj
+
+  if (cell.hvi == null || lstNorm == null || altAdj == null) return null
+
+  const contribHeat = wLst * lstNorm
+  const contribAge  = wAlt * altAdj
+  const total       = contribHeat + contribAge
+  if (!(total > 0)) return null
+
+  const shareHeat = contribHeat / total
+  const vals = {
+    hvi:       fmt.index(cell.hvi),
+    lst:       cell.lst_celsius != null ? fmt.temp(cell.lst_celsius) : '—',
+    senior:    fmt.pct(altAdj * 100),
+    shareHeat: fmt.pct(shareHeat * 100, 0),
+    shareAge:  fmt.pct((1 - shareHeat) * 100, 0),
+  }
+
+  if (shareHeat >= DOMINANCE_SHARE)       return t('vuln.interpHeat', vals)
+  if (1 - shareHeat >= DOMINANCE_SHARE)   return t('vuln.interpAge', vals)
+  return t('vuln.interpBalanced', vals)
+}
+
+function InterpretationBox({ cell, weights }) {
   const { t } = useTranslation()
+  const text = useMemo(() => interpretCell(cell, weights, t), [cell, weights, t])
+
   return (
     <div className="bg-bg-2 border border-border rounded-xl p-4 flex gap-3">
       <div className="w-1 rounded-full flex-shrink-0 self-stretch" style={{ background: 'var(--purple)' }} />
@@ -203,12 +250,17 @@ function InterpretationBox() {
             className="font-mono text-[11px] px-2 py-0.5 rounded-full"
             style={{ background: 'var(--bg-3)', color: 'var(--text-3)' }}
           >
-            {t('vuln.interpBadge')}
+            {text ? t('vuln.interpBadge') : t('vuln.interpBadgeStatic')}
           </span>
         </div>
         <p className="text-fg-1 text-[13px] italic leading-[1.55]">
-          {t('vuln.interpBody')}
+          {text ?? t('vuln.interpBody')}
         </p>
+        {!text && (
+          <p className="text-fg-3 text-[11px] mt-1.5">
+            {t('vuln.interpHint')}
+          </p>
+        )}
         <p className="text-fg-3 text-[10px] font-mono mt-2">
           {t('vuln.interpFooter', { sensor: LST_SENSOR })}
         </p>
@@ -364,6 +416,10 @@ export default function Vulnerabilitaet() {
   const [error,     setError]     = useState(null)
   const [hovered,   setHovered]   = useState(null)
   const [hoveredBezirk, setHoveredBezirk] = useState(null)
+  // Zuletzt berührte HVI-Zelle. Bleibt nach dem Verlassen der Zelle stehen,
+  // damit der Interpretationstext lesbar ist statt beim Wegbewegen der Maus
+  // sofort zurückzuspringen.
+  const [interpCell, setInterpCell] = useState(null)
 
   // HVI / Vulnerabilitäts-Layer
   useEffect(() => {
@@ -442,8 +498,15 @@ export default function Vulnerabilitaet() {
     }
   }, [bezirkeData])
 
-  const handleHover = ({ object, x, y }) =>
+  const handleHover = ({ object, x, y }) => {
     setHovered(object ? { object, x, y } : null)
+    // Nur HVI-Zellen speisen die Interpretation — derselbe Handler bedient
+    // auch den LST- und den Demografie-Layer, deren Features kein hvi tragen.
+    const p = object?.properties
+    if (p && p.hvi != null && p.lst_norm != null && p.anteil_65plus_adj != null) {
+      setInterpCell(p)
+    }
+  }
 
   const handleBezirkHover = ({ object, x, y }) =>
     setHoveredBezirk(object ? { object, x, y } : null)
@@ -513,7 +576,7 @@ export default function Vulnerabilitaet() {
           {layers.zensus && <DemografieLegend />}
           {layers.stadtbezirke && <StadtbezirkeHviLegend {...bezirkStats} />}
 
-          <InterpretationBox />
+          <InterpretationBox cell={interpCell} weights={vulnWeights} />
 
           <FormelCard weights={vulnWeights} meta={vulnData?.meta} />
 

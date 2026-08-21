@@ -22,7 +22,27 @@ const DEBOUNCE_MS = 300
 // Trinkwasserbedarf aus simulate.js (BDEW 2023, gespiegelt aus simulation_params.py)
 const WATER_USE_M3_PER_PERSON = WATER_USE_M3_PER_PERSON_YEAR
 
-// Anteil der Versickerung, der das Grundwasser erreicht (LfU Bayern, Richtwert für Bayern)
+// Angenommener Anteil der zusätzlichen Versickerung, der das Grundwasser erreicht.
+//
+// ⚠ GESETZTE ANNAHME, NICHT BELEGT — bewusst nur als Größenordnung ausgewiesen.
+// Die Spanne stammt NICHT aus einer validierten Quelle. Ein früherer Kommentar
+// schrieb sie dem LfU Bayern zu; im Projekt-Wiki gibt es dafür keine Quelle
+// (`sources/dwa-a138-lfu-regenwasser-bayern.md` belegt ausschließlich
+// Abflussbeiwerte Ψ — dort stehen 0,15 und 0,30 als Ψ für Rasengitter bzw.
+// Schotterrasen, was die Verwechslung erklären dürfte).
+//
+// Zwei offene Punkte vor einer Validierung:
+//  1) Bezugsgröße. Die publizierte LfU-Kenngröße ist „Grundwasserneubildung
+//     aus NIEDERSCHLAG". Hier wird der Faktor auf die VERSICKERUNG angewandt —
+//     ein anderer Nenner.
+//  2) Region. Unterfranken hat die niedrigsten Neubildungsraten Bayerns
+//     (< 100 mm/a im Keuper, stellenweise < 25 mm/a); eine bayernweite Spanne
+//     überschätzt Würzburg als Niederschlagsanteil eher.
+// Gegenläufig: Unter einem unbewachsenen Belag fehlt die Transpiration, der
+// tatsächliche Anteil könnte für diesen Fall höher liegen.
+//
+// TODO: standortspezifisch herleiten (Bodenart, Flurabstand, Einzugsgebiet)
+// und über den Wiki-INGEST-Workflow als Quelle ablegen.
 const GW_RATE_LOW  = 0.15
 const GW_RATE_HIGH = 0.30
 
@@ -596,18 +616,30 @@ export default function WasserSimPanel() {
                         </div>
                       </div>
 
-                      {/* Grundwasserneubildung */}
+                      {/* Grundwasserneubildung — bewusst als unbelegte Einordnung
+                          ausgewiesen, nicht als Simulationsergebnis. Deshalb
+                          neutrale Farbe statt Akzentblau, gestrichelter Rahmen
+                          und ein "nicht validiert"-Badge: optisch klar zweite
+                          Klasse gegenüber der Versickerungszahl darüber. */}
                       <div
                         className="rounded-[8px] p-3 flex flex-col gap-2"
-                        style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}
+                        style={{ background: 'var(--bg-2)', border: '1px dashed var(--border)' }}
                       >
-                        <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'rgba(59,130,246,0.6)' }}>
-                          {t('wasser.gwTitle')}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'var(--text-3)' }}>
+                            {t('wasser.gwTitle')}
+                          </p>
+                          <span
+                            className="text-[9px] uppercase tracking-[0.06em] px-1.5 py-px rounded-full"
+                            style={{ background: 'rgba(251,191,36,0.10)', color: 'rgba(251,191,36,0.85)' }}
+                          >
+                            {t('wasser.gwBadge')}
+                          </span>
+                        </div>
                         <div className="flex items-baseline gap-1.5">
                           <span
                             className="font-mono tabular-nums"
-                            style={{ fontSize: 16, fontWeight: 600, color: 'rgba(59,130,246,0.75)' }}
+                            style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-2)' }}
                           >
                             ~{fmt.num(Math.round(results.infiltration * GW_RATE_LOW), 0)}–{fmt.num(Math.round(results.infiltration * GW_RATE_HIGH), 0)}
                           </span>

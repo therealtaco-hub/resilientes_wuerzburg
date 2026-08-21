@@ -32,6 +32,7 @@ def _safe(val):
 def build_hvi_geodataframe(
     zensus: gpd.GeoDataFrame,
     lst: gpd.GeoDataFrame,
+    bezirke: gpd.GeoDataFrame,
 ) -> tuple[gpd.GeoDataFrame, float]:
     """Berechnet HVI für jede Zensus-Zelle mit Bayesian Shrinkage.
 
@@ -39,10 +40,18 @@ def build_hvi_geodataframe(
     Merge erfolgt direkt über die Integer-Mittelpunktkoordinaten x_mp_100m /
     y_mp_100m, kein Spatial Join nötig.
 
+    Args:
+        bezirke: Stadtbezirke-Polygone. Grenzt die Population ein, aus der
+            die Stadtmittelrate (Prior-Mean) berechnet wird — der Zensus-
+            Bbox-Filter (`_WUE_X/Y_MIN/MAX`) reicht über die Stadtgrenze
+            hinaus in Nachbargemeinden, daher darf global_65_rate nicht über
+            den gesamten Bbox-Extract gemittelt werden.
+
     Returns:
         gdf: GeoDataFrame mit Spalten hvi, anteil_65plus, anteil_65plus_adj,
              lst_celsius, lst_norm, Einwohner, geometry (NaN-Zeilen bleiben erhalten)
         global_65_rate: bevölkerungsgewichtete Stadtmittelrate der 65+-Jährigen
+            (nur über Zellen innerhalb der Stadtbezirke)
     """
     joined = zensus[["anteil_65plus", "Einwohner", "x_mp_100m", "y_mp_100m", "geometry"]].merge(
         lst[["x_mp_100m", "y_mp_100m", "lst_norm", "lst_celsius"]],
@@ -54,8 +63,12 @@ def build_hvi_geodataframe(
     # Bevölkerungsgewichtete Stadtmittelrate (Prior-Mean für Bayesian Shrinkage).
     # Kleine Zellen werden zu dieser Rate gezogen statt unrealistische Extremwerte
     # (z. B. anteil_65plus = 1.0 bei 3 Einwohnern) in den HVI einfließen zu lassen.
+    # Nur Zellen innerhalb der Stadtbezirke zählen zur Rate — sonst fließen
+    # Nachbargemeinden aus dem Bbox-Extract mit ein (s. Review-Fund A2).
+    in_city = joined.intersects(bezirke.to_crs(joined.crs).union_all())
     valid = (
-        joined["anteil_65plus"].notna()
+        in_city
+        & joined["anteil_65plus"].notna()
         & joined["Einwohner"].notna()
         & (joined["Einwohner"] > 0)
     )

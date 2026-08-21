@@ -72,7 +72,7 @@ async def get_stadtbezirke(refresh: bool = False, response: Response = None):
     )
 
     # --- HVI per Stadtbezirk ---
-    vuln_gdf, _ = build_hvi_geodataframe(zensus, lst)
+    vuln_gdf, _ = build_hvi_geodataframe(zensus, lst, bezirke)
 
     vuln_bz = gpd.sjoin(
         vuln_gdf[["hvi", "Einwohner", "geometry"]].dropna(subset=["hvi"]),

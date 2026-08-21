@@ -32,8 +32,8 @@ _LST_CACHE = _DATA_DIR / "lst.parquet"
 _ZENSUS_ALTER_CSV = _DATA_DIR / "Zensus2022_Alter_in_5_Altersklassen_100m-Gitter.csv"
 _ZENSUS_BEV_CSV = _DATA_DIR / "Zensus2022_Bevoelkerungszahl_100m-Gitter.csv"
 
-_WUE_X_MIN, _WUE_X_MAX = 4_300_000, 4_325_000
-_WUE_Y_MIN, _WUE_Y_MAX = 2_960_000, 2_985_000
+_WUE_X_MIN, _WUE_X_MAX = 4_311_300, 4_322_500
+_WUE_Y_MIN, _WUE_Y_MAX = 2_954_900, 2_970_800
 
 _ATKIS_ZIP          = _DATA_DIR / "bkg_shape_712.zip"
 _ENTSIEGELUNG_CACHE = _DATA_DIR / "entsiegelung.parquet"
