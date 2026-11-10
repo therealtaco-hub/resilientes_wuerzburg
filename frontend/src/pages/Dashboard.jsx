@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import KpiCard from '../components/ui/KpiCard'
 import TopList from '../components/dashboard/TopList'
 import Spinner from '../components/ui/Spinner'
+import ColdStartHint from '../components/ui/ColdStartHint'
 import { fetchStadtbezirke } from '../api/stadtbezirke'
 import { fetchEntsiegelung } from '../api/entsiegelung'
 import { fmt } from '../utils/format'
@@ -111,10 +112,13 @@ export default function Dashboard() {
       </p>
 
       {loading && (
-        <div className="flex items-center gap-3 mt-6">
-          <Spinner />
-          <span className="text-fg-1 text-[13px]">{t('dashboard.loading')}</span>
-        </div>
+        <>
+          <div className="flex items-center gap-3 mt-6">
+            <Spinner />
+            <span className="text-fg-1 text-[13px]">{t('dashboard.loading')}</span>
+          </div>
+          <ColdStartHint className="text-fg-2 text-[12px] mt-2 max-w-[480px]" />
+        </>
       )}
 
       {error && !loading && (

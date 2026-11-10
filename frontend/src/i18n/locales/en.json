@@ -34,6 +34,8 @@
   },
   "common": {
     "loading": "Loading…",
+    "loadingLayers": "Loading layers …",
+    "coldStartHint": "The server is starting up (free hosting) – this can take 1–2 minutes.",
     "backendUnreachable": "Backend unreachable",
     "reset": "Reset",
     "tree_one": "tree",

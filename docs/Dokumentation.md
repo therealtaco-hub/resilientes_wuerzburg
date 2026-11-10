@@ -74,7 +74,7 @@ Das Backend gibt **immer GeoJSON oder JSON** zurück, nie rohe GeoDataFrames. De
 | CRS | OGC:CRS84 (= WGS84 lon/lat) |
 | Geometriespalte | `geo_punkt` |
 | Attribute | `baumart`, `baumart_la` (lat. Name), `baumtyp` (Laub/Nadel), `baumhoehe` (m), `kronenbrei` (Kronendurchmesser m), `stammumfan` (cm), `source_id` |
-| Lizenz | CC BY 4.0 |
+| Lizenz | dl-de/by-2-0 |
 
 **Wichtig:** Der Export enthält **kein** `pflanzjahr`/`alter`-Feld. Dargestellt sind ausschließlich **Bäume im Bestand der Stadt** — Privatbäume auf Wohn- oder Firmengrundstücken sind nicht erfasst. (Historischer Hinweis: Die REST-API von opendata.wuerzburg.de erlaubt nur `offset + limit ≤ 10.000`, deshalb der Umstieg auf den vollständigen Bulk-Export.)
 
@@ -495,10 +495,11 @@ Weitere Benchmarks aus der Literatur: Bäume vs. Stadtgewebe 8–12 K Kühleffek
 |---|---|---|
 | Google Earth Engine (Landsat 8+9, USGS) | LST-Raster `ST_B10`, Sommer-Median 2023–2025 | CC-PDM-1.0 |
 | Destatis | Zensus 2022, 100-m-Gitter (Alter, Einwohner) | dl-de/by-2-0 |
-| Stadt Würzburg (opendata) | Baumkataster (44.647), Stadtbezirke | CC BY 4.0 |
+| Stadt Würzburg (opendata), Gartenamt | Baumkataster (44.647) | dl-de/by-2-0 |
+| Stadt Würzburg (opendata) | Stadtbezirke | CC BY 4.0 |
 | LDBV Bayern | ATKIS Basis-DLM (`sie02_f`, `ver01_f`) | CC BY 4.0 |
 | OpenStreetMap | Parkplätze, Plätze, Flachdächer | ODbL |
-| DWD (Climate Data Center) | Niederschlag Station 05705, 1991–2020 | DWD Open Data |
+| DWD (Climate Data Center) | Niederschlag Station 05705, 1991–2020 | CC BY 4.0 |
 | DWA-A 138 (2005), wiedergegeben vom LfU Bayern; abgelöst durch DWA-A 138-1 (2024) | Abflussbeiwerte Ψ | Regelwerk (kostenpflichtig) |
 | Landratsamt Bayreuth (2024) | Leitfaden Flächenentsiegelung, ergänzende Ψ/Kosten | öffentlich |
 | García de León et al. (2025), München | LST×Kronen-Koeffizienten | wissenschaftl. Publikation |

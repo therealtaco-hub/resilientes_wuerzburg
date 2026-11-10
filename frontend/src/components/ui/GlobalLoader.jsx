@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import useAppStore from '../../store/useAppStore'
+import ColdStartHint from './ColdStartHint'
 
 const CSS = `
   @keyframes gl-ring {
@@ -17,6 +19,7 @@ const CSS = `
 `
 
 export default function GlobalLoader() {
+  const { t } = useTranslation()
   const layerLoading = useAppStore((s) => s.layerLoading)
   const isLoading = Object.values(layerLoading).some(Boolean)
 
@@ -84,8 +87,12 @@ export default function GlobalLoader() {
             color: 'rgba(34,197,94,0.55)',
           }}
         >
-          Lade Layer …
+          {t('common.loadingLayers')}
         </span>
+
+        <ColdStartHint
+          style={{ maxWidth: 340, textAlign: 'center', fontSize: 12, lineHeight: 1.5, color: 'var(--text-2)', margin: 0 }}
+        />
       </div>
     </>
   )

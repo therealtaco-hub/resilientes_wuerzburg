@@ -74,7 +74,7 @@ The backend **always returns GeoJSON or JSON**, never raw GeoDataFrames. Deploym
 | CRS | OGC:CRS84 (= WGS84 lon/lat) |
 | Geometry column | `geo_punkt` |
 | Attributes | `baumart` (species), `baumart_la` (Latin name), `baumtyp` (deciduous/conifer), `baumhoehe` (m), `kronenbrei` (crown diameter m), `stammumfan` (cm), `source_id` |
-| Licence | CC BY 4.0 |
+| Licence | dl-de/by-2-0 |
 
 **Important:** The export contains **no** `pflanzjahr`/`alter` (planting-year/age) field. Only **trees owned by the city** are shown — private trees on residential or company grounds are not recorded. (Historical note: the opendata.wuerzburg.de REST API allows only `offset + limit ≤ 10,000`, hence the switch to the full bulk export.)
 
@@ -495,10 +495,11 @@ Further benchmarks from the literature: trees vs. urban fabric 8–12 K cooling 
 |---|---|---|
 | Google Earth Engine (Landsat 8+9, USGS) | LST raster `ST_B10`, summer median 2023–2025 | CC-PDM-1.0 |
 | Destatis | Census 2022, 100 m grid (age, population) | dl-de/by-2-0 |
-| City of Würzburg (opendata) | tree cadastre (44,647), districts | CC BY 4.0 |
+| City of Würzburg (opendata), parks department | tree cadastre (44,647) | dl-de/by-2-0 |
+| City of Würzburg (opendata) | districts | CC BY 4.0 |
 | LDBV Bavaria | ATKIS Basis-DLM (`sie02_f`, `ver01_f`) | CC BY 4.0 |
 | OpenStreetMap | parking lots, squares, flat roofs | ODbL |
-| DWD (Climate Data Center) | rainfall station 05705, 1991–2020 | DWD Open Data |
+| DWD (Climate Data Center) | rainfall station 05705, 1991–2020 | CC BY 4.0 |
 | DWA-A 138 (2005), as reproduced by LfU Bavaria; superseded by DWA-A 138-1 (2024) | runoff coefficients Ψ | technical rule (paid) |
 | Bayreuth district office (2024) | surface-unsealing guideline, supplementary Ψ/costs | public |
 | García de León et al. (2025), Munich | LST×canopy coefficients | scientific publication |
