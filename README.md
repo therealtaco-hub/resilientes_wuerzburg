@@ -55,7 +55,7 @@ The data the app needs is included in `backend/data/`; no API keys are required.
 
 ## Data
 
-`backend/data/` holds the source files and pre-built caches the app reads at runtime: the Landsat LST GeoTIFF (exported from Google Earth Engine, snapped to the census 100 m grid), the Würzburg tree cadastre, the census grid, city districts and the ATKIS/OSM surface polygons.
+`backend/data/` holds the source files and pre-built caches the app reads at runtime: the Landsat LST GeoTIFF (exported from Google Earth Engine with [`scripts/gee_export_lst.py`](scripts/gee_export_lst.py), snapped to the census 100 m grid), the Würzburg tree cadastre, the census grid, city districts and the ATKIS/OSM surface polygons.
 
 Cached endpoints accept `?refresh=true`. Rebuilding the census and surface caches needs raw downloads that are too large for the repository: the Zensus 2022 100 m CSV files (Destatis) and the ATKIS Basis-DLM for Bavaria (`bkg_shape_712.zip`).
 
@@ -69,7 +69,7 @@ The pipeline works for other German cities. Census grid and ATKIS are German dat
 
 | File | Replace with |
 |---|---|
-| `lst_wue_2023_2025_summer_median.tif` | Landsat 8/9 summer median exported from Google Earth Engine: band 1 = LST in °C, band 2 = NDVI, band 3 = NDBI; EPSG:3035, 100 m, pixel edges on full 100 m (aligned with the census grid) |
+| `lst_wue_2023_2025_summer_median.tif` | Re-run [`scripts/gee_export_lst.py`](scripts/gee_export_lst.py) with the new city's bounding box (band 1 = LST in °C, band 2 = NDVI, band 3 = NDBI; EPSG:3035, 100 m, aligned with the census grid) |
 | `baumkataster_stadt_wuerzburg.parquet` | The city's tree cadastre as GeoParquet with the same column names (at least `kronenbrei` = crown diameter in m) |
 | Zensus 2022 CSVs (not in repo) | Same nationwide Destatis files, only the bounding box changes |
 | `bkg_shape_712.zip` (not in repo) | ATKIS Basis-DLM of the respective federal state (availability and licence vary by state) |

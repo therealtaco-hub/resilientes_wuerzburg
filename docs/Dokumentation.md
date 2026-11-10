@@ -52,12 +52,13 @@ Das Backend gibt **immer GeoJSON oder JSON** zurück, nie rohe GeoDataFrames. De
 | Merkmal | Wert |
 |---|---|
 | Quelle | Google Earth Engine, Kollektionen `LANDSAT/LC08/C02/T1_L2` + `LANDSAT/LC09/C02/T1_L2` |
-| Band | `ST_B10` (thermisches Infrarot, 10,6–12,5 µm), Level-2-Science-Product |
+| Band | `ST_B10` (thermisches Infrarot, TIRS-Band 10, 10,6–11,2 µm), Level-2-Science-Product |
 | Zeitraum | Sommer (Juni–August) 2023–2025, **3-Jahres-Median-Komposit** |
 | Auflösung | 100 m, exportiert EPSG:3035, exakt auf Destatis-Gitter gesnappt |
-| QA-Masking | `QA_PIXEL`-Band: Maske für Wolken, Wolkenschatten, Schnee |
+| QA-Masking | `QA_PIXEL`: Fill, Dilated Cloud, Cirrus, Wolke, Wolkenschatten (Bits 0–4); `QA_RADSAT`: gesättigte Pixel |
 | Skalierung | GEE liefert bereits fertige °C-Werte (DN→K→°C in GEE). Das Backend liest Band 1 direkt, **keine** weitere Umrechnung |
 | Bänder im GeoTIFF | Band 1 = LST_C (°C), Band 2 = NDVI, Band 3 = NDBI |
+| Exportskript | `scripts/gee_export_lst.py` |
 | Datei | `lst_wue_2023_2025_summer_median.tif` |
 | Valide Zellen | ~15.900 |
 
@@ -443,9 +444,9 @@ Weitere Benchmarks aus der Literatur: Bäume vs. Stadtgewebe 8–12 K Kühleffek
 | Ψ-Abflussbeiwerte | DWA-A 138 (bundesweit) | Bemessungswerte, für Jahresmengen genähert | Näherung |
 | Versiegelungsgrade | eigene Annahmen | keine Würzburg-Messung | Schätzung |
 
-**10.2 LST ≠ Lufttemperatur.** Die Landoberflächentemperatur ist ein fernerkundlicher Proxy. Bei Vollsonne liegt sie mehrere °C über der Lufttemperatur; an bedeckten Tagen nähern sich beide an. Alle Δ-Werte beziehen sich auf LST. Für Komfortaussagen (PET, UTCI) wäre ein eigenes Modell nötig. — *Dies ist der einzige Hinweis, der prominent in der App bleiben sollte (Banner `LST ≠ Luft`).*
+**10.2 LST ≠ Lufttemperatur.** Die Landoberflächentemperatur ist ein fernerkundlicher Proxy. Bei Vollsonne liegt sie mehrere °C über der Lufttemperatur; an bedeckten Tagen nähern sich beide an. Alle Δ-Werte beziehen sich auf LST. Für Komfortaussagen (PET, UTCI) wäre ein eigenes Modell nötig.
 
-**10.3 Statistische Modelle, keine physikalische Simulation.** Beide Simulationen beruhen auf Regressionskoeffizienten aus Felddaten. Sie berücksichtigen keine Rückkopplungen (Wind, Strahlungsgeometrie, Feuchtehaushalt). Eine physikalische Mikroklimasimulation (ENVI-met, WRF) wäre präziser, aber deutlich rechen- und dateneintensiver.
+**10.3 Statistische Modelle, keine physikalische Simulation.** Die Baum-Simulation beruht auf einem Regressionskoeffizienten aus Felddaten (München), die Wasser-Simulation auf tabellierten Abflussbeiwerten (Bemessungswerte nach DWA-A 138). Beide berücksichtigen keine Rückkopplungen (Wind, Strahlungsgeometrie, Feuchtehaushalt). Eine physikalische Mikroklimasimulation (ENVI-met, WRF) wäre präziser, aber deutlich rechen- und dateneintensiver.
 
 **10.4 100-m-Rasterauflösung.** Jede Zelle ist eine 100×100-m-Fläche; feinere Unterschiede innerhalb einer Zelle sind nicht dargestellt.
 

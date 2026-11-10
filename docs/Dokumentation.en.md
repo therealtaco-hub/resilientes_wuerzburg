@@ -52,12 +52,13 @@ The backend **always returns GeoJSON or JSON**, never raw GeoDataFrames. Deploym
 | Attribute | Value |
 |---|---|
 | Source | Google Earth Engine, collections `LANDSAT/LC08/C02/T1_L2` + `LANDSAT/LC09/C02/T1_L2` |
-| Band | `ST_B10` (thermal infrared, 10.6–12.5 µm), Level-2 science product |
+| Band | `ST_B10` (thermal infrared, TIRS band 10, 10.6–11.2 µm), Level-2 science product |
 | Period | Summer (June–August) 2023–2025, **3-year median composite** |
 | Resolution | 100 m, exported EPSG:3035, snapped exactly to the Destatis grid |
-| QA masking | `QA_PIXEL` band: mask for clouds, cloud shadow, snow |
+| QA masking | `QA_PIXEL`: fill, dilated cloud, cirrus, cloud, cloud shadow (bits 0–4); `QA_RADSAT`: saturated pixels |
 | Scaling | GEE already delivers finished °C values (DN→K→°C in GEE). The backend reads band 1 directly, **no** further conversion |
 | Bands in the GeoTIFF | Band 1 = LST_C (°C), band 2 = NDVI, band 3 = NDBI |
+| Export script | `scripts/gee_export_lst.py` |
 | File | `lst_wue_2023_2025_summer_median.tif` |
 | Valid cells | ~15,900 |
 
@@ -443,9 +444,9 @@ Further benchmarks from the literature: trees vs. urban fabric 8–12 K cooling 
 | Ψ runoff coefficients | DWA-A 138 (Germany-wide) | design values, approximated for annual volumes | approximation |
 | Sealing degrees | own assumptions | no Würzburg measurement | estimate |
 
-**10.2 LST ≠ air temperature.** Land surface temperature is a remote-sensing proxy. Under full sun it runs several °C above air temperature; on overcast days the two converge. All Δ values refer to LST. For comfort statements (PET, UTCI) a separate model would be needed. — *This is the only hint that should stay prominent in the app (banner `LST ≠ air`).*
+**10.2 LST ≠ air temperature.** Land surface temperature is a remote-sensing proxy. Under full sun it runs several °C above air temperature; on overcast days the two converge. All Δ values refer to LST. For comfort statements (PET, UTCI) a separate model would be needed.
 
-**10.3 Statistical models, not physical simulation.** Both simulations rest on regression coefficients from field data. They ignore feedbacks (wind, radiation geometry, moisture balance). A physical microclimate simulation (ENVI-met, WRF) would be more precise but far more compute- and data-intensive.
+**10.3 Statistical models, not physical simulation.** The tree simulation rests on a regression coefficient from field data (Munich), the water simulation on tabulated runoff coefficients (design values after DWA-A 138). Both ignore feedbacks (wind, radiation geometry, moisture balance). A physical microclimate simulation (ENVI-met, WRF) would be more precise but far more compute- and data-intensive.
 
 **10.4 100 m grid resolution.** Each cell is a 100×100 m area; finer differences within a cell are not shown.
 
