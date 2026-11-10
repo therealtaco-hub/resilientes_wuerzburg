@@ -47,7 +47,7 @@ git clone --recurse-submodules <repo-url>
 git submodule update --init --recursive
 ```
 
-Das Verzeichnis `urban-heat-wiki/` ist ein Git-Submodul mit der wissenschaftlichen Quellenbasis und ist ohne diesen Schritt leer.
+Das Verzeichnis `urban-heat-wiki/` ist ein Git-Submodul mit Zusammenfassungen der verwendeten Literatur und ist ohne diesen Schritt leer.
 
 ### Backend starten
 
@@ -131,9 +131,8 @@ resilientes-wuerzburg/
 │       └── utils/               ← format.js, colors.js, simulate.js, sources.js
 ├── docs/
 │   ├── Design System.html               ← UI-Referenz
-│   ├── Tool-Logik-und-Quellen.html/.md  ← Wissenschaftliche Dokumentation
-│   ├── SIMULATION-PLAN.md · tree-sim-upgrade.md · code-review-skill.md
-├── urban-heat-wiki/             ← Git-Submodul: Koeffizienten & Quellen
+│   ├── Dokumentation.md / .en.md        ← Wissenschaftliche Dokumentation (In-App-Seite /dokumentation)
+├── urban-heat-wiki/             ← Git-Submodul: Literatur-Zusammenfassungen
 ├── render.yaml                  ← Render.com Deploy-Konfiguration (Backend)
 └── CLAUDE.md                    ← Vollständige Projektdokumentation für AI-Assistenten
 ```
@@ -147,7 +146,7 @@ Alle unter Prefix `/api`. Endpoints mit Cache unterstützen `?refresh=true` zum 
 | Endpoint | Beschreibung |
 |---|---|
 | `GET /` | Health-Check (`{"status": "ok"}`) |
-| `GET /api/lst` | LST-Raster als GeoJSON (~14.500 Features: `lst_celsius`, `lst_norm`, `bestand_pct`, `seal_pct`, `dominant_type_key`, `plantable_m2`, `ndvi`, `ndbi`) |
+| `GET /api/lst` | LST-Raster als GeoJSON (~15.900 Features: `lst_celsius`, `lst_norm`, `bestand_pct`, `seal_pct`, `dominant_type_key`, `plantable_m2`, `ndvi`, `ndbi`) |
 | `GET /api/trees` | Baumkataster als GeoJSON (44.647 Punkte) |
 | `GET /api/zensus` | Zensus-100m-Gitter als GeoJSON (~3.089 Features: `anteil_65plus`, `Einwohner`) |
 | `GET /api/vulnerability` | HVI-Score als GeoJSON (`hvi` 1–10, Bayesian-adjustiert) |
@@ -213,9 +212,7 @@ Baumkataster-Loader und die HVI-/Shrinkage-Formel.
 
 Alle Formeln, Koeffizienten und Datenquellen sind vollständig dokumentiert:
 
-- [`docs/Tool-Logik-und-Quellen.html`](docs/Tool-Logik-und-Quellen.html) — Im Browser öffnen (Tab-für-Tab-Beschreibung)
-- [`docs/Tool-Logik-und-Quellen.md`](docs/Tool-Logik-und-Quellen.md) — Markdown-Version
-- [`urban-heat-wiki/wiki/simulation-logic.md`](urban-heat-wiki/wiki/simulation-logic.md) — Autoritative Berechnungslogik beider Simulationen
+- [`docs/Dokumentation.md`](docs/Dokumentation.md) — Tab-für-Tab-Beschreibung (in der App unter `/dokumentation`); englisch: [`docs/Dokumentation.en.md`](docs/Dokumentation.en.md)
 - `backend/simulation_params.py` — Alle Koeffizienten mit Quellverweis (Single Source of Truth)
 
 ---

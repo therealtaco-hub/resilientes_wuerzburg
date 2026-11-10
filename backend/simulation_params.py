@@ -1,13 +1,13 @@
 """
 Simulation coefficients for Resilientes Würzburg.
 
-All values are sourced from the research wiki submodule at:
-  urban-heat-wiki/wiki/
+Single source of truth for all simulation coefficients; each value carries its
+literature reference. Formulas, assumptions and the full list of sources are
+documented in docs/Dokumentation.md (in-app page /dokumentation).
+"wiki/sources/..." comments point to literature summaries in the urban-heat-wiki
+submodule.
 
-Before changing any coefficient, update the relevant wiki source page first,
-then reflect the change here with an updated source reference.
-Simulation logic (formulas, input/output contracts) is documented at:
-  urban-heat-wiki/wiki/simulation-logic.md
+When changing a coefficient, update this file first, then docs/Dokumentation.md.
 """
 
 import math
@@ -15,7 +15,8 @@ import math
 # ── TREE COOLING (Bäume → ΔLST) ───────────────────────────────────────────────
 # Source: wiki/sources/garcia-de-leon-lst-trees-munich
 # García de León et al. (2025, JURSE), Studie München; Daten Sommer 2020, >166.000 Bäume, lineare Regression
-# R² = 0.41 (Recreational) – 0.61 (Traffic); Würzburg-Forscher → direkt übertragbar
+# R² = 0.41 (Recreational) – 0.61 (Traffic). Übertragung auf Würzburg plausibel
+# (vergleichbares Klima, gleiche ATKIS-Klassen), aber nicht lokal kalibriert.
 
 LST_PER_PCT_CANOPY_OVERALL      = -0.069  # °C pro 1 % Baumkronendeckung, gesamtes Stadtgebiet
 LST_PER_PCT_CANOPY_MIXED        = -0.083  # °C pro 1 % Kronendeckung, Misch-/Wohngebiet
@@ -42,28 +43,25 @@ TRANSPIRATION_LB6_KG_M2_DAY = 0.17  # trockenheitstolerant (Tilia tomentosa, Ace
 # Physikalische Konstante: Verdampfungswärme Wasser
 LATENT_HEAT_KWH_PER_KG = 0.628  # kWh pro kg Verdunstung (2260 kJ/kg ÷ 3600)
 
-# ── ENTSIEGELUNG → ΔLST ───────────────────────────────────────────────────────
-# Source: wiki/sources/tervooren-2015-gruenvolumen-potsdam
-# Tervooren 2015, Potsdam (Cfb), Landsat LST, OLR R²=0.75 / GWR R²=0.80
-# Einschränkung: Potsdam Cfb → Würzburg Dfb — Übertragung plausibel, nicht validiert
-
-LST_PER_PCT_UNSEALING = -0.03  # °C pro 1 % Reduktion der Versiegelungsfläche
-
 # ── ABFLUSSBEIWERTE NACH BELAGSTYP ────────────────────────────────────────────
-# Source: wiki/sources/leitfaden-flaechenentsiegelung-2024 (Landkreis Bayreuth, 2024)
-# Abflussbeiwert = Anteil des Niederschlags, der abfließt (nicht versickert)
-# 0.0 = alles versickert, 1.0 = nichts versickert
+# Sources: DWA-A 138 (Ausgabe 2005), Tabelle der mittleren Abflussbeiwerte, wiedergegeben in einer
+#   Fachpräsentation des LfU Bayern (wiki/sources/dwa-a138-lfu-regenwasser-bayern). Abgelöst durch
+#   DWA-A 138-1 (10/2024) — Werte dagegen nicht geprüft.
+#   Ergänzend: Leitfaden Flächenentsiegelung Landkreis Bayreuth 2024
+#   (wiki/sources/leitfaden-flaechenentsiegelung-2024).
+# Ψ = Anteil des Niederschlags, der oberflächlich abfließt (0.0 = nichts, 1.0 = alles).
+# Bemessungswerte — für Jahresmengen eine Näherung.
 
 RUNOFF_COEFFICIENTS: dict[str, float] = {
-    "asphalt":        0.90,  # Asphalt / fugenloser Beton — DWA-A138 / LfU Bayern (Ψ = 0,9); zuvor 0,95 aus Leitfaden Bayreuth
-    "pflaster_dicht": 0.75,  # Pflaster mit dichten Fugen — DWA-A138 / LfU Bayern (Ψ = 0,75)
-    "pflaster_offen": 0.50,  # Pflaster mit offenen Fugen — DWA-A138 / LfU Bayern (Ψ = 0,5)
+    "asphalt":        0.90,  # Asphalt / fugenloser Beton — DWA-A 138 (2005), Ψ = 0,9; zuvor 0,95 aus Leitfaden Bayreuth
+    "pflaster_dicht": 0.75,  # Pflaster mit dichten Fugen — DWA-A 138 (2005), Ψ = 0,75
+    "pflaster_offen": 0.50,  # Pflaster mit offenen Fugen — DWA-A 138 (2005), Ψ = 0,5
     "lehm_kies":      0.40,  # Lehm-/Kies-/Splittdecke — Leitfaden Bayreuth 2024 (Ψ = 0,4)
     "sickerpflaster": 0.30,  # Porenpflaster / Sickerpflaster (speziell versickerungsfähig) — Leitfaden Bayreuth 2024 (Ψ = 0,0–0,6, Mitte 0,3)
-    "schotterrasen":  0.30,  # Lockerer Kiesbelag / Schotterrasen — DWA-A138 / LfU Bayern (Ψ = 0,3)
-    "rasengitter":    0.15,  # Rasengittersteine — DWA-A138 / LfU Bayern (Ψ = 0,15)
+    "schotterrasen":  0.30,  # Lockerer Kiesbelag / Schotterrasen — DWA-A 138 (2005), Ψ = 0,3
+    "rasengitter":    0.15,  # Rasengittersteine — DWA-A 138 (2005), Ψ = 0,15
     "rasenwabe":      0.15,  # Rasenwabe (>90 % Grünanteil) — Leitfaden Bayreuth 2024 (Ψ = 0,15)
-    "rasendecke":     0.05,  # Gärten / Wiesen / Kulturland flach — DWA-A138 / LfU Bayern (Ψ = 0,0–0,1, Mitte)
+    "rasendecke":     0.05,  # Gärten / Wiesen / Kulturland flach — DWA-A 138 (2005), Ψ = 0,0–0,1, Mitte
 }
 
 # ── HYDROLOGIE ────────────────────────────────────────────────────────────────
@@ -91,11 +89,14 @@ MONTHLY_RAINFALL_WUERZBURG_MM: dict[int, float] = {
 # Quelle: Dr. Daniel Klein, Wald-Zentrum Universität Münster
 #   Herleitung: Buche, 23 m, ∅ 30 cm → ~600 kg Trockenmasse → 1.000 kg CO₂ in 80 Jahren
 # ⚠ Gilt für ausgewachsene Laubbäume im Forstbestand — Neupflanzungen binden deutlich weniger.
-# ⚠ Noch nicht als Wiki-Seite ingested — vor Produktionsrelease nachholen.
+# ⚠ Grober Faustwert aus einer Informationsschrift (Waldbuche), keine Primärstudie;
+#   Original online nur als Sekundärkopie auffindbar. Keine lokal belegte Rate für Stadtbäume.
 CO2_KG_PER_TREE_YEAR = 12.5
 
 # ── VERSIEGELUNGSGRADE JE FLÄCHENTYP ─────────────────────────────────────────
-# v1: Literaturwerte (UBA Texte 141/2021, Leitfaden Bayreuth 2024)
+# v1: eigene Annahmen je Nutzungsart — keine direkt übernommenen Literaturwerte.
+#   Grobe Orientierung: Versiegelungsstufen nach Böcker (1984), wiedergegeben in
+#   UBA Texte 141/2021, S. 60 (mäßig ~30 %, mittel ~60 %, stark ~80 %, sehr stark ~90 %).
 # v2 (TODO): gemessene Per-Zellen-Versiegelung statt Typ-Schätzung
 # Flachdächer (osm_flat_roof_industrial) explizit ausgeschlossen — kein Bodenbelag.
 SEAL_RATE_BY_TYPE: dict[str, float] = {
@@ -140,7 +141,9 @@ def inverse_ratio(pct: float) -> float:
 
 
 # ── WASSERKONTEXT-KONSTANTE ───────────────────────────────────────────────────
-# Source: BDEW Wasserstatistik 2023 (Wasserfachvorstudie), Deutschland-Mittel
-# Frontend spiegelt: WasserSimPanel.jsx WATER_USE_M3_PER_PERSON ≈ 46.4 m³/Jahr
-DAILY_WATER_USE_L_PER_PERSON = 127  # L/Person/Tag
-CONTEXT_PERSONS_M3_PER_YEAR = DAILY_WATER_USE_L_PER_PERSON * 365 / 1000.0  # ≈ 46.4 m³
+# Source: BDEW, „Zahl der Woche: 121 Liter Leitungswasser" (Pressemitteilung 06.08.2024),
+#   durchschnittlicher Trinkwassergebrauch pro Person und Tag im Jahr 2023, Deutschland.
+#   https://www.bdew.de/presse/presseinformationen/zahl-der-woche-121-liter-leitungswasser/
+# Frontend spiegelt: simulate.js WATER_USE_M3_PER_PERSON_YEAR ≈ 44.2 m³/Jahr
+DAILY_WATER_USE_L_PER_PERSON = 121  # L/Person/Tag
+CONTEXT_PERSONS_M3_PER_YEAR = DAILY_WATER_USE_L_PER_PERSON * 365 / 1000.0  # ≈ 44.2 m³

@@ -1,4 +1,4 @@
-"""GET /api/lst — LST-Pixel als GeoJSON FeatureCollection (~14.500 Features, EPSG:4326)."""
+"""GET /api/lst — LST-Pixel als GeoJSON FeatureCollection (~15.900 Features, EPSG:4326)."""
 
 import json
 

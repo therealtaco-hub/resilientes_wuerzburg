@@ -8,7 +8,7 @@
 - Immer nur einen klar abgegrenzten Task pro Session umsetzen
 - Keine Logik implementieren, die nicht explizit angefragt wurde
 - Fachliche Formeln (LST-Skalierung, Vulnerabilitäts-Score, 
-  Rational-Formel) werden vom Nutzer vorgegeben – niemals selbst erfinden
+  Abflussbeiwert-Ansatz) werden vom Nutzer vorgegeben – niemals selbst erfinden
 - Nach jedem Task kurz zusammenfassen, was erstellt wurde und was als 
   nächstes sinnvoll wäre
 
@@ -25,32 +25,23 @@
 
 ---
 
-## Fachliche Wissensquelle (Wiki)
+## Fachliche Quellen & Koeffizienten
 
-Alle Simulationskoeffizienten und deren wissenschaftliche Herleitung sind dokumentiert im Wiki-Submodul:
+Maßgeblich für Formeln, Koeffizienten und Annahmen sind `docs/Dokumentation.md` (In-App-Seite `/dokumentation`) und `backend/simulation_params.py`.
 
-```
-urban-heat-wiki/wiki/
-```
-
-Schlüsselseiten:
-- `urban-heat-wiki/wiki/simulation-logic.md`         — Berechnungslogik beider Simulationsendpoints (autoritativ)
-- `urban-heat-wiki/wiki/kuehleffekte-vergleich.md`   — Alle quantitativen Kühleffekte im Vergleich
-- `urban-heat-wiki/wiki/methodischer-plan-wuerzburg.md` — Gesamtprojektplan, Phasen 1–5
-- `urban-heat-wiki/wiki/concepts/entsiegelung.md`    — Entsiegelungskoeffizient + Abflussbeiwerte
-- `urban-heat-wiki/wiki/sources/garcia-de-leon-lst-trees-munich.md` — Baum-Koeffizient −0,069/−0,083 °C/%
+Das Wiki-Submodul `urban-heat-wiki/` enthält nur Zusammenfassungen der Literatur (Quellenseiten unter `urban-heat-wiki/wiki/sources/`). Keine Projekt- oder Code-Dokumentation ins Wiki schreiben.
 
 **Koeffizienten-Datei:** `backend/simulation_params.py`
 Alle Simulationsparameter mit Quellverweisen. Keine Koeffizienten hardcoden — immer aus `simulation_params` importieren.
 
-Enthält: `LST_PER_PCT_CANOPY_OVERALL` (−0,069 °C/%), `LST_PER_PCT_CANOPY_MIXED` (−0,083 °C/%), `LST_PER_PCT_CANOPY_RECREATIONAL` (−0,038 °C/%), `CROWN_AREA_M2_DEFAULT` (50 m²), `TRANSPIRATION_LB3/LB6_KG_M2_DAY`, `LST_PER_PCT_UNSEALING` (−0,03 °C/%), `RUNOFF_COEFFICIENTS` (Ψ-Werte je Belagstyp, 9 Klassen, DWA-A138 / Bayreuth 2024), `ANNUAL_RAINFALL_WUERZBURG_M` (0,5735 m/Jahr, DWD Station 05705), `MONTHLY_RAINFALL_WUERZBURG_MM`, `CO2_KG_PER_TREE_YEAR` (12,5 kg), `SEAL_RATE_BY_TYPE` (Versiegelungsgrade je ATKIS/OSM-Typ, Literaturwerte).
+Enthält: `LST_PER_PCT_CANOPY_OVERALL` (−0,069 °C/%), `LST_PER_PCT_CANOPY_MIXED` (−0,083 °C/%), `LST_PER_PCT_CANOPY_RECREATIONAL` (−0,038 °C/%), `CROWN_AREA_M2_DEFAULT` (50 m²), `TRANSPIRATION_LB3/LB6_KG_M2_DAY`, `RUNOFF_COEFFICIENTS` (Ψ-Werte je Belagstyp, 9 Klassen, DWA-A138 / Bayreuth 2024), `ANNUAL_RAINFALL_WUERZBURG_M` (0,5735 m/Jahr, DWD Station 05705), `MONTHLY_RAINFALL_WUERZBURG_MM`, `CO2_KG_PER_TREE_YEAR` (12,5 kg), `SEAL_RATE_BY_TYPE` (Versiegelungsgrade je ATKIS/OSM-Typ, eigene Annahmen).
 
   ---
 
 ## Design
-- Design-Referenz: `docs/Design-System.html` – immer prüfen bevor neue 
+- Design-Referenz: `docs/Design System.html` – immer prüfen bevor neue 
   UI-Komponenten erfunden werden
-- Wissenschaftliche Dokumentation: `docs/Tool-Logik-und-Quellen.md` / `.html` — Tab-für-Tab-Beschreibung aller Funktionen, Datenquellen und Koeffizienten. Aktualisieren nach größeren Feature-Änderungen.
+- Wissenschaftliche Dokumentation: `docs/Dokumentation.md` / `.en.md` (In-App-Seite `/dokumentation`) — Tab-für-Tab-Beschreibung aller Funktionen, Datenquellen und Koeffizienten. Aktualisieren nach größeren Feature-Änderungen.
 
   ---
 
@@ -60,9 +51,9 @@ Enthält: `LST_PER_PCT_CANOPY_OVERALL` (−0,069 °C/%), `LST_PER_PCT_CANOPY_MIX
 ┌─────────────────────────────────┐     REST/JSON      ┌──────────────────────────────┐
 │         FRONTEND                │◄──────────────────►│         BACKEND              │
 │  React + Vite                   │                    │  FastAPI (Python)            │
-│  deck.gl  → Karten              │                    │  GeoPandas, Rasterio         │
-│  Recharts/Nivo → Charts         │                    │  rasterstats, SciPy          │
-│  Tailwind CSS + shadcn/ui       │                    │  osmnx, earthengine-api      │
+│  MapLibre + deck.gl → Karten    │                    │  GeoPandas, Rasterio         │
+│  i18next → DE/EN                │                    │  SciPy, osmnx                │
+│  Tailwind CSS + shadcn/ui       │                    │                              │
 │  Zustand → State Management     │                    │                              │
 └─────────────────────────────────┘                    └──────────────┬───────────────┘
                                                                        │
@@ -107,7 +98,7 @@ Enthält: `LST_PER_PCT_CANOPY_OVERALL` (−0,069 °C/%), `LST_PER_PCT_CANOPY_MIX
 ### 💧 Hydrologie
 | Datensatz | Quelle | Format | Zugang |
 |---|---|---|---|
-| Niederschlag Würzburg (~600mm/Jahr) | DWD Climate Data Center | CSV | [opendata.dwd.de](https://opendata.dwd.de) – Station Würzburg, kostenlos |
+| Niederschlag Würzburg (573,5 mm/Jahr, 1991–2020) | DWD Climate Data Center | CSV | [opendata.dwd.de](https://opendata.dwd.de) – Station Würzburg, kostenlos |
 | Bodenarten / Abflussbeiwerte Bayern | LfU Bayern | WMS/WFS | [lfu.bayern.de](https://www.lfu.bayern.de) – für präzise C-Werte pro Fläche |
 
 ---
@@ -118,8 +109,7 @@ Enthält: `LST_PER_PCT_CANOPY_OVERALL` (−0,069 °C/%), `LST_PER_PCT_CANOPY_MIX
 ```
 fastapi + uvicorn        → API-Server
 geopandas + shapely      → Vektor-Geodaten
-rasterio + rasterstats   → Raster-Analyse (LST)
-earthengine-api          → GEE-Zugriff
+rasterio                 → Raster-Analyse (LST)
 osmnx                    → OSM-Datenabfrage
 pandas + numpy + scipy   → Analyse & Korrelation
 pyarrow                  → GeoParquet (schnelles I/O)
@@ -127,9 +117,9 @@ pyarrow                  → GeoParquet (schnelles I/O)
 
 ### Frontend (JavaScript)
 ```
-React + Vite             → App-Framework
-deck.gl + react-map-gl   → Interaktive Geo-Karten (GeoJsonLayer, ScatterplotLayer)
-Recharts oder Nivo       → Charts & Simulation-Outputs
+React 19 + Vite          → App-Framework
+MapLibre GL + deck.gl    → Interaktive Geo-Karten (react-map-gl, GeoJsonLayer, ScatterplotLayer)
+i18next + react-i18next  → Zweisprachigkeit DE/EN
 Tailwind CSS + shadcn/ui → Styling & UI-Komponenten
 Zustand                  → State (aktive Layer, Simulation-Parameter)
 ```
@@ -143,7 +133,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 /hitzeatlas         → LST-Choropleth (GeoJsonLayer) + Baumkataster-Overlay, Hover-Tooltip, Legende; Klick auf Baum öffnet Popup (Art, Höhe, Krone, Stamm, ID); Top-5-Hitzespots-Card mit ausklappbarer Methodik-Sektion
 /vulnerabilitaet    → Choropleth: gewichteter Index aus LST + Senioren-Anteil
 /entsiegelung       → ATKIS/OSM-Layer, Flächenarten nach Kategorie eingefärbt, kein Score
-/simulation         → Baumpflanzung & Entsiegelung: Slider Neupflanzungen (Δ Temperatur + CO₂) + Slider Entsiegelungsfläche (m³ Versickerung/Jahr)
+/simulation         → Baumpflanzung & Entsiegelung: Slider Neupflanzungen (Δ Temperatur + CO₂) + Slider Entsiegelungsfläche (m³ zurückgehaltenes Regenwasser/Jahr)
 ```
 
 ---
@@ -152,7 +142,7 @@ Zustand                  → State (aktive Layer, Simulation-Parameter)
 resilientes-wuerzburg/
 ├── CLAUDE.md
 ├── docs/
-│   └── Design-System.html
+│   └── Design System.html
 ├── .env (nie committen – GEE_PROJECT_ID, etc.)
 ├── .gitignore
 ├── backend/
@@ -194,12 +184,6 @@ resilientes-wuerzburg/
 
 ---
 
-## Code Review
-
-- Code-Review-Anleitung: `docs/code-review-skill.md` — immer prüfen nach neuen Features
-
----
-
 ## Implementierungsstand
 
 ### Backend-Endpoints
@@ -207,12 +191,13 @@ resilientes-wuerzburg/
 |---|---|---|
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
 | `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection. Properties: `gitter_id`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`. **Nur Zellen, die mindestens ein LST-Pixel schneiden** (Inner-Spatial-Join gegen LST-Cache) → ~3.089 Features, deckungsgleich mit HVI- und LST-Layer-Extent. `?refresh=true` ignoriert Parquet-Cache. |
-| `GET /api/lst` | ✅ | GeoTIFF (`lst_wue_2023_2025_summer_median.tif`, EPSG:3035, 100m, Zensus-aligned). ~14.500 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1), `bestand_pct` (projizierte Kronendeckung), `seal_pct` (flächengew. Versiegelungsgrad 0–1), `dominant_type_key` (dominante ATKIS/OSM-Kategorie je Zelle, `null` bei keiner Überdeckung), `plantable_m2` (`10.000 × (1−seal_pct)`). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
+| `GET /api/lst` | ✅ | GeoTIFF (`lst_wue_2023_2025_summer_median.tif`, EPSG:3035, 100m, Zensus-aligned). ~15.900 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1), `bestand_pct` (projizierte Kronendeckung), `seal_pct` (flächengew. Versiegelungsgrad 0–1), `dominant_type_key` (dominante ATKIS/OSM-Kategorie je Zelle, `null` bei keiner Überdeckung), `plantable_m2` (`10.000 × (1−seal_pct)`). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
 | `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus` (Rohwert), `anteil_65plus_adj` (Bayesian-Shrinkage-korrigiert), `lst_norm`, `lst_celsius`, `Einwohner`. Formel + Shrinkage in `utils/vuln_formula.py`. `meta`: `weights`, `n_prior` (50), `global_65_rate` (bevölkerungsgewichteter Stadtmittelwert). Kein Parquet-Cache — nur In-Memory (`_cache`), reset bei Backend-Restart oder `?refresh=true`. |
 | `GET /api/entsiegelung` | ✅ | ATKIS + OSM-Flächen als GeoJSON FeatureCollection. Properties: `source` (`"atkis"`/`"osm"`), `type_key` (OBJART_TXT as-is / `"osm_parking"` / `"osm_square"` / `"osm_flat_roof_industrial"`), `label`, `area_m2`. `meta`: `atkis_count`, `osm_count`, `total_count`. Cache: `backend/data/entsiegelung.parquet`. `?refresh=true` erzwingt Neuberechnung. Kein Score, kein seal_rate. |
 | `GET /api/stadtbezirke` | ✅ | 13 Würzburger Stadtbezirke als GeoJSON FeatureCollection mit aggregierten Kennzahlen. Quelle: opendata.wuerzburg.de API (`stadtbezirke`-Datensatz). Properties: `name`, `nummer`, `lst_max`, `lst_median`, `lst_mean`, `hvi_max`, `hvi_mean` (**bevölkerungsgewichteter** Durchschnitt: Σ(hvi·ew)/Σ(ew), Fallback auf ungewichteten Mean), `einwohner` (Σ aus Zensus-sjoin), `entsiegelung_m2` (Σ ATKIS+OSM-Flächen), `tree_count`. Spatial Joins gegen LST-Pixel, HVI-Zellen, Entsiegelung-Polygone, Baumkataster. `meta.total_count`. Cache: `backend/data/stadtbezirke.parquet`. `?refresh=true` lädt API neu. |
-| `GET /api/simulate/baeume` | ✅ | Neupflanzungen → Δ°C LST + CO₂-Bindung + Kronendeckung. Params: `n_trees`, `area_m2`, `existing_coverage_pct` (optional, default 0). **Projizierte Kronendeckung (Überlappungsmodell, Crookston & Stage 1999):** Bestand & Neu werden im Flächen-Verhältnis addiert (`existing_ratio = −ln(1−existing/100)`, `total = (1−exp(−(existing_ratio+new_ratio)))·100`), Δ°C wirkt nur auf den projizierten Zuwachs `effective_new_pct` (≥ 0, kein Headroom-Cap mehr). Koeffizient `LST_PER_PCT_CANOPY_MIXED` (−0,083 °C/%-Punkt, München). Response: `delta_lst_celsius`, `co2_kg_year`, `crown_area_ratio` (Modell-Input, ersetzt das entfernte `delta_coverage_pct`), `effective_new_pct`, `total_coverage_pct`, `coefficients_used`, `caveats`. |
-| `GET /api/simulate/wasser` | ✅ | Entsiegelungsfläche → m³ Versickerung/Jahr (Rational-Formel). Params: `area_m2`, `from_surface`, `to_surface` (Belagstypen aus `RUNOFF_COEFFICIENTS`). Response: `infiltration_m3_year`, `retention_pct`, `context_persons` (150 L/Tag × 365), `runoff_coefficients`, `rainfall_m_year`, `caveats`. 422 bei unbekannten Belagstypen. |
+| `GET /api/simulate/baeume` | ✅ | Neupflanzungen → Δ°C LST + CO₂-Bindung + Kronendeckung. Params: `n_trees`, `area_m2`, `existing_coverage_pct` (optional, default 0), `lang` (`de`|`en`, optional, default `de` — Sprache der `caveats`). **Projizierte Kronendeckung (Überlappungsmodell, Crookston & Stage 1999):** Bestand & Neu werden im Flächen-Verhältnis addiert (`existing_ratio = −ln(1−existing/100)`, `total = (1−exp(−(existing_ratio+new_ratio)))·100`), Δ°C wirkt nur auf den projizierten Zuwachs `effective_new_pct` (≥ 0, kein Headroom-Cap mehr). Koeffizient `LST_PER_PCT_CANOPY_MIXED` (−0,083 °C/%-Punkt, München). Response: `delta_lst_celsius`, `co2_kg_year`, `new_crown_area_ratio` (Modell-Input, ersetzt das entfernte `delta_coverage_pct`), `effective_new_pct`, `total_coverage_pct`, `coefficients_used`, `caveats`. |
+| `GET /api/simulate/wasser` | ✅ | Entsiegelungsfläche → m³ zurückgehaltenes Wasser/Jahr (vermiedener Oberflächenabfluss, Abflussbeiwert-Ansatz `A · N · (Ψ_von − Ψ_zu)`). Params: `area_m2`, `from_surface`, `to_surface` (Belagstypen aus `RUNOFF_COEFFICIENTS`), `lang` (`de`|`en`, optional, default `de` — Sprache der `caveats`). Response: `infiltration_m3_year` (Feldname historisch, Inhalt = vermiedener Abfluss), `retention_pct`, `context_persons` (121 L/Tag × 365, BDEW 2023), `runoff_coefficients`, `rainfall_m_year`, `caveats`. 422 bei unbekannten Belagstypen. |
+| `GET /api/hotspots` | ✅ | Top-5-Hitzespots als GeoJSON FeatureCollection. Focal Mean (200 m) + Kantenfilter + Greedy Non-Maximum Suppression (600 m Mindestabstand), vorgefiltert auf 8 Bezirke (`_ALLOWED_BEZIRKE`). Properties: `rank`, `lst_celsius`, `lst_celsius_smooth`, `lon`, `lat`. `meta.count`. Kein Parquet-Cache — nur In-Memory (`_cache`), `?refresh=true` rechnet neu. |
 
 ### `utils/data_loader.py`
 - `load_tree_cadastre(force_refresh=False)` – liest lokalen Bulk-Export `backend/data/baumkataster_stadt_wuerzburg.parquet` (alle 44.647 Records), schreibt verarbeiteten Cache nach `backend/data/trees.parquet`. Kein Netzwerkzugriff. Wirft `FileNotFoundError` wenn Quelldatei fehlt.
@@ -232,13 +217,13 @@ resilientes-wuerzburg/
 - `build_hvi_geodataframe(zensus, lst)` – **Einzige Stelle** für die HVI-Berechnung auf Zellebene. Verbindet Zensus und LST via `pd.merge()` auf `(x_mp_100m, y_mp_100m)` (kein `gpd.sjoin()` mehr — Gitter sind jetzt identisch). Berechnet bevölkerungsgewichteten `global_65_rate`, wendet Bayesian Shrinkage an, ruft `compute_hvi()` auf. Gibt `(GeoDataFrame, global_65_rate)` zurück. Spalten: `hvi`, `anteil_65plus`, `anteil_65plus_adj`, `lst_celsius`, `lst_norm`, `Einwohner`, `geometry`. Wird von `routers/vulnerability.py` und `routers/stadtbezirke.py` aufgerufen — nirgendwo sonst HVI berechnen.
 
 ### Frontend-Setup
-- Framework: Vite + React 18, Plain JSX, Tailwind v4
+- Framework: Vite + React 19, Plain JSX, Tailwind v4
 - **Tailwind v4 Hinweis:** kein `tailwind.config.js` – Tokens im `@theme`-Block in `src/app/theme.css`. Klassen: `bg-bg-0`, `text-fg-1`, `bg-accent-green` etc.
 - Karten: MapLibre GL + react-map-gl (MapLibre-Adapter) + deck.gl
 - Basemap: CartoCDN dark-matter (kein Token nötig)
 - **deck.gl Integration:** `MapboxOverlay` + `useControl` (nicht `DeckGL` direkt) – einzig korrekte Methode für Kamera-Synchronisation mit MapLibre
 - State: Zustand (`useAppStore.js`)
-- Routing: React Router v6, alle 6 Routen als Lazy-Chunks
+- Routing: React Router v7, alle 6 Routen als Lazy-Chunks
 
 
 
@@ -259,15 +244,15 @@ resilientes-wuerzburg/
 - `EntsiegelungLegend.jsx` – Kategorie-Legende; eine Zeile pro Flächenart (12×12px Farbquadrat + Label); ATKIS-Block / HR-Trennlinie / OSM-Block (inkl. „Flachdach / Gewerbebau"); frosted-glass-Hintergrund wie LSTLegend.
 - `SimCellLayer.jsx` (`overlays/`) – deck.gl GeoJsonLayer auf LST-Daten; selektierte Zellen (`selectedCells` als Index-Set) grün hervorgehoben, pickable; `onCellClick` gibt Feature-Index zurück. Wird auf `/simulation` (Tab Baumpflanzung) verwendet.
 - `SimEntsiegelungLayer.jsx` (`overlays/`) – deck.gl GeoJsonLayer auf Entsiegelungs-Polygone; selektierte Polygone (`selectedPolygons`) farblich hervorgehoben, Flachdächer (`osm_flat_roof_industrial`) nicht pickable. `onPolygonClick` gibt `{ idx, type_key, area_m2, label }` zurück. Wird auf `/simulation` (Tab Entsiegelung) verwendet.
-- `simulation/BaumSimPanel.jsx` – Simulation-Panel für Baumpflanzung. Liest `selectedCells` + `selectedCellsAreaM2` aus Store. Berechnet `existingPct` (Ø Kronendeckung selektierter Zellen aus `bestand_pct`-Property) und `avgLstCelsius` (Ø LST der selektierten Kacheln). **Slider-Max = pflanzpraktischer Cap auf die *pflanzbare* Fläche** (`floor(plantableAreaM2 / MIN_GROUND_PER_TREE_M2)`, 25 m²/Baum; `plantableAreaM2 = selectedCellsAreaM2 × (1 − avgSealPct)` aus `seal_pct`-Property — kein Modell-Cap). `area_m2` an die API bleibt die **volle** Fläche (Kronen überhängen versiegelten Boden). **Versiegelungs-Readout** im Banner: dominante Kategorie (`dominant_type_key` → `TYPE_KEY_LABELS`), `~X % versiegelt`, pflanzbare Fläche, max Bäume; Lücken-Hinweis bei `dominant_type_key == null` (E2). **Baumscheiben-Hinweis** direkt unter dem Slider (nicht im Banner — dort wird er übersehen): erscheint bei `avgSealPct > 0`, erklärt dass „max N" nur für unversiegelten Boden gilt und zusätzliche Pflanzungen in versiegelter Fläche über Baumscheiben möglich sind (nicht im Modell erfasst, reiner UI-Hinweis ohne Modelländerung — Entscheidung siehe `docs/handoff-baumscheiben.md`). **LST-Toggle** (`showSimLst`) blendet die LST-Farbcodierung (HeatLayer) aus — das 100×100-Raster bleibt über `SimCellLayer` sichtbar/klickbar (verhindert Farbchaos mit dem ATKIS-Overlay); die LST-Legende im Panel wird dann mit ausgeblendet. **ATKIS-Overlay-Toggle** (`showSimAtkis`) blendet die Versiegelungspolygone als Verifikations-Layer ein. `totalPct`/`effectiveNewPct` spiegeln das Backend-Überlappungsmodell (Crookston & Stage 1999) für die Slider-Vorschau. Debounced API-Call zu `/api/simulate/baeume`. **Slider + editierbares Zahleneingabefeld** (synchron via `inputVal`-State; Blur/Enter klemmt auf [1, sliderMax]). **Kronendeckungs-Stacked-Bar** (Bestand / Neu / Frei als farbige Segmente). Überlappungs-Hinweis, wenn neue Kronen überwiegend auf bereits beschatteten Boden fallen. **Vorher/Nachher-Block** mit inliner `BeforeAfterRow`-Komponente: drei Zeilen (Temperatur LST / CO₂-Bindung / Kronendeckung) je mit Progress-Bar, Ghost-Füllung für Ausgangszustand, animiertem Balken auf Nachher-Wert, Delta-Badge rechts. Methodik-Toggle mit Caveats + Koeffizienten.
+- `simulation/BaumSimPanel.jsx` – Simulation-Panel für Baumpflanzung. Liest `selectedCells` + `selectedCellsAreaM2` aus Store. Berechnet `existingPct` (Ø Kronendeckung selektierter Zellen aus `bestand_pct`-Property) und `avgLstCelsius` (Ø LST der selektierten Kacheln). **Slider-Max = pflanzpraktischer Cap auf die *pflanzbare* Fläche** (`floor(plantableAreaM2 / MIN_GROUND_PER_TREE_M2)`, 100 m²/Baum ≈ 10 m Pflanzabstand nach FLL für Bäume 2. Ordnung; `plantableAreaM2 = selectedCellsAreaM2 × (1 − avgSealPct)` aus `seal_pct`-Property — kein Modell-Cap). `area_m2` an die API bleibt die **volle** Fläche (Kronen überhängen versiegelten Boden). **Versiegelungs-Readout** im Banner: dominante Kategorie (`dominant_type_key` → `TYPE_KEY_LABELS`), `~X % versiegelt`, pflanzbare Fläche, max Bäume; Lücken-Hinweis bei `dominant_type_key == null` (E2). **Baumscheiben-Hinweis** direkt unter dem Slider (nicht im Banner — dort wird er übersehen): erscheint bei `avgSealPct > 0`, erklärt dass „max N" nur für unversiegelten Boden gilt und zusätzliche Pflanzungen in versiegelter Fläche über Baumscheiben möglich sind (nicht im Modell erfasst, reiner UI-Hinweis ohne Modelländerung). **LST-Toggle** (`showSimLst`) blendet die LST-Farbcodierung (HeatLayer) aus — das 100×100-Raster bleibt über `SimCellLayer` sichtbar/klickbar (verhindert Farbchaos mit dem ATKIS-Overlay); die LST-Legende im Panel wird dann mit ausgeblendet. **ATKIS-Overlay-Toggle** (`showSimAtkis`) blendet die Versiegelungspolygone als Verifikations-Layer ein. `totalPct`/`effectiveNewPct` spiegeln das Backend-Überlappungsmodell (Crookston & Stage 1999) für die Slider-Vorschau. Debounced API-Call zu `/api/simulate/baeume`. **Slider + editierbares Zahleneingabefeld** (synchron via `inputVal`-State; Blur/Enter klemmt auf [1, sliderMax]). **Kronendeckungs-Stacked-Bar** (Bestand / Neu / Frei als farbige Segmente). Überlappungs-Hinweis, wenn neue Kronen überwiegend auf bereits beschatteten Boden fallen. **Vorher/Nachher-Block** mit inliner `BeforeAfterRow`-Komponente: drei Zeilen (Temperatur LST / CO₂-Bindung / Kronendeckung) je mit Progress-Bar, Ghost-Füllung für Ausgangszustand, animiertem Balken auf Nachher-Wert, Delta-Badge rechts. Methodik-Toggle mit Caveats + Koeffizienten.
 - `simulation/WasserSimPanel.jsx` – Simulation-Panel für Entsiegelung. Liest `selectedPolygons` + `selectedPolygonsAreaM2` aus Store. Gruppiert Polygone nach `type_key`. **Panel-Aufbau:**
   1. **Flächenaufschlüsselung** mit drei `AreaRow`-Zeilen (Gesamt / Davon versiegelt / Typ. entsiegelbar) je mit Fortschrittsbalken
   2. **Belagstypen-Gruppen** pro type_key: Versiegelungsgrad-Balken, Von-Select + `PsiChip` (rot/amber/grün je Ψ) + Delta-Chip (↓ Ψ−X · Verbesserung) + Zu-Select + `PsiChip`. Option-Labels zeigen `(Ψ 0.90)` direkt im nativen Select
   3. **Slider + Texteingabe** synchron (wie BaumSimPanel), Hint unter Slider: max. versiegelte Σ-Fläche (grau) + amber-Hinweis "Typisch realistisch: ~X m²" (Schätzwert, kein harter Cap)
-  4. **Ergebnisse**: `WasserBalanceBar` Vorher/Nachher (Abfluss rot + Versickerung blau, 7px-Balken), großer Versickerungswert (m³/Jahr) + ≈N Personen-Jahrestrinkwasserbedarf (BDEW 2023, 127 L/Tag) + anschaulicher Kontext via `formatWasserKontext()` (Eimer/Badewannen/Schwimmbecken), **Grundwasserneubildungs-Box** mit ~15–30 % Richtwert (LfU Bayern) + amber Caveat
+  4. **Ergebnisse**: `WasserBalanceBar` Vorher/Nachher (Abfluss rot + zurückgehaltenes Wasser blau, 7px-Balken), großer Wert „zusätzlich vor Ort gehaltenes Regenwasser“ (m³/Jahr) + ≈N Personen-Jahresverbrauch an Leitungswasser (BDEW 2023, 121 L/Tag) + anschaulicher Kontext via `formatWasserKontext()` (Eimer/Badewannen/Schwimmbecken), **Grundwasser-Einordnung** (keine berechnete Zahl): Hinweis, dass Grundwasserneubildung nicht modelliert wird, plus LfU-Landkreiswert 96 mm/Jahr (`GW_RECHARGE_LK_WUERZBURG_MM_YEAR` aus `simulate.js`, LfU Bayern 2025, 1991–2020)
   5. **Methodik-Toggle** mit Berechnungsformel, Ψ-Tabelle (DWA-A138/Bayreuth 2024), Versiegelungsgrad-Tabelle, Realisierbarkeitsfaktoren-Tabelle
   
-  Konstanten: `WATER_USE_M3_PER_PERSON = 46,4` (BDEW 2023), `GW_RATE_LOW = 0,15` / `GW_RATE_HIGH = 0,30` (LfU Bayern). Inline-Komponenten: `PsiChip`, `AreaRow`, `WasserBalanceBar`. `avgFromPsiStatic`: flächengewichteter Ψ-Vorher aus groupConfig (ohne API-Call). API-Calls proportional aufgeteilt via `Promise.all`, collectiert `avgFromPsi`/`avgToPsi` für Balken.
+  Konstanten: `WATER_USE_M3_PER_PERSON = 44,2` (BDEW 2023, 121 L/Tag). Inline-Komponenten: `PsiChip`, `AreaRow`, `WasserBalanceBar`. `avgFromPsiStatic`: flächengewichteter Ψ-Vorher aus groupConfig (ohne API-Call). API-Calls proportional aufgeteilt via `Promise.all`, collectiert `avgFromPsi`/`avgToPsi` für Balken.
 - `simulation/SimResultCard.jsx` – Einzelne Ergebnis-Kachel. Props: `{ label, value, unit?, color, caveat?, loading, empty }`. Loading-Spinner, leerer Zustand (gestrichelt), Wert + optionaler Caveat-Hinweis. Wird weiterhin im WasserSimPanel verwendet.
 - `Sidebar.jsx` – 220px, 2 Nav-Gruppen, active NavLink via react-router-dom
 - `Topbar.jsx` – 48px sticky, Breadcrumb via useLocation()
@@ -279,21 +264,21 @@ resilientes-wuerzburg/
 - `utils/format.js` – `fmt.num/temp/dT/pct/area/index` (de-DE Locale)
 - `utils/colors.js` – `COLORS`-Map (green/amber/red/blue/purple)
 - `utils/sources.js` – zentrale Datenbeschriftungen: `LST_SENSOR` (`'Landsat 8+9'`), `LST_PERIOD` (`'Sommer 2023–2025'`), `LST_LABEL` (`LST_SENSOR · LST_PERIOD`). Wird in `Hitzeatlas.jsx`, `Vulnerabilitaet.jsx` und `LayerPanel.jsx` importiert — Änderung hier wirkt überall gleichzeitig.
-- `store/useAppStore.js` – `sidebarCollapsed` (bool, default false), `toggleSidebar()`; `layers`: `heatmap` (default true), `trees`, `zensus` (default false — Demografie-Layer auf `/vulnerabilitaet`), `vulnerabilitaet`, `entsiegelung_atkis` (default true), `entsiegelung_osm` (default true), `stadtbezirke`, `ndvi` (default false); `layerLoading` (map), `setLayerLoading(key, bool)`; `vulnWeights` (null | object), `setVulnWeights()`; `sim`-Slice: `selectedCells` (Index-Array), `selectedCellsAreaM2`, `selectedPolygons` (`[{ idx, type_key, area_m2, label }]`), `selectedPolygonsAreaM2`, `showBaumkataster` (bool), `showSimLst` (bool, default true — LST-Farbcodierung/HeatLayer im Baum-Tab; aus = nur Raster via SimCellLayer sichtbar), `showSimAtkis` (bool, default false — ATKIS/OSM-Versiegelungs-Overlay im Baum-Tab), `baeume.anzahl` (int), `wasser.flaeche_m2` (int, gecappt auf Σ sealable bei Auswahl-Änderung), `wasser.groupConfig` (`{ [type_key]: { from_surface, to_surface } }` — auto-befüllt beim ersten Polygon je type_key); Actions: `toggleSimCell`, `toggleSimPolygon`, `clearSimCells`, `clearSimPolygons`, `toggleSimBaumkataster`, `toggleSimLst`, `toggleSimAtkis`, `setSimBaeumeAnzahl`, `setSimWasserFlaeche`, `setSimWasserGroupSurface`. Hinweis: `_baeumeSliderMax` cappt `anzahl` grob auf `floor(Fläche/25)` (volle Fläche); der seal-aware Finalclamp (`floor(pflanzbare Fläche/25)`) passiert im `BaumSimPanel` (kennt `seal_pct`).
+- `store/useAppStore.js` – `sidebarCollapsed` (bool, default false), `toggleSidebar()`; `layers`: `heatmap` (default true), `trees`, `zensus` (default false — Demografie-Layer auf `/vulnerabilitaet`), `vulnerabilitaet`, `entsiegelung_atkis` (default true), `entsiegelung_osm` (default true), `stadtbezirke`, `ndvi` (default false); `layerLoading` (map), `setLayerLoading(key, bool)`; `vulnWeights` (null | object), `setVulnWeights()`; `sim`-Slice: `selectedCells` (Index-Array), `selectedCellsAreaM2`, `selectedPolygons` (`[{ idx, type_key, area_m2, label }]`), `selectedPolygonsAreaM2`, `showBaumkataster` (bool), `showSimLst` (bool, default true — LST-Farbcodierung/HeatLayer im Baum-Tab; aus = nur Raster via SimCellLayer sichtbar), `showSimAtkis` (bool, default false — ATKIS/OSM-Versiegelungs-Overlay im Baum-Tab), `baeume.anzahl` (int), `wasser.flaeche_m2` (int, gecappt auf Σ sealable bei Auswahl-Änderung), `wasser.groupConfig` (`{ [type_key]: { from_surface, to_surface } }` — auto-befüllt beim ersten Polygon je type_key); Actions: `toggleSimCell`, `toggleSimPolygon`, `clearSimCells`, `clearSimPolygons`, `toggleSimBaumkataster`, `toggleSimLst`, `toggleSimAtkis`, `setSimBaeumeAnzahl`, `setSimWasserFlaeche`, `setSimWasserGroupSurface`. Hinweis: `_baeumeSliderMax` cappt `anzahl` grob auf `floor(Fläche/100)` (volle Fläche); der seal-aware Finalclamp (`floor(pflanzbare Fläche/100)`) passiert im `BaumSimPanel` (kennt `seal_pct`).
 - `api/client.js` – `apiFetch()` mit `VITE_API_URL`
 - `api/trees.js`, `api/zensus.js`, `api/lst.js`, `api/vulnerability.js`, `api/entsiegelung.js`, `api/stadtbezirke.js` – fetch-Wrapper
-- `api/simulate.js` – `fetchSimulateBaeume({ n_trees, area_m2, existing_coverage_pct })` + `fetchSimulateWasser({ area_m2, from_surface, to_surface })`
-- `utils/simulate.js` – Gespiegelte Simulation-Konstanten (sync mit `backend/simulation_params.py`). Exports: `CROWN_AREA_M2_DEFAULT` (50 m²), `MIN_GROUND_PER_TREE_M2` (25 m²/Baum — pflanzpraktischer Slider-Cap, kein Modell-Cap), `SEAL_RATE` (Versiegelungsgrade je `type_key`), `getSealRate(type_key)`, `FROM_SURFACE_BY_TYPE_KEY` (Default-Ausgangsbelag je Flächentyp), `getFromSurface(type_key)`, `SURFACE_LABELS` (Belagstyp-Anzeigenamen), `SURFACE_ORDER` (absteigend nach Versiegelung, 9 Stufen), `getNextBetterSurface(from)`, `isAlreadyGreenest(from)`, `TYPE_KEY_LABELS` (ATKIS/OSM-Flächentyp-Labels), `RUNOFF_COEFFICIENTS` (Ψ je Belagstyp, gespiegelt aus simulation_params, DWA-A138 / Bayreuth 2024), `TYPICAL_REALIZATION_RATE` (typisch entsiegelbarer Anteil je Flächentyp — informativer Hinweis, kein harter Cap), `getTypicalRealizationRate(type_key)`
-- `.claude/launch.json` – Dev-Server-Konfigurationen: Frontend (Vite, Port 5173) + Backend (uvicorn, Port 8000)
+- `api/simulate.js` – `fetchSimulateBaeume({ n_trees, area_m2, existing_coverage_pct, lang })` + `fetchSimulateWasser({ area_m2, from_surface, to_surface, lang })` (`lang` = App-Sprache, steuert die Sprache der API-Hinweise)
+- `utils/simulate.js` – Gespiegelte Simulation-Konstanten (sync mit `backend/simulation_params.py`). Exports: `CROWN_AREA_M2_DEFAULT` (50 m²), `MIN_GROUND_PER_TREE_M2` (100 m²/Baum — FLL-Pflanzabstand ~10 m, pflanzpraktischer Slider-Cap, kein Modell-Cap), `SEAL_RATE` (Versiegelungsgrade je `type_key`), `getSealRate(type_key)`, `FROM_SURFACE_BY_TYPE_KEY` (Default-Ausgangsbelag je Flächentyp), `getFromSurface(type_key)`, `SURFACE_LABELS` (Belagstyp-Anzeigenamen), `SURFACE_ORDER` (absteigend nach Versiegelung, 9 Stufen), `getNextBetterSurface(from)`, `isAlreadyGreenest(from)`, `TYPE_KEY_LABELS` (ATKIS/OSM-Flächentyp-Labels), `RUNOFF_COEFFICIENTS` (Ψ je Belagstyp, gespiegelt aus simulation_params, DWA-A138 / Bayreuth 2024), `TYPICAL_REALIZATION_RATE` (typisch entsiegelbarer Anteil je Flächentyp — informativer Hinweis, kein harter Cap), `getTypicalRealizationRate(type_key)`
+- `.claude/launch.json` (lokal, nicht im Repo) – Dev-Server-Konfigurationen: Frontend (Vite, Port 5173) + Backend (uvicorn, Port 8000)
 
 ### Daten-Caching
-- Baumkataster: Quelldatei `baumkataster_stadt_wuerzburg.parquet` manuell in `backend/data/` ablegen (nicht im Git – siehe `.gitignore`). Bezugsquelle: opendata.wuerzburg.de → Export als GeoParquet.
+- Baumkataster: Quelldatei `baumkataster_stadt_wuerzburg.parquet` liegt in `backend/data/` (im Repo eingecheckt, wird für das Render-Deployment gebraucht). Bezugsquelle: opendata.wuerzburg.de → Export als GeoParquet.
 - Zensus: Erste Requests parsen CSVs und schreiben `backend/data/zensus.parquet`. Folge-Requests lesen direkt aus Parquet.
 - Entsiegelung: Erste Requests lesen ATKIS-ZIP + OSM-Abfrage und schreiben `backend/data/entsiegelung.parquet`. Cache mit `?refresh=true` neu bauen.
 - Stadtbezirke: Erste Requests ziehen 13 Polygone live von opendata.wuerzburg.de und schreiben `backend/data/stadtbezirke.parquet`. Aggregate (LST/HVI/Entsiegelung/Bäume) werden im Router live berechnet und in einem In-Memory-Cache gehalten (Reset bei Backend-Restart).
 - LST-Tausch: Wenn `lst_wue_2023_2025_summer_median.tif` ausgetauscht wird, **muss `backend/data/lst.parquet` gelöscht** oder `?refresh=true` gerufen werden. Backend-Restart leert zusätzlich die In-Memory-Caches von `/api/vulnerability`, `/api/zensus` und `/api/stadtbezirke`. Danach alle drei Endpoints mit `?refresh=true` aufrufen.
 - `bestand_pct`-Modellwechsel (Crookston & Stage 1999, projizierte Kronendeckung) **und** `seal_pct`/`dominant_type_key` (Versiegelungsgrad): beide sind Teil von `lst.parquet`. Der Lazy-Add in `load_lst()` recomputet **nur fehlende** Spalten — ein alter Cache mit naivem `bestand_pct` wird **nicht** automatisch korrigiert. Nach Änderung von `_compute_bestand_pct`/`_compute_seal_pct` daher **zwingend `lst.parquet` löschen / `?refresh=true`** (neue Spalten wie `seal_pct` werden zwar lazy ergänzt, aber inhaltliche Änderungen an bestehenden Spalten nicht).
-- `*.parquet` ist global in `.gitignore`.
+- `*.parquet`/`*.tif` sind global in `.gitignore`; die für das Deployment nötigen Dateien in `backend/data/` sind per Ausnahme eingecheckt. Ungenutzte Raster (Einzeljahre, Delta-Analyse) sind explizit ignoriert.
 
 ---
 
@@ -319,13 +304,13 @@ resilientes-wuerzburg/
 
 ### LST-GeoTIFFs (GEE Export)
 - Hauptdatensatz: `lst_wue_2023_2025_summer_median.tif` — 3-Jahres-Sommer-Median (Landsat 8+9, Juni–Aug 2023–2025)
-- Einzeljahre (vorhanden, noch nicht eingebunden): `lst_wue_2023_summer_median.tif`, `lst_wue_2024_summer_median.tif`, `lst_wue_2025_summer_median.tif`
+- Einzeljahre (nur lokal, nicht im Repo, nicht eingebunden): `lst_wue_2023_summer_median.tif`, `lst_wue_2024_summer_median.tif`, `lst_wue_2025_summer_median.tif`
 - Alle Dateien: Band 1 = LST_C (°C), Band 2 = NDVI, Band 3 = NDBI
 - Quelle: Google Earth Engine, `LANDSAT/LC08/C02/T1_L2` + `LANDSAT/LC09/C02/T1_L2`, QA-Masking, Median-Komposit
 - ⚠️ Skalierung: GEE exportiert fertige °C-Werte (DN → K → °C bereits in GEE angewendet) — Backend wendet Formel **nicht** an
 - CRS Export: **EPSG:3035**, 100m Auflösung, `crsTransform=[100, 0, 4_300_000, 0, -100, 2_985_000]` — exakt auf Destatis 100m-Gitter gesnappt
-- Ablageort: `backend/data/` (nicht im Git)
-- Backend liest Band 1 direkt, kein Resampling. ~14.500 valide Features
+- Ablageort: `backend/data/` (im Repo nur der 3-Jahres-Median)
+- Backend liest Band 1 direkt, kein Resampling. ~15.900 valide Features
 - `lst_norm`: **Rang-basierte Normierung** via `scipy.stats.rankdata` (0.0–1.0)
 
 ### ATKIS Basis-DLM (bkg_shape_712.zip)
@@ -349,8 +334,4 @@ resilientes-wuerzburg/
 - Betroffene Zellen werden mit `anteil_65plus_clamped: true` markiert (bool-Feld im GeoJSON).
 - Typisch < 2% aller Würzburger Gitterzellen.
 - **Sonderfall:** `Einwohner` kann vorhanden sein, während `anteil_65plus` trotzdem `null` ist — Destatis maskiert Altersklassen und Gesamtbevölkerung aus getrennten CSVs **unabhängig** voneinander. Eine Zelle mit z. B. 44 Einwohnern aber 0–2 Personen in einer Altersklasse bekommt keine Altersaufschlüsselung → kein `anteil_65plus` → kein HVI. Der Tooltip zeigt in diesem Fall `⚠ Altersstruktur nicht verfügbar (Datenschutz)`.
-
----
-
-## Offene TODOs
 

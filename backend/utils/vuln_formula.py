@@ -17,7 +17,7 @@ assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "Gewichte müssen sich zu 1.0 su
 
 # Bayesian-Shrinkage-Parameter:
 # Formel: adjusted = (n * observed + N_PRIOR * global_mean) / (n + N_PRIOR)
-# n=3,   observed=1.0, global=0.22 → adjusted ≈ 0.24  (kleine Zelle: stark zur Stadtmittelrate geschrumpft)
+# n=3,   observed=1.0, global=0.22 → adjusted ≈ 0.26  (kleine Zelle: stark zur Stadtmittelrate geschrumpft)
 # n=200, observed=0.30, global=0.22 → adjusted ≈ 0.28 (große Zelle: kaum verändert)
 # Bei n == N_PRIOR liegt die Glaubwürdigkeit bei exakt 50 %.
 N_PRIOR = 50

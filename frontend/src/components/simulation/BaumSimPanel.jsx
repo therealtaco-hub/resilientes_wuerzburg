@@ -79,7 +79,8 @@ function BeforeAfterRow({ label, barFill, beforeFill, beforeFmt, afterFmt, delta
 }
 
 export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
   const selectedCells       = useAppStore((s) => s.sim.selectedCells)
   const selectedCellsAreaM2 = useAppStore((s) => s.sim.selectedCellsAreaM2)
   const selectedCount       = selectedCells.length
@@ -185,12 +186,12 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
     setLoading(true)
     debounceRef.current = setTimeout(() => {
       const reqId = ++reqIdRef.current
-      fetchSimulateBaeume({ n_trees: anzahl, area_m2: selectedCellsAreaM2, existing_coverage_pct: existingPct })
+      fetchSimulateBaeume({ n_trees: anzahl, area_m2: selectedCellsAreaM2, existing_coverage_pct: existingPct, lang })
         .then((res) => { if (reqId !== reqIdRef.current) return; setResult(res); setError(null); setLoading(false) })
-        .catch((e) => { if (reqId !== reqIdRef.current) return; setError(e.message || 'Berechnung fehlgeschlagen'); setLoading(false) })
+        .catch((e) => { if (reqId !== reqIdRef.current) return; setError(e.message || t('common.calcFailed')); setLoading(false) })
     }, DEBOUNCE_MS)
     return () => debounceRef.current && clearTimeout(debounceRef.current)
-  }, [hasSel, anzahl, selectedCellsAreaM2, existingPct])
+  }, [hasSel, anzahl, selectedCellsAreaM2, existingPct, lang, t])
 
   // Stadtweite Kronenbeschattung – Baseline aus dem Backend (nur In-Stadt-Kacheln,
   // korrekt gegen Stadtbezirke-Polygone gefiltert). Fallback auf Frontend-Berechnung
@@ -419,7 +420,7 @@ export default function BaumSimPanel({ lstData, treeData, cityMeta }) {
                 title={`Neu ${fmt.pct(effectiveNewPct)}`}
               />
             )}
-            <div style={{ flex: 1, background: 'var(--bg-3)', borderRadius: 4 }} title="Verfügbarer Headroom" />
+            <div style={{ flex: 1, background: 'var(--bg-3)', borderRadius: 4 }} title={t('baum.barFreeTooltip')} />
           </div>
           <div className="flex justify-between mt-1 text-[10px] font-mono text-fg-3">
             <span>

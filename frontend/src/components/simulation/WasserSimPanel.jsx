@@ -13,38 +13,20 @@ import {
   TYPICAL_REALIZATION_RATE,
   getTypicalRealizationRate,
   WATER_USE_M3_PER_PERSON_YEAR,
+  GW_RECHARGE_LK_WUERZBURG_MM_YEAR,
 } from '../../utils/simulate'
 import { fmt } from '../../utils/format'
 import EntsiegelungLegend from '../map/EntsiegelungLegend'
 
 const DEBOUNCE_MS = 300
 
-// Trinkwasserbedarf aus simulate.js (BDEW 2023, gespiegelt aus simulation_params.py)
+// Leitungswasser-Jahresverbrauch pro Person aus simulate.js (BDEW 2023, gespiegelt aus simulation_params.py)
 const WATER_USE_M3_PER_PERSON = WATER_USE_M3_PER_PERSON_YEAR
 
-// Angenommener Anteil der zusätzlichen Versickerung, der das Grundwasser erreicht.
-//
-// ⚠ GESETZTE ANNAHME, NICHT BELEGT — bewusst nur als Größenordnung ausgewiesen.
-// Die Spanne stammt NICHT aus einer validierten Quelle. Ein früherer Kommentar
-// schrieb sie dem LfU Bayern zu; im Projekt-Wiki gibt es dafür keine Quelle
-// (`sources/dwa-a138-lfu-regenwasser-bayern.md` belegt ausschließlich
-// Abflussbeiwerte Ψ — dort stehen 0,15 und 0,30 als Ψ für Rasengitter bzw.
-// Schotterrasen, was die Verwechslung erklären dürfte).
-//
-// Zwei offene Punkte vor einer Validierung:
-//  1) Bezugsgröße. Die publizierte LfU-Kenngröße ist „Grundwasserneubildung
-//     aus NIEDERSCHLAG". Hier wird der Faktor auf die VERSICKERUNG angewandt —
-//     ein anderer Nenner.
-//  2) Region. Unterfranken hat die niedrigsten Neubildungsraten Bayerns
-//     (< 100 mm/a im Keuper, stellenweise < 25 mm/a); eine bayernweite Spanne
-//     überschätzt Würzburg als Niederschlagsanteil eher.
-// Gegenläufig: Unter einem unbewachsenen Belag fehlt die Transpiration, der
-// tatsächliche Anteil könnte für diesen Fall höher liegen.
-//
-// TODO: standortspezifisch herleiten (Bodenart, Flurabstand, Einzugsgebiet)
-// und über den Wiki-INGEST-Workflow als Quelle ablegen.
-const GW_RATE_LOW  = 0.15
-const GW_RATE_HIGH = 0.30
+// Grundwasser: Die Simulation berechnet keine Grundwasserneubildung. Eine früher
+// angezeigte Spanne „15–30 % der Versickerung" hatte keine Quelle und bezog sich
+// auf die falsche Größe (Versickerung statt Niederschlag) — entfernt. Die UI nennt
+// stattdessen nur den LfU-Landkreiswert als Einordnung (siehe simulate.js).
 
 function formatWasserKontext(m3year, t) {
   if (m3year < 2) {
@@ -110,7 +92,7 @@ function AreaRow({ label, value, pct, barColor }) {
   )
 }
 
-// Vor/Nachher-Balken: Abfluss (rot) + Versickerung (blau)
+// Vor/Nachher-Balken: Abfluss (rot) + vor Ort gehaltenes Wasser (blau, Ψ-Komplement)
 function WasserBalanceBar({ label, runoffPct }) {
   const runW = Math.max(0, Math.min(100, runoffPct * 100))
   const infW = 100 - runW
@@ -136,7 +118,8 @@ function WasserBalanceBar({ label, runoffPct }) {
 }
 
 export default function WasserSimPanel() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
   const polygons    = useAppStore((s) => s.sim.selectedPolygons)
   const polysAreaM2 = useAppStore((s) => s.sim.selectedPolygonsAreaM2)
   const flaecheM2   = useAppStore((s) => s.sim.wasser.flaeche_m2)
@@ -207,6 +190,7 @@ export default function WasserSimPanel() {
             area_m2: area,
             from_surface: cfg.from_surface,
             to_surface:   cfg.to_surface,
+            lang,
           }).then((res) => ({ res, area, from: cfg.from_surface, to: cfg.to_surface }))
         })
         .filter(Boolean)
@@ -234,12 +218,12 @@ export default function WasserSimPanel() {
         })
         .catch((e) => {
           if (reqId !== reqIdRef.current) return
-          setError(e.message || 'Berechnung fehlgeschlagen')
+          setError(e.message || t('common.calcFailed'))
           setLoading(false)
         })
     }, DEBOUNCE_MS)
     return () => debounceRef.current && clearTimeout(debounceRef.current)
-  }, [hasSel, flaecheM2, totalSealable, groupConfig, groups])
+  }, [hasSel, flaecheM2, totalSealable, groupConfig, groups, lang, t])
 
   // Gewichteter Ψ-Vorher-Wert (aus groupConfig, ohne API-Call)
   const avgFromPsiStatic = useMemo(() => {
@@ -326,7 +310,7 @@ export default function WasserSimPanel() {
               <div
                 className="text-[10px] mt-1"
                 style={{ color: 'var(--text-3)' }}
-                title="In der Praxis entfällt ein Großteil der versiegelten Fläche auf Gebäude (z. B. Fabrikhallen, Wohnhäuser), die nicht entsiegelt werden können. Schätzwert nach Flächentyp — kein harter Cap."
+                title={t('wasser.realTooltip')}
               >
                 {t('wasser.estimateHint')}
               </div>
@@ -522,7 +506,7 @@ export default function WasserSimPanel() {
             <div
               className="flex items-center gap-1 text-[10px] cursor-help"
               style={{ color: 'rgba(251,191,36,0.85)' }}
-              title="In der Praxis ist ein Großteil der versiegelten Fläche durch Gebäude (z. B. Fabrikhallen, Wohnhäuser) belegt, die nicht entsiegelt werden können. Der Schätzwert basiert auf Literaturwerten je Flächentyp — kein harter Cap."
+              title={t('wasser.realTooltip')}
             >
               <span>⚠</span>
               <span>
@@ -560,7 +544,7 @@ export default function WasserSimPanel() {
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'rgba(59,130,246,0.65)' }} />
-                      {t('wasser.infiltration')}
+                      {t('wasser.retainedLegend')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -574,7 +558,7 @@ export default function WasserSimPanel() {
                   </div>
                 </div>
 
-                {/* Versickerung + Interpretation */}
+                {/* Vor Ort gehaltenes Wasser + Interpretation */}
                 <div style={{ borderTop: '1px solid var(--border-soft)', paddingTop: 14 }}>
                   {results ? (
                     <div className="flex flex-col gap-3">
@@ -582,9 +566,9 @@ export default function WasserSimPanel() {
                       {/* Primärer Wert */}
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-3)' }}>
-                          {t('wasser.addInfiltration')}
+                          {t('wasser.addRetained')}
                         </p>
-                        <div className="flex items-baseline gap-1.5 mb-2">
+                        <div className="flex items-baseline gap-1.5">
                           <span
                             className="font-mono tabular-nums"
                             style={{ fontSize: 26, fontWeight: 600, color: 'rgba(59,130,246,0.9)' }}
@@ -593,6 +577,9 @@ export default function WasserSimPanel() {
                           </span>
                           <span className="text-fg-2 text-[13px] font-mono">{t('wasser.perYear')}</span>
                         </div>
+                        <p className="text-[10px] mt-0.5 mb-2" style={{ color: 'var(--text-3)' }}>
+                          {t('wasser.addRetainedSub')}
+                        </p>
                         {/* Einordnung */}
                         <div className="flex flex-col gap-1">
                           <div className="text-[11px]" style={{ color: 'var(--text-2)' }}>
@@ -616,44 +603,25 @@ export default function WasserSimPanel() {
                         </div>
                       </div>
 
-                      {/* Grundwasserneubildung — bewusst als unbelegte Einordnung
-                          ausgewiesen, nicht als Simulationsergebnis. Deshalb
-                          neutrale Farbe statt Akzentblau, gestrichelter Rahmen
-                          und ein "nicht validiert"-Badge: optisch klar zweite
-                          Klasse gegenüber der Versickerungszahl darüber. */}
+                      {/* Grundwasser — kein Simulationsergebnis, nur Einordnung mit
+                          LfU-Landkreiswert. Neutrale Farbe + gestrichelter Rahmen,
+                          damit es optisch nicht als berechnete Zahl gelesen wird. */}
                       <div
                         className="rounded-[8px] p-3 flex flex-col gap-2"
                         style={{ background: 'var(--bg-2)', border: '1px dashed var(--border)' }}
                       >
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'var(--text-3)' }}>
-                            {t('wasser.gwTitle')}
-                          </p>
-                          <span
-                            className="text-[9px] uppercase tracking-[0.06em] px-1.5 py-px rounded-full"
-                            style={{ background: 'rgba(251,191,36,0.10)', color: 'rgba(251,191,36,0.85)' }}
-                          >
-                            {t('wasser.gwBadge')}
-                          </span>
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                          <span
-                            className="font-mono tabular-nums"
-                            style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-2)' }}
-                          >
-                            ~{fmt.num(Math.round(results.infiltration * GW_RATE_LOW), 0)}–{fmt.num(Math.round(results.infiltration * GW_RATE_HIGH), 0)}
-                          </span>
-                          <span className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>{t('wasser.perYear')}</span>
-                        </div>
-                        <p className="text-[10px]" style={{ color: 'var(--text-3)' }}>
-                          {t('wasser.gwNote')}
+                        <p className="text-[10px] uppercase tracking-[0.08em]" style={{ color: 'var(--text-3)' }}>
+                          {t('wasser.gwTitle')}
                         </p>
-                        <div className="flex items-start gap-1.5 text-[10px]" style={{ color: 'rgba(251,191,36,0.75)' }}>
-                          <span className="shrink-0 mt-px">⚠</span>
-                          <span>
-                            {t('wasser.gwWarn')}
-                          </span>
-                        </div>
+                        <p className="text-[11px] leading-snug" style={{ color: 'var(--text-2)' }}>
+                          {t('wasser.gwBody')}
+                        </p>
+                        <p className="text-[11px] leading-snug" style={{ color: 'var(--text-2)' }}>
+                          {t('wasser.gwContext', { mm: GW_RECHARGE_LK_WUERZBURG_MM_YEAR })}
+                        </p>
+                        <p className="text-[10px] font-mono" style={{ color: 'var(--text-3)' }}>
+                          {t('wasser.gwSource')}
+                        </p>
                       </div>
 
                     </div>
@@ -704,7 +672,7 @@ export default function WasserSimPanel() {
                 {t('wasser.methFormulaTitle')}
               </p>
               <p className="font-mono text-[10px] px-2 py-1.5 rounded" style={{ background: 'var(--bg-3)', color: 'var(--text-2)' }}>
-                {t('wasser.infiltration')} = A × N × (Ψ<sub>von</sub> − Ψ<sub>zu</sub>)
+                {t('wasser.methFormulaLhs')} = A × N × (Ψ<sub>{t('wasser.psiFrom')}</sub> − Ψ<sub>{t('wasser.psiTo')}</sub>)
               </p>
               <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-3)' }}>
                 {t('wasser.methFormulaNote')}
@@ -731,13 +699,16 @@ export default function WasserSimPanel() {
                       <td className="text-right py-0.5">{v.toFixed(2)}</td>
                       <td className="text-right py-0.5 pl-3" style={{ color: 'var(--text-3)', opacity: 0.6 }}>
                         {v === 0.90 || v === 0.75 || v === 0.50 || v === 0.30 && k === 'schotterrasen' || v === 0.15 && k === 'rasengitter' || v === 0.05
-                          ? 'DWA-A138'
+                          ? 'DWA-A 138 (2005)'
                           : 'Bayreuth 2024'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-3)' }}>
+                {t('wasser.methPsiNote')}
+              </p>
             </div>
 
             {/* Versiegelungsgrade */}

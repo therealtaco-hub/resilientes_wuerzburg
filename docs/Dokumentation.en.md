@@ -1,7 +1,8 @@
 # Resilientes Würzburg — Full documentation
 
-**Status:** July 2026 · **App version:** Docs v2 (supersedes Tool-Logik-und-Quellen.md v1.0)
-**Language/format:** English, Markdown. This file is served as the **in-app documentation page** (`/dokumentation`) and replaces the scattered hint and methodology expanders on the individual tabs.
+**Status:** November 2026
+
+This page describes the methodology, data sources, coefficients and assumptions for every tab of the app.
 
 ---
 
@@ -21,11 +22,12 @@ All three layers are spatially harmonised onto the **Destatis 100 m LAEA grid (E
 
 ```
 FRONTEND (React + Vite)                 BACKEND (FastAPI, Python)
-  deck.gl → maps            REST/JSON     GeoPandas, Rasterio
-  Recharts → charts        ◄─────────►    rasterstats, SciPy, osmnx
-  Tailwind + Zustand                      earthengine-api
-                                              │
+  MapLibre + deck.gl → maps               GeoPandas, Rasterio
+  Tailwind + Zustand       ◄─────────►    SciPy, osmnx
+  i18next (DE/EN)            REST/JSON        │
                                           DATA: GeoParquet, GeoTIFF, CSV
+                                          (LST GeoTIFF exported beforehand
+                                           from Google Earth Engine)
 ```
 
 The backend **always returns GeoJSON or JSON**, never raw GeoDataFrames. Deployment: backend → Render.com, frontend → Vercel, both via GitHub CI/CD.
@@ -57,13 +59,11 @@ The backend **always returns GeoJSON or JSON**, never raw GeoDataFrames. Deploym
 | Scaling | GEE already delivers finished °C values (DN→K→°C in GEE). The backend reads band 1 directly, **no** further conversion |
 | Bands in the GeoTIFF | Band 1 = LST_C (°C), band 2 = NDVI, band 3 = NDBI |
 | File | `lst_wue_2023_2025_summer_median.tif` |
-| Valid cells | ~14,500 |
+| Valid cells | ~15,900 |
 
 **Why a median composite instead of a single scene?** Individual satellite overpasses depend heavily on short-term cloud and dust anomalies. The 3-year median stabilises the signal, filters scene-specific artefacts and stays current at the same time.
 
 **`lst_norm` (rank normalisation):** For cross-map comparison each cell is mapped via `scipy.stats.rankdata` to a rank value 0.0–1.0 (0 = coldest, 1 = hottest cell in the captured area). This is deliberately rank-based rather than value-based so that outliers do not compress the colour scale.
-
-Single years (`..._2023_..`, `2024`, `2025`) are available but not yet wired into the app.
 
 ### 2.2 🌳 Tree cadastre Würzburg
 
@@ -190,7 +190,7 @@ Marks the five strongest heat centres. The algorithm:
 
 The "jump to this location" button uses MapLibre's native `flyTo`.
 
-### Current in-app hints (replaceable by this documentation)
+### Hint box
 The hint box mentions: 100 m grid resolution (finer differences within a cell not shown), LST ≠ air temperature, uncoloured areas (outside the city boundary or clouds in the composite), tree cadastre = city trees only. All four points are fully explained in ch. 2.1 / 2.2 / 10.
 
 ---
@@ -221,11 +221,11 @@ The weights sum to exactly 1.0 via an assertion. `compute_hvi()` returns `None` 
 anteil_65plus_adj = (n · observed + N_prior · city_mean) / (n + N_prior)
 ```
 
-with **`N_prior = 50`** and `city_mean` = population-weighted city mean rate (`global_65_rate`, exposed in the endpoint `meta`). Interpretation: at n = 50 residents the credibility is exactly 50 % (half city mean, half observed); at n ≫ 50 the observed value dominates. Examples from the code: n=3, obs.=1.0, global=0.22 → adj ≈ 0.24; n=200, obs.=0.30, global=0.22 → adj ≈ 0.28.
+with **`N_prior = 50`** and `city_mean` = population-weighted city mean rate (`global_65_rate`, exposed in the endpoint `meta`). Interpretation: at n = 50 residents the credibility is exactly 50 % (half city mean, half observed); at n ≫ 50 the observed value dominates. Examples from the code: n=3, obs.=1.0, global=0.22 → adj ≈ 0.26; n=200, obs.=0.30, global=0.22 → adj ≈ 0.28.
 
 ### KPI tiles & tooltip
 - **Most vulnerable area:** highest HVI in the dataset.
-- **Affected population:** Σ population of all cells with HVI > 7.0.
+- **Affected population:** Σ population of all cells with HVI > 7.0 in the analysis area. It extends beyond the city boundary (as of Nov. 2026: 43 of the 185 cells and about 1,900 of the 10,659 people lie outside Würzburg).
 - **Per-cell tooltip:** HVI, LST, share 65+ (raw), 65+ adjusted, population. Warnings on census rounding (§ 16 BStatG) or missing age structure.
 
 The formula card in the panel shows weights, `N_prior`, city avg 65+ live from the endpoint `meta`. The interpretation box ("auto-generated") states: cells with a high HVI combine above-average surface temperature and an elevated senior share → priority for tree planting and unsealing.
@@ -290,7 +290,7 @@ Crucially: the sealing degree limits only the **trunk count** (`n_trees`), **not
 
 **Gap assumption (E2):** Only ATKIS `sie02` (settlement) + `ver01` (traffic) are loaded. Cells without coverage are treated as **unsealed** (green/open space) and marked in the panel ("⚠ Partly no ATKIS settlement/traffic area → assumed unsealed"), so a gap is not misread as "missing data".
 
-**Sealing degrees `seal_rate` by area type** (literature values — UBA Texte 141/2021, Bayreuth guideline 2024, DIN 18005; land-use ↔ sealing relationship after Arnold & Gibbons 1996):
+**Sealing degrees `seal_rate` by area type** — **own assumptions**, not values taken directly from the literature. Rough orientation: sealing levels after Böcker (1984), as reproduced in UBA Texte 141/2021, p. 60 (moderate 10–50 %, medium 45–75 %, strong 70–90 %, very strong 85–100 %):
 
 | Area type | `seal_rate` |
 |---|---|
@@ -316,8 +316,8 @@ Shows tree count (existing from bbox counting + new), temperature (avg LST of th
 #### Output example (JSON)
 ```json
 { "n_trees": 50, "area_m2": 120000, "existing_coverage_pct": 0.0,
-  "new_crown_area_ratio": 0.021, "effective_new_pct": 2.06,
-  "total_coverage_pct": 2.06, "delta_lst_celsius": -0.17, "co2_kg_year": 625.0,
+  "new_crown_area_ratio": 0.021, "effective_new_pct": 2.1,
+  "total_coverage_pct": 2.1, "delta_lst_celsius": -0.17, "co2_kg_year": 625.0,
   "coefficients_used": { "lst_per_pct_canopy": -0.083, "land_use": "mixed",
     "crown_area_m2": 50.0, "co2_kg_per_tree_year": 12.5 }, "caveats": [ … ] }
 ```
@@ -326,38 +326,42 @@ Shows tree count (existing from bbox counting + new), temperature (avg LST of th
 
 ### 7b · Sub-tab Unsealing (`GET /api/simulate/wasser`)
 
-**Outputs:** additional infiltration (m³/yr), runoff share before/after, persons' annual drinking-water need, groundwater-recharge estimate. Operation: select polygons, set from/to surface per area type, area via slider.
+**Outputs:** additional rainwater retained on site (m³/yr), runoff share before/after, persons' annual tap-water use, groundwater-recharge context (LfU district value, not calculated). Operation: select polygons, set from/to surface per area type, area via slider.
 
-#### Computation (rational formula, infiltration only)
+#### Computation (runoff-coefficient method, annual volume)
 
 ```
 delta_C              = Ψ_from − Ψ_to
 infiltration_m3_year = max(0, A · N · delta_C)
 retention_pct        = (1 − Ψ_to) · 100
-context_persons      = infiltration_m3_year / 46.4
+context_persons      = infiltration_m3_year / 44.2
 ```
 
-with A = unsealed area (m²), **N = 0.5735 m/yr** (DWD station 05705), Ψ = runoff coefficient. `max(0, …)` catches the case where the target surface is more sealed than the source surface (then an additional caveat). Unknown surface types → HTTP 422.
+with A = unsealed area (m²), **N = 0.5735 m/yr** (DWD station 05705), Ψ = runoff coefficient. `max(0, …)` catches the case where the target surface is more sealed than the source surface (then an additional caveat). Unknown surface types → HTTP 422. `retention_pct` is the share of rainfall that does not run off the surface of the target material (1 − Ψ_to); it is not shown in the app.
 
-**Example:** 1,000 m² asphalt → gravel lawn: delta_C = 0.90 − 0.30 = 0.60 → infiltration = 1,000 · 0.5735 · 0.60 = **344.1 m³/yr**.
+**Example:** 1,000 m² asphalt → gravel lawn: delta_C = 0.90 − 0.30 = 0.60 → retained water = 1,000 · 0.5735 · 0.60 = **344.1 m³/yr**.
+
+**What the number means:** `A · N · ΔΨ` is the amount of rainwater that **no longer runs off the surface** after unsealing and stays on site instead. The model does not distinguish whether it infiltrates or evaporates (e.g. from joints, depressions and vegetation) — the number is therefore an **upper bound for infiltration**. For compatibility, the API field is still called `infiltration_m3_year`.
 
 #### Runoff coefficients Ψ by surface type
 
-Ψ = share of rainfall that **runs off** (does not infiltrate); 0 = all infiltrates, 1 = none.
+Ψ = share of rainfall that **runs off the surface**; 0 = nothing runs off, 1 = everything runs off.
 
 | Surface type (`key`) | Ψ | Primary source |
 |---|---|---|
-| Asphalt / concrete (`asphalt`) | **0.90** | DWA-A138 / LfU Bavaria |
-| Paving, tight joints (`pflaster_dicht`) | **0.75** | DWA-A138 / LfU Bavaria |
-| Paving, open joints (`pflaster_offen`) | **0.50** | DWA-A138 / LfU Bavaria |
+| Asphalt / concrete (`asphalt`) | **0.90** | DWA-A 138 (2005) |
+| Paving, tight joints (`pflaster_dicht`) | **0.75** | DWA-A 138 (2005) |
+| Paving, open joints (`pflaster_offen`) | **0.50** | DWA-A 138 (2005) |
 | Loam/gravel/grit surface (`lehm_kies`) | **0.40** | Bayreuth guideline 2024 |
 | Infiltration paving (`sickerpflaster`) | **0.30** | Bayreuth guideline 2024 (0.0–0.6, mid) |
-| Gravel lawn (`schotterrasen`) | **0.30** | DWA-A138 / LfU Bavaria |
-| Grass pavers (`rasengitter`) | **0.15** | DWA-A138 / LfU Bavaria |
+| Gravel lawn (`schotterrasen`) | **0.30** | DWA-A 138 (2005) |
+| Grass pavers (`rasengitter`) | **0.15** | DWA-A 138 (2005) |
 | Grass honeycomb (`rasenwabe`) | **0.15** | Bayreuth guideline 2024 |
-| Grass / meadow (`rasendecke`) | **0.05** | DWA-A138 / LfU Bavaria (0.0–0.1, mid) |
+| Grass / meadow (`rasendecke`) | **0.05** | DWA-A 138 (2005), range 0.0–0.1, mid |
 
-**DWA-A138:** technical standard of the German Association for Water, Wastewater and Waste — *Planning, construction and operation of facilities for the infiltration of precipitation water* (2005, revision 2020); introduced as binding in Bavaria by the LfU. **Bayreuth guideline 2024:** Bayreuth district office, *Guideline on surface unsealing*, complements DWA-A138 with cost figures and Bavaria-specific ranges. (Note: the asphalt value was aligned from an earlier 0.95 in the guideline to 0.90 per DWA-A138.)
+**Limitation:** The Ψ values are mean runoff coefficients for the **design** of infiltration facilities, not measured annual water-balance values. For annual volumes they are an approximation; a robust split into runoff, infiltration and evaporation requires a water-balance calculation according to DWA-M 102-4/BWK-M 3-4 (2022), which is not implemented here.
+
+**DWA-A 138:** worksheet of the German Association for Water, Wastewater and Waste — *Planning, construction and operation of facilities for the infiltration of precipitation water* (2005 edition). Since superseded by **DWA-A 138-1** (*Facilities for the infiltration of precipitation water – Part 1: Planning, construction, operation*, October 2024). The Ψ values are taken from the table of the 2005 edition as reproduced in a technical presentation by the Bavarian Environment Agency (LfU); they have not been checked against the new edition. **Bayreuth guideline 2024:** Bayreuth district office, *Guideline on surface unsealing* (May 2024), a practical guideline with runoff coefficients and cost figures for unsealed surfaces. (Note: the asphalt value was aligned from an earlier 0.95 in the guideline to 0.90 per DWA-A 138.)
 
 #### Slider maximum & realisability
 
@@ -374,16 +378,16 @@ The slider maximum is the **Σ sealed area** of the selection (`Σ area_m2 · se
 | Road | 10 % | only verges/shoulders |
 | Default | 40 % | — |
 
-These factors are expert plausibility estimates and serve only for context ("Typically realistic: ~X m²").
+These factors are **own estimates without a literature source** and serve only for context ("Typically realistic: ~X m²").
 
 #### Result interpretations
 
-- **Persons' annual drinking-water need:** `infiltration / 46.4`. Basis: **127 L/day/person** (BDEW water statistics 2023, Water Sector Profile) → 127 · 365 / 1000 ≈ **46.4 m³/person/yr**.
+- **Persons' annual tap-water use:** `infiltration / 44.2`. Basis: **121 L/day/person** — average drinking-water (tap-water) use in 2023 according to BDEW ([press release of 6 Aug 2024](https://www.bdew.de/presse/presseinformationen/zahl-der-woche-121-liter-leitungswasser/)) → 121 · 365 / 1000 ≈ **44.2 m³/person/yr**. This is total household use (showering, toilet, washing …), not drinking alone.
 - **Illustrative context** (`formatWasserKontext`): < 2 m³ → buckets @ 10 L; < 150 m³ → bathtubs @ 150 L; otherwise → pools @ 50 m³.
-- **Groundwater recharge (estimate):** `infiltration · [0.15 … 0.30]`. Basis: approx. **15–30 %** of the surface-infiltrating volume reaches the groundwater in Bavaria (LfU Bavaria, planning guideline without detailed soil investigation). The rest evaporates, is taken up by plants, or leaves as interflow. Local soil properties (kf value), groundwater depth and building density are **not** accounted for.
+- **Groundwater (context only):** The simulation does **not** calculate groundwater recharge — how much of the additionally retained water reaches the groundwater depends on soil, vegetation, evaporation and depth to the water table, none of which the model knows. For context, the panel states the mean **groundwater recharge from precipitation in the district of Würzburg incl. the city: 96 mm/yr** (Bavarian Environment Agency LfU 2025, model GWN-BW, dataset v2025.1, period 1991–2020, excluding water bodies). The value is an area average over all land uses and is deliberately **not** converted to the unsealed area.
 
 #### Why unsealing yields no Δ°C
-The coefficient `LST_PER_PCT_UNSEALING = −0.03 °C/%` (Tervooren 2015, Potsdam) exists in `simulation_params.py` but is **deliberately not** applied: it is calibrated at the **aggregate level** (whole reference area). Applied to a single polygon it would yield physically meaningless micro-values (e.g. −0.006 °C) that feign a false precision. The water simulation therefore only outputs the area-precise water benefit. A v2 would have to report the Δ°C at the **reference-area level** (e.g. "Δ°C for this district at X % total unsealing").
+The sealing degree in the tool is a type value per land-use class. A surface change (e.g. asphalt → gravel lawn) changes the material and thus Ψ, but not this sealing degree. A coefficient in °C per percentage point of sealing — such as −0.03 °C/% from Tervooren (2015, Potsdam) — therefore cannot be applied meaningfully. The simulation reports the water benefit only.
 
 ---
 
@@ -397,37 +401,35 @@ All values from `backend/simulation_params.py`. The frontend copy `frontend/src/
 | `LST_PER_PCT_CANOPY_OVERALL` | −0.069 °C/% | García de León et al. 2025, entire city area | stored |
 | `LST_PER_PCT_CANOPY_RECREATIONAL` | −0.038 °C/% | García de León et al. 2025, recreational areas (R² 0.41) | stored |
 | `CROWN_AREA_M2_DEFAULT` | **50 m²** | conservative default (see below) | applied |
-| `TRANSPIRATION_LB3_KG_M2_DAY` | 0.19 kg/m²/day | Stratopoulos-Le Chalony 2020 (TUM diss.), moisture-adapted | stored, **not** computed in v1 |
-| `TRANSPIRATION_LB6_KG_M2_DAY` | 0.17 kg/m²/day | same source, drought-tolerant (−11 %) | stored, not in v1 |
+| `TRANSPIRATION_LB3_KG_M2_DAY` | 0.19 kg/m²/day | Stratopoulos-Le Chalony 2020 (TUM diss.), moisture-adapted | stored, currently **not** computed |
+| `TRANSPIRATION_LB6_KG_M2_DAY` | 0.17 kg/m²/day | same source, drought-tolerant (−11 %) | stored, currently not computed |
 | `LATENT_HEAT_KWH_PER_KG` | 0.628 kWh/kg | physics: 2260 kJ/kg ÷ 3600 | for v2 (transpiration cooling) |
-| `LST_PER_PCT_UNSEALING` | −0.03 °C/% | Tervooren 2015, Potsdam (R² 0.75/0.80) | stored, **deliberately not** applied |
-| `RUNOFF_COEFFICIENTS` (Ψ) | 0.90 … 0.05 | DWA-A138 / LfU Bavaria; Bayreuth guideline 2024 | **applied** (water sim) |
+| `RUNOFF_COEFFICIENTS` (Ψ) | 0.90 … 0.05 | DWA-A 138 (2005); Bayreuth guideline 2024 | **applied** (water sim) |
 | `ANNUAL_RAINFALL_WUERZBURG_M` | 0.5735 m/yr | DWD station 05705, normal period 1991–2020 | applied |
 | `CO2_KG_PER_TREE_YEAR` | **12.5 kg** | Dr. Daniel Klein, Forest Centre Uni Münster | applied |
-| `SEAL_RATE_BY_TYPE` | 0.98 … 0.20 | literature values (UBA 141/2021, Bayreuth 2024) | applied (slider cap) |
+| `SEAL_RATE_BY_TYPE` | 0.98 … 0.20 | own assumptions (orientation: Böcker 1984, in UBA Texte 141/2021) | applied (slider cap) |
 | `CELL_AREA_M2` | 10,000 m² | geometry 100×100 m | — |
 | `MIN_GROUND_PER_TREE_M2` | 100 m² | FLL guideline, 2nd-order trees | slider cap (no model cap) |
-| `WATER_USE` | 46.4 m³/person/yr | BDEW 2023 (127 L/day) | result contextualisation |
+| `WATER_USE` | 44.2 m³/person/yr | BDEW 2023 (121 L/day) | result contextualisation |
 
-**On the 50 m² crown area:** Deliberately chosen conservatively. Mature crowns of the four main Würzburg species are 62–124 m² per Moser-Reischl et al. 2021 (Würzburg direct study, n=75–89 per species); Pretzsch et al. 2015 gives 65.6 m² for DBH 25 cm. 50 m² is deliberately below that to avoid over-rating young/mid-age new plantings — **not** a mature-state assumption. Typical range 30–80 m² by species and age. A later version is planned to use the measured `kronenbrei` field (`CPA = π·(kronenbrei/2)²`), with an allometric fallback from Moser-Reischl 2021.
+**On the 50 m² crown area:** Deliberately chosen conservatively. Mature crowns of the four main Würzburg species are 62–124 m² per Moser-Reischl et al. 2021 (Würzburg direct study, n=75–89 per species); Pretzsch et al. 2015 gives 65.6 m² for DBH 25 cm. 50 m² is deliberately below that to avoid over-rating young/mid-age new plantings — **not** a mature-state assumption. Typical range 30–80 m² by species and age. The 50 m² apply to **new plantings** only. The **existing stock** (`bestand_pct`) is computed from the measured crown diameter of each cadastre tree (crown area = `π·(kronenbrei/2)²`). Entries without a crown diameter — 761 of 44,647, of which 634 are recorded as “Gehölzfläche” (woody stands) — are not included; an allometric supplement would be possible for only 39 of them (those with a trunk circumference) and is not implemented. In cells with such woody stands, the existing canopy cover is therefore underestimated.
 
-**On the García de León source:** García de León, A. S. et al. (2025): *The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing*, JURSE 2025, IEEE. Linear regression LST ~ tree-crown share over 8,584 ATKIS land-use polygons; study city Munich, data summer 2020, > 166,000 individual trees from aerial-image segmentation. R² = 0.41 (recreation) to 0.61 (traffic). Authors mostly Univ. Würzburg / DLR → rated as methodically and regionally transferable.
+**On the García de León source:** García de León, A. S. et al. (2025): *The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing*, JURSE 2025, IEEE. Linear regression LST ~ tree-crown share over 8,584 ATKIS land-use polygons; study city Munich, data summer 2020, > 166,000 individual trees from aerial-image segmentation. R² = 0.41 (recreation) to 0.61 (traffic). Transfer to Würzburg is plausible — comparable climate, the same ATKIS land-use classes, a similar method — but has not been checked against Würzburg data.
 
-**On the CO₂ figure 12.5 kg/yr:** Derivation by Dr. Daniel Klein (Forest Centre Uni Münster): beech, 23 m, ∅ 30 cm → ~600 kg dry mass → 1,000 kg CO₂ over 80 years. Applies to **mature** deciduous trees in a forest stand; new plantings sequester far less in the first years. (This source is not yet documented as its own wiki page — to be added before a production release.)
+**On the CO₂ figure 12.5 kg/yr:** Derivation by Dr. Daniel Klein (Forest Centre Uni Münster): beech, 23 m, ∅ 30 cm → ~600 kg dry mass → 1,000 kg CO₂ over 80 years. Applies to **mature** deciduous trees in a forest stand; new plantings sequester far less in the first years. This is a rough rule-of-thumb value from an information leaflet, not a primary study; the original is only available online as a secondary copy. No locally established rate exists for urban trees.
 
 ---
 
 ## 9 · Comparison of cooling effects (context)
 
-For context, why trees and unsealing act differently:
+For context on the tree coefficients:
 
 | Measure | Cooling coefficient | Source |
 |---|---|---|
 | +1 % tree-canopy cover (Munich, mixed use) | −0.083 °C LST | García de León 2025 |
 | +1 % tree-canopy cover (Munich, overall) | −0.069 °C LST | García de León 2025 |
-| −1 % sealing (Potsdam) | −0.030 °C LST | Tervooren 2015 |
 
-→ Trees cool **~2.3–2.8× more** per percentage point than pure unsealing. Unsealing in turn provides additional water benefit (infiltration, groundwater, biodiversity). Further benchmarks from the wiki: trees vs. urban fabric 8–12 K cooling effect in Central Europe (Schwaab 2021); trees 2–4× more effective than treeless green spaces.
+Further benchmarks from the literature: trees vs. urban fabric 8–12 K cooling effect in Central Europe (Schwaab 2021); trees 2–4× more effective than treeless green spaces.
 
 ---
 
@@ -437,10 +439,9 @@ For context, why trees and unsealing act differently:
 
 | Coefficient | Origin | Transfer to Würzburg | Status |
 |---|---|---|---|
-| −0.083 °C/% canopy | Munich (Cfb/Dfb) | same climate zone, Würzburg researchers | applied, plausible, not validated |
-| −0.03 °C/% unsealing | Potsdam (Cfb) | slightly more continental (Dfb) | not applied (aggregate level only) |
-| Ψ runoff coefficients | Bavaria (DWA-A138) | standard directly applicable | valid |
-| Sealing degrees | literature mean | no Würzburg measurement | estimate |
+| −0.083 °C/% canopy | Munich | comparable climate, same ATKIS classes; not locally calibrated | applied, plausible, not validated |
+| Ψ runoff coefficients | DWA-A 138 (Germany-wide) | design values, approximated for annual volumes | approximation |
+| Sealing degrees | own assumptions | no Würzburg measurement | estimate |
 
 **10.2 LST ≠ air temperature.** Land surface temperature is a remote-sensing proxy. Under full sun it runs several °C above air temperature; on overcast days the two converge. All Δ values refer to LST. For comfort statements (PET, UTCI) a separate model would be needed. — *This is the only hint that should stay prominent in the app (banner `LST ≠ air`).*
 
@@ -450,7 +451,7 @@ For context, why trees and unsealing act differently:
 
 **10.5 Crown area 50 m²** is a conservative default for mid-age trees; mature Würzburg crowns are 62–124 m², young new plantings far below. Δ°C and canopy cover apply to mid-age-to-mature trees.
 
-**10.6 Sealing degrees** are coarse type means from literature, not measured per-cell sealing. "Unsealed" ≠ actually available (private gardens, existing vegetation, setback areas); the plantable area is an upper bound, not a planting plan.
+**10.6 Sealing degrees** are coarse own assumptions per area type, not measured per-cell sealing. "Unsealed" ≠ actually available (private gardens, existing vegetation, setback areas); the plantable area is an upper bound, not a planting plan.
 
 **10.7 CO₂ 12.5 kg/yr** applies to mature forest trees; city trees often grow more slowly (soil compaction, heat, root space). CO₂ sequestration is a side effect — the primary climate function of city trees is cooling through transpiration and shading.
 
@@ -464,30 +465,11 @@ For context, why trees and unsealing act differently:
 3. **Copernicus/GHSL imperviousness** (10 m, `JRC/GHSL/P2023A/GHS_BUILT_S`) instead of literature sealing degrees.
 4. **Crown area from the cadastre** (`kronenbrei`) instead of the 50 m² default.
 5. **Transpiration cooling power (kWh)** as a v2 output of the tree simulation.
-6. **Unsealing Δ°C** at the reference-area level.
+6. **Temperature effect of unsealing**, once sealing is measured per area instead of typed (see item 3).
 
 ---
 
-## 11 · Consolidation of the in-app hint fields
-
-Proposal for which fields can be reduced after introducing this documentation page. Each row points to the doc chapter that fully carries the content.
-
-| In-app element | Recommendation | Doc chapter |
-|---|---|---|
-| Heat atlas · hint box (4 points) | reduce to 1 line + doc link | 2.1, 2.2, 10.4, 10.9 |
-| Heat atlas · top-5 methodology expander | keep a short sentence, link details | 4 (hotspots) |
-| Vulnerability · formula card (expander text) | keep formula visible, link the explanation | 5 |
-| Vulnerability · interpretation box | keep (short) | 5 |
-| Tree sim · methodology & limitations | reduce to doc link | 7a, 8, 10 |
-| Tree sim · tree-pit note | keep (context-specific) | 7a |
-| Water sim · methodology (formula + 3 tables) | reduce to doc link | 7b, 8 |
-| `LST ≠ air` banner | **keep** (most important core hint) | 10.2 |
-
-**Recommended pattern:** one subtle "ℹ methodology & sources" link per tab that jumps to the matching anchor on this documentation page (e.g. `/dokumentation#7a-sub-tab-tree-planting`). The only content hint that should stay prominent on the maps is `LST ≠ air`.
-
----
-
-## 12 · Glossary
+## 11 · Glossary
 
 | Term | Definition |
 |---|---|
@@ -496,18 +478,18 @@ Proposal for which fields can be reduced after introducing this documentation pa
 | **HVI** | Heat Vulnerability Index — weighted score 1–10 from LST rank and (adjusted) senior share. |
 | **Ψ (runoff coefficient)** | dimensionless 0–1: share of rainfall running off at the surface (1 = fully impervious). |
 | **Sealing degree** | share of an area unit that is physically sealed. |
-| **Rational formula** | simplified hydrology model: runoff volume = area × rainfall × runoff coefficient. |
+| **Runoff-coefficient method** | annual runoff volume = area × annual rainfall × runoff coefficient Ψ. Not to be confused with the rational method, which computes peak discharge from rainfall intensity. |
 | **Bayesian shrinkage** | empirical-Bayes estimator: small grid cells are pulled toward the city mean rate to reduce small-numbers bias. |
 | **Crookston & Stage (1999)** | negative-exponential overlap model for projected canopy cover: `cover = 1 − exp(−Σ crown area / area)`. |
 | **NDVI** | Normalized Difference Vegetation Index — vegetation strength, 0 (sealed) to ~0.7+ (dense vegetation). |
 | **LAEA / EPSG:3035** | Lambert Azimuthal Equal Area — coordinate system of the Destatis grid data. |
 | **ATKIS** | Official Topographic-Cartographic Information System — official land-use classification in Germany. |
-| **DWA-A138** | technical standard for infiltration facilities; primary source of the runoff coefficients. |
+| **DWA-A 138** | DWA worksheet on infiltration facilities (2005 edition, since 10/2024 DWA-A 138-1); primary source of the runoff coefficients. |
 | **FLL guideline** | "Recommendations for tree plantings" — basis for the planting distance (100 m²/tree, 2nd order). |
 
 ---
 
-## 13 · List of sources
+## 12 · List of sources
 
 | Source | Dataset / contribution | Licence |
 |---|---|---|
@@ -517,7 +499,7 @@ Proposal for which fields can be reduced after introducing this documentation pa
 | LDBV Bavaria | ATKIS Basis-DLM (`sie02_f`, `ver01_f`) | CC BY 4.0 |
 | OpenStreetMap | parking lots, squares, flat roofs | ODbL |
 | DWD (Climate Data Center) | rainfall station 05705, 1991–2020 | DWD Open Data |
-| DWA-A138 / LfU Bavaria | runoff coefficients Ψ | standard |
+| DWA-A 138 (2005), as reproduced by LfU Bavaria; superseded by DWA-A 138-1 (2024) | runoff coefficients Ψ | technical rule (paid) |
 | Bayreuth district office (2024) | surface-unsealing guideline, supplementary Ψ/costs | public |
 | García de León et al. (2025), Munich | LST×canopy coefficients | scientific publication |
 | Crookston & Stage (1999), USDA RMRS-GTR-24 | canopy-cover overlap model | public |
@@ -525,12 +507,12 @@ Proposal for which fields can be reduced after introducing this documentation pa
 | Pretzsch et al. (2015) | crown sizes of 22 tree species | scientific publication |
 | Gray et al. (2021) | Beer-Lambert overlap model (validation) | scientific publication |
 | Stratopoulos-Le Chalony (2020), TU Munich | transpiration rates LB3/LB6 | dissertation |
-| Tervooren (2015), Potsdam | unsealing coefficient −0.03 °C/% | scientific publication |
-| Dr. Daniel Klein, Forest Centre Uni Münster | CO₂ sequestration 12.5 kg/tree/yr | expert derivation |
-| BDEW (2023) | drinking-water use 127 L/day | public |
-| LfU Bavaria | groundwater recharge 15–30 % | public |
-| UBA Texte 141/2021; Arnold & Gibbons (1996); DIN 18005 | sealing degrees by land use | public / standard |
+| Tervooren (2015), Potsdam | unsealing coefficient −0.03 °C/% (not applied, see ch. 7b) | scientific publication |
+| Dr. Daniel Klein, Forest Centre Uni Münster | CO₂ sequestration 12.5 kg/tree/yr | rule of thumb (information leaflet), not a primary study |
+| BDEW (2024) | tap-water use 2023: 121 L/person/day — [press release](https://www.bdew.de/presse/presseinformationen/zahl-der-woche-121-liter-leitungswasser/) | public |
+| LfU Bavaria (2025) | groundwater recharge from precipitation by district, 1991–2020 (Würzburg: 96 mm/yr) — [PDF](https://www.lfu.bayern.de/wasser/trinkwassereinzugsgebieteverordnung/beschreibung_einzugsgebiet/doc/gwneubildung_n_bayern.pdf) | public |
+| UBA Texte 141/2021 (Pannicke-Prochnow et al.) | sealing levels after Böcker (1984), p. 60 — orientation for the own sealing degrees | public |
 
 ---
 
-*This documentation bundles the content of `simulation_params.py`, `vuln_formula.py`, the backend routers and the wiki submodule `urban-heat-wiki/wiki/`. When changing coefficients, update the wiki source page first, then `simulation_params.py`, then this documentation.*
+*This documentation bundles the content of `simulation_params.py`, `vuln_formula.py`, and the backend routers. When changing coefficients, update `simulation_params.py` first, then this documentation.*

@@ -45,7 +45,7 @@ export const SURFACE_LABELS = {
 }
 
 // Versiegelungsstufen, absteigend nach Abflussbeiwert (höchste → geringste Versiegelung)
-// Quellen: DWA-A138 / LfU Bayern; Leitfaden Flächenentsiegelung Bayreuth 2024
+// Quellen: DWA-A 138 (2005); Leitfaden Flächenentsiegelung Bayreuth 2024
 export const SURFACE_ORDER = [
   'asphalt',
   'pflaster_dicht',
@@ -92,7 +92,7 @@ export const CROWN_AREA_M2_DEFAULT = 50
 export const MIN_GROUND_PER_TREE_M2 = 100
 
 // Ψ-Abflussbeiwerte je Belagstyp (gespiegelt aus simulation_params.py RUNOFF_COEFFICIENTS)
-// Quellen: DWA-A138 / LfU Bayern; Leitfaden Flächenentsiegelung Landkreis Bayreuth 2024
+// Quellen: DWA-A 138 (2005); Leitfaden Flächenentsiegelung Landkreis Bayreuth 2024
 export const RUNOFF_COEFFICIENTS = {
   asphalt:        0.90,
   pflaster_dicht: 0.75,
@@ -105,7 +105,8 @@ export const RUNOFF_COEFFICIENTS = {
   rasendecke:     0.05,
 }
 
-// Schätzwert: wie viel % der versiegelten Fläche ist je Flächentyp typischerweise entsiegelbar?
+// Eigene Schätzwerte (keine Literaturquelle): wie viel % der versiegelten Fläche ist je
+// Flächentyp typischerweise entsiegelbar?
 // Kein harter Cap — dient nur als informativer Hinweis in der UI.
 // Hintergrund: Ein Großteil der versiegelten Fläche entfällt auf Gebäudeflächen (Fundamente,
 // Fabrikhallen, Wohngebäude), die nicht entsiegelt werden können.
@@ -123,6 +124,14 @@ export const TYPICAL_REALIZATION_RATE = {
 export const getTypicalRealizationRate = (type_key) =>
   TYPICAL_REALIZATION_RATE[type_key] ?? TYPICAL_REALIZATION_RATE['_default']
 
-// Gespiegelt aus simulation_params.py CONTEXT_PERSONS_M3_PER_YEAR (≈ 46,4 m³/Jahr).
-// BDEW Wasserstatistik 2023: 127 L/Tag × 365 Tage.
-export const WATER_USE_M3_PER_PERSON_YEAR = 127 * 365 / 1000  // ≈ 46.4
+// Mittlere Grundwasserneubildung aus Niederschlag, Landkreis Würzburg mit Würzburg-Stadt,
+// 1991–2020, ohne Gewässerflächen — reiner Einordnungswert für die UI, wird NICHT
+// auf die entsiegelte Fläche umgerechnet (Flächenmittel über alle Landnutzungen).
+// Quelle: LfU Bayern (2025): Grundwasserneubildung aus Niederschlag für die Landkreise
+// in Bayern. Modell GWN-BW, Datensatz v2025.1, Stand April 2025.
+// https://www.lfu.bayern.de/wasser/trinkwassereinzugsgebieteverordnung/beschreibung_einzugsgebiet/doc/gwneubildung_n_bayern.pdf
+export const GW_RECHARGE_LK_WUERZBURG_MM_YEAR = 96
+
+// Gespiegelt aus simulation_params.py CONTEXT_PERSONS_M3_PER_YEAR (≈ 44,2 m³/Jahr).
+// BDEW (Pressemitteilung 06.08.2024): Trinkwassergebrauch 2023 = 121 L/Person/Tag × 365 Tage.
+export const WATER_USE_M3_PER_PERSON_YEAR = 121 * 365 / 1000  // ≈ 44.2

@@ -1,12 +1,12 @@
 """
 GET /api/simulate/baeume  — Neupflanzungen → Δ°C + CO₂-Bindung + Kronendeckung
-GET /api/simulate/wasser  — Entsiegelungsfläche → m³ Versickerung/Jahr (Rational-Formel)
+GET /api/simulate/wasser  — Entsiegelungsfläche → m³ zurückgehaltenes Wasser/Jahr (Abflussbeiwert-Ansatz, Jahresvolumen)
 
 Formeln und Koeffizienten ausschließlich aus simulation_params.py.
-Wissenschaftliche Herleitung: urban-heat-wiki/wiki/simulation-logic.md
+Wissenschaftliche Herleitung: docs/Dokumentation.md (Kap. 7)
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -27,7 +27,9 @@ router = APIRouter()
 _VALID_SURFACES = sorted(RUNOFF_COEFFICIENTS.keys())
 _LAND_USE_INTERNAL = "mixed"
 
-_BAEUME_CAVEATS = [
+_LANG_DESCRIPTION = "Sprache der Hinweise (caveats): de | en"
+
+_BAEUME_CAVEATS_DE = [
     (
         "Kronendeckung: projizierte Bodenabdeckung nach dem negativ-exponentiellen "
         "Überlappungsmodell (Crookston & Stage 1999) — 1 − exp(−Σ Kronenfläche / Fläche). "
@@ -46,30 +48,82 @@ _BAEUME_CAVEATS = [
         "gegen projizierte Kronendeckung — noch nicht lokal für Würzburg kalibriert."
     ),
     (
-        "12,5 kg CO₂/Baum/Jahr ist ein Mittelwert für ausgewachsene Laubbäume im "
-        "Forstbestand — Neupflanzungen binden in den ersten Jahren deutlich weniger."
+        "12,5 kg CO₂/Baum/Jahr ist ein grober Faustwert für eine ausgewachsene Waldbuche "
+        "(Wald-Zentrum Uni Münster), keine Primärstudie — Neupflanzungen binden in den "
+        "ersten Jahren deutlich weniger."
     ),
     "Stadtbäume wachsen oft langsamer als Waldbäume (Bodenverdichtung, Hitze, Wurzelraum).",
     (
         "CO₂-Bindung ist ein Nebeneffekt; die primäre Klimafunktion von Stadtbäumen ist "
         "Kühlung durch Transpiration und Beschattung."
     ),
-    (
-        "Kontext: 80 Bäume binden ~1 Tonne CO₂/Jahr — entspricht ca. einer Autobahnfahrt "
-        "Würzburg–Hamburg und zurück."
-    ),
+    "Kontext: 80 Bäume binden rechnerisch ~1 Tonne CO₂/Jahr.",
 ]
 
-_WASSER_CAVEATS = [
+_BAEUME_CAVEATS_EN = [
     (
-        "Abflussbeiwerte nach Leitfaden Landkreis Bayreuth 2024 — Literaturwerte, "
-        "nicht vor Ort gemessen."
+        "Canopy cover: projected ground cover from the negative-exponential overlap model "
+        "(Crookston & Stage 1999) — 1 − exp(−Σ crown area / area). Overlaps are accounted "
+        "for, assuming random (Poisson) crown placement. Slightly underestimated for "
+        "regularly planted avenues, slightly overestimated for park clusters."
     ),
     (
-        "Niederschlag: DWD Station Würzburg (573,5 mm/Jahr, Referenzperiode 1991–2020). "
-        "Klimawandel kann zukünftige Niederschlagsmengen verändern."
+        "50 m² crown area is a conservative default for middle-aged trees "
+        "(Pretzsch 2015 / Moser-Reischl 2021); mature Würzburg crowns measure 62–124 m², "
+        "young new plantings considerably less. In the first years after planting the "
+        "cooling effect is correspondingly smaller."
     ),
+    (
+        "−0.083 °C/% is based on García de León et al. (2025; Munich study, summer 2020 data), "
+        "calibrated against projected canopy cover — not yet calibrated locally for Würzburg."
+    ),
+    (
+        "12.5 kg CO₂/tree/year is a rough rule of thumb for a mature forest beech "
+        "(Wald-Zentrum, University of Münster), not a primary study — new plantings "
+        "sequester considerably less in their first years."
+    ),
+    "Urban trees often grow more slowly than forest trees (soil compaction, heat, root space).",
+    (
+        "CO₂ sequestration is a side effect; the primary climate function of urban trees is "
+        "cooling through transpiration and shading."
+    ),
+    "Context: 80 trees sequester roughly 1 tonne of CO₂ per year.",
 ]
+
+_BAEUME_CAVEATS = {"de": _BAEUME_CAVEATS_DE, "en": _BAEUME_CAVEATS_EN}
+
+_WASSER_CAVEATS = {
+    "de": [
+        (
+            "Ergebnis ist der vermiedene Oberflächenabfluss – Wasser, das vor Ort bleibt. "
+            "Wie viel davon versickert oder verdunstet, wird nicht modelliert."
+        ),
+        (
+            "Abflussbeiwerte Ψ nach DWA-A 138 (2005) bzw. Leitfaden Flächenentsiegelung "
+            "Landkreis Bayreuth (2024) — Bemessungswerte, für Jahresmengen eine Näherung, "
+            "nicht vor Ort gemessen."
+        ),
+        (
+            "Niederschlag: DWD Station Würzburg (573,5 mm/Jahr, Referenzperiode 1991–2020). "
+            "Klimawandel kann zukünftige Niederschlagsmengen verändern."
+        ),
+    ],
+    "en": [
+        (
+            "The result is the avoided surface runoff — water that stays on site. "
+            "How much of it infiltrates or evaporates is not modelled."
+        ),
+        (
+            "Runoff coefficients Ψ according to DWA-A 138 (2005) and the unsealing guide of the "
+            "district of Bayreuth (2024) — design values, an approximation for annual volumes, "
+            "not measured on site."
+        ),
+        (
+            "Precipitation: DWD station Würzburg (573.5 mm/year, reference period 1991–2020). "
+            "Climate change may alter future precipitation."
+        ),
+    ],
+}
 
 
 _SURFACE_QUERY_DESCRIPTION = (
@@ -92,13 +146,14 @@ def simulate_baeume(
             ),
         ),
     ] = 0.0,
+    lang: Annotated[Literal["de", "en"], Query(description=_LANG_DESCRIPTION)] = "de",
 ):
     """
     Berechnet Δ°C LST, CO₂-Bindung und Kronendeckung für N Neupflanzungen
     auf einer gegebenen Fläche unter Berücksichtigung bestehender Kronendeckung.
 
     Projizierte Kronendeckung nach dem negativ-exponentiellen Überlappungsmodell
-    (Crookston & Stage 1999, siehe simulation-logic.md):
+    (Crookston & Stage 1999, siehe docs/Dokumentation.md, Kap. 7a):
 
       1. crown_area_total    = n_trees × CROWN_AREA_M2_DEFAULT
       2. existing_ratio      = −ln(1 − existing_coverage_pct/100)   (inverse Formel; log-sicher)
@@ -129,7 +184,7 @@ def simulate_baeume(
     delta_lst_celsius = LST_PER_PCT_CANOPY_MIXED * effective_new_pct
     co2_kg_year = n_trees * CO2_KG_PER_TREE_YEAR
 
-    caveats = list(_BAEUME_CAVEATS)
+    caveats = list(_BAEUME_CAVEATS[lang])
 
     return {
         "n_trees": n_trees,
@@ -155,17 +210,20 @@ def simulate_wasser(
     area_m2: Annotated[float, Query(..., gt=0, description="Zu entsiegelnde Fläche in m² (> 0)")],
     from_surface: Annotated[str, Query(description=_SURFACE_QUERY_DESCRIPTION)] = "asphalt",
     to_surface: Annotated[str, Query(description=_SURFACE_QUERY_DESCRIPTION)] = "schotterrasen",
+    lang: Annotated[Literal["de", "en"], Query(description=_LANG_DESCRIPTION)] = "de",
 ):
     """
-    Berechnet Versickerungsvolumen, Retention und Personen-Kontext nach der Rational-Formel.
+    Berechnet das zusätzlich vor Ort gehaltene Wasser (vermiedener Oberflächenabfluss;
+    Feldname infiltration_m3_year aus Kompatibilitätsgründen), Retention und
+    Personen-Kontext nach dem Abflussbeiwert-Ansatz (Jahresvolumen).
 
-    Schritt-für-Schritt (siehe simulation-logic.md):
+    Schritt-für-Schritt (siehe docs/Dokumentation.md, Kap. 7b):
       1. C_from              = RUNOFF_COEFFICIENTS[from_surface]
       2. C_to                = RUNOFF_COEFFICIENTS[to_surface]
       3. delta_C             = C_from - C_to
       4. infiltration_m3_yr  = max(0, area_m2 × ANNUAL_RAINFALL_WUERZBURG_M × delta_C)
       5. retention_pct       = (1 - C_to) × 100
-      6. context_persons     = infiltration_m3_yr / CONTEXT_PERSONS_M3_PER_YEAR   (BDEW 2023, 127 L/Tag × 365)
+      6. context_persons     = infiltration_m3_yr / CONTEXT_PERSONS_M3_PER_YEAR   (BDEW 2023, 121 L/Tag × 365)
     """
     # Unbekannte Belagstypen → 422
     errors = []
@@ -188,12 +246,15 @@ def simulate_wasser(
     retention_pct = (1.0 - c_to) * 100.0
     context_persons = infiltration_m3_year / CONTEXT_PERSONS_M3_PER_YEAR
 
-    caveats = list(_WASSER_CAVEATS)
+    caveats = list(_WASSER_CAVEATS[lang])
     if delta_c <= 0:
         caveats.insert(
             0,
             f'Zielbelag "{to_surface}" ist gleich oder stärker versiegelt als '
-            f'Ausgangsbelag "{from_surface}" → keine zusätzliche Versickerung.',
+            f'Ausgangsbelag "{from_surface}" → kein zusätzlich zurückgehaltenes Wasser.'
+            if lang == "de" else
+            f'Target surface "{to_surface}" is as sealed as or more sealed than '
+            f'the original surface "{from_surface}" → no additional water retained.',
         )
 
     return {

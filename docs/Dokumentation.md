@@ -1,7 +1,8 @@
 # Resilientes Würzburg — Vollständige Dokumentation
 
-**Stand:** Juli 2026 · **App-Version:** Doku v2 (löst Tool-Logik-und-Quellen.md v1.0 ab)
-**Sprache/Format:** Deutsch, Markdown. Diese Datei ist als **In-App-Doku-Seite** (`/dokumentation`) vorgesehen und ersetzt die verteilten Hinweis- und Methodik-Aufklappfelder der einzelnen Tabs.
+**Stand:** November 2026
+
+Diese Seite beschreibt für alle Tabs der App die Methodik, die Datenquellen, die Koeffizienten und die Annahmen.
 
 ---
 
@@ -21,11 +22,12 @@ Alle drei Ebenen sind räumlich auf das **Destatis-100-m-LAEA-Gitter (EPSG:3035)
 
 ```
 FRONTEND (React + Vite)                 BACKEND (FastAPI, Python)
-  deck.gl → Karten          REST/JSON     GeoPandas, Rasterio
-  Recharts → Charts        ◄─────────►    rasterstats, SciPy, osmnx
-  Tailwind + Zustand                      earthengine-api
-                                              │
+  MapLibre + deck.gl → Karten             GeoPandas, Rasterio
+  Tailwind + Zustand       ◄─────────►    SciPy, osmnx
+  i18next (DE/EN)            REST/JSON        │
                                           DATEN: GeoParquet, GeoTIFF, CSV
+                                          (LST-GeoTIFF vorab aus Google
+                                           Earth Engine exportiert)
 ```
 
 Das Backend gibt **immer GeoJSON oder JSON** zurück, nie rohe GeoDataFrames. Deployment: Backend → Render.com, Frontend → Vercel, beide via GitHub-CI/CD.
@@ -39,7 +41,7 @@ Das Backend gibt **immer GeoJSON oder JSON** zurück, nie rohe GeoDataFrames. De
 | `/vulnerabilitaet` | Heat-Vulnerability-Index (LST + Seniorenanteil) |
 | `/entsiegelung` | Versiegelte Flächen nach Typ (ATKIS + OSM) |
 | `/simulation` | Was-wäre-wenn: Baumpflanzung + Entsiegelung |
-| `/dokumentation` | Diese Doku (vorgesehen) |
+| `/dokumentation` | Diese Dokumentation |
 
 ---
 
@@ -57,13 +59,11 @@ Das Backend gibt **immer GeoJSON oder JSON** zurück, nie rohe GeoDataFrames. De
 | Skalierung | GEE liefert bereits fertige °C-Werte (DN→K→°C in GEE). Das Backend liest Band 1 direkt, **keine** weitere Umrechnung |
 | Bänder im GeoTIFF | Band 1 = LST_C (°C), Band 2 = NDVI, Band 3 = NDBI |
 | Datei | `lst_wue_2023_2025_summer_median.tif` |
-| Valide Zellen | ~14.500 |
+| Valide Zellen | ~15.900 |
 
 **Warum Median-Komposit statt Einzelszene?** Einzelne Satellitenüberflüge sind stark von kurzfristigen Wolken- und Staubanomalien abhängig. Der 3-Jahres-Median stabilisiert das Signal, filtert szenenspezifische Artefakte und bleibt gleichzeitig aktuell.
 
 **`lst_norm` (Rang-Normierung):** Für den kartenübergreifenden Vergleich wird jede Zelle per `scipy.stats.rankdata` auf einen Rangwert 0,0–1,0 gebracht (0 = kälteste, 1 = heißeste Zelle im erfassten Gebiet). Dies ist bewusst rang- und nicht wertbasiert, damit Ausreißer die Farbskala nicht stauchen.
-
-Einzeljahre (`..._2023_..`, `2024`, `2025`) liegen vor, sind aber noch nicht in die App eingebunden.
 
 ### 2.2 🌳 Baumkataster Würzburg
 
@@ -190,7 +190,7 @@ Markiert die fünf stärksten Hitzezentren. Der Algorithmus:
 
 Der „Zu diesem Ort springen"-Button nutzt MapLibres natives `flyTo`.
 
-### Aktuelle In-App-Hinweise (durch diese Doku ablösbar)
+### Hinweisbox
 Die Hinweisbox nennt: 100-m-Rasterauflösung (feinere Unterschiede innerhalb einer Zelle nicht dargestellt), LST ≠ Lufttemperatur, ungefärbte Flächen (außerhalb Stadtgrenze oder Wolken im Komposit), Baumkataster = nur Stadtbäume. Alle vier Punkte sind in Kap. 2.1 / 2.2 / 10 vollständig erklärt.
 
 ---
@@ -221,11 +221,11 @@ Die Gewichte summieren sich per Assertion exakt zu 1,0. `compute_hvi()` gibt `No
 anteil_65plus_adj = (n · beobachtet + N_prior · stadtmittel) / (n + N_prior)
 ```
 
-mit **`N_prior = 50`** und `stadtmittel` = bevölkerungsgewichtete Stadtmittelrate (`global_65_rate`, im `meta` des Endpoints ausgewiesen). Interpretation: Bei n = 50 Einwohnern liegt die Glaubwürdigkeit bei genau 50 % (halb Stadtmittel, halb beobachtet); bei n ≫ 50 dominiert der beobachtete Wert. Beispiele aus dem Code: n=3, beob.=1,0, global=0,22 → adj ≈ 0,24; n=200, beob.=0,30, global=0,22 → adj ≈ 0,28.
+mit **`N_prior = 50`** und `stadtmittel` = bevölkerungsgewichtete Stadtmittelrate (`global_65_rate`, im `meta` des Endpoints ausgewiesen). Interpretation: Bei n = 50 Einwohnern liegt die Glaubwürdigkeit bei genau 50 % (halb Stadtmittel, halb beobachtet); bei n ≫ 50 dominiert der beobachtete Wert. Beispiele aus dem Code: n=3, beob.=1,0, global=0,22 → adj ≈ 0,26; n=200, beob.=0,30, global=0,22 → adj ≈ 0,28.
 
 ### KPI-Kacheln & Tooltip
 - **Vulnerabelster Bereich:** höchster HVI im Datensatz.
-- **Betroffene Bevölkerung:** Σ Einwohner aller Zellen mit HVI > 7,0.
+- **Betroffene Bevölkerung:** Σ Einwohner aller Zellen mit HVI > 7,0 im Analysegebiet. Es reicht über die Stadtgrenze hinaus (Stand Nov. 2026: 43 der 185 Zellen und rund 1.900 der 10.659 Personen liegen außerhalb Würzburgs).
 - **Tooltip je Zelle:** HVI, LST, Anteil 65+ (roh), 65+ korrigiert, Einwohner. Warnhinweise bei Zensus-Rundung (§ 16 BStatG) bzw. fehlender Altersstruktur.
 
 Die Formelkarte im Panel zeigt Gewichte, `N_prior`, Stadt-Ø 65+ live aus dem `meta` des Endpoints. Die Interpretations-Box („auto-generiert") formuliert: Zellen mit hohem HVI vereinen überdurchschnittliche Oberflächentemperatur und erhöhten Seniorenanteil → Priorität für Baumpflanzung und Entsiegelung.
@@ -290,7 +290,7 @@ Wesentlich: Der Versiegelungsgrad begrenzt nur die **Stammzahl** (`n_trees`), **
 
 **Lücken-Annahme (E2):** Geladen sind nur ATKIS `sie02` (Siedlung) + `ver01` (Verkehr). Kacheln ohne Überdeckung gelten als **unversiegelt** (Grün-/Freifläche) und werden im Panel markiert („⚠ Teils keine ATKIS-Siedlungs-/Verkehrsfläche → als unversiegelt angenommen"), damit eine Lücke nicht als „fehlende Daten" missverstanden wird.
 
-**Versiegelungsgrade `seal_rate` je Flächentyp** (Literaturwerte — UBA Texte 141/2021, Leitfaden Bayreuth 2024, DIN 18005; Zusammenhang Landnutzung ↔ Versiegelung nach Arnold & Gibbons 1996):
+**Versiegelungsgrade `seal_rate` je Flächentyp** — **eigene Annahmen**, keine direkt übernommenen Literaturwerte. Grobe Orientierung: Versiegelungsstufen nach Böcker (1984), wiedergegeben in UBA Texte 141/2021, S. 60 (mäßig 10–50 %, mittel 45–75 %, stark 70–90 %, sehr stark 85–100 %):
 
 | Flächentyp | `seal_rate` |
 |---|---|
@@ -316,8 +316,8 @@ Zeigt Baumanzahl (Bestand aus Bbox-Zählung + neu), Temperatur (Ø LST der Auswa
 #### Ausgabe-Beispiel (JSON)
 ```json
 { "n_trees": 50, "area_m2": 120000, "existing_coverage_pct": 0.0,
-  "new_crown_area_ratio": 0.021, "effective_new_pct": 2.06,
-  "total_coverage_pct": 2.06, "delta_lst_celsius": -0.17, "co2_kg_year": 625.0,
+  "new_crown_area_ratio": 0.021, "effective_new_pct": 2.1,
+  "total_coverage_pct": 2.1, "delta_lst_celsius": -0.17, "co2_kg_year": 625.0,
   "coefficients_used": { "lst_per_pct_canopy": -0.083, "land_use": "mixed",
     "crown_area_m2": 50.0, "co2_kg_per_tree_year": 12.5 }, "caveats": [ … ] }
 ```
@@ -326,38 +326,42 @@ Zeigt Baumanzahl (Bestand aus Bbox-Zählung + neu), Temperatur (Ø LST der Auswa
 
 ### 7b · Sub-Tab Entsiegelung (`GET /api/simulate/wasser`)
 
-**Ausgaben:** zusätzliche Versickerung (m³/Jahr), Abflussanteil vorher/nachher, Personen-Jahrestrinkwasserbedarf, Grundwasserneubildungs-Schätzwert. Bedienung: Polygone auswählen, je Flächentyp Von-/Zu-Belag setzen, Fläche per Slider.
+**Ausgaben:** zusätzlich vor Ort gehaltenes Regenwasser (m³/Jahr), Abflussanteil vorher/nachher, Personen-Jahresverbrauch an Leitungswasser, Einordnung der Grundwasserneubildung (LfU-Landkreiswert, nicht berechnet). Bedienung: Polygone auswählen, je Flächentyp Von-/Zu-Belag setzen, Fläche per Slider.
 
-#### Berechnung (Rational-Formel, nur Versickerung)
+#### Berechnung (Abflussbeiwert-Ansatz, Jahresvolumen)
 
 ```
 delta_C              = Ψ_von − Ψ_zu
 infiltration_m3_year = max(0, A · N · delta_C)
 retention_pct        = (1 − Ψ_zu) · 100
-context_persons      = infiltration_m3_year / 46,4
+context_persons      = infiltration_m3_year / 44,2
 ```
 
-mit A = entsiegelte Fläche (m²), **N = 0,5735 m/Jahr** (DWD Station 05705), Ψ = Abflussbeiwert. `max(0, …)` fängt den Fall ab, dass der Zielbelag stärker versiegelt ist als der Ausgangsbelag (dann zusätzliches Caveat). Unbekannte Belagstypen → HTTP 422.
+mit A = entsiegelte Fläche (m²), **N = 0,5735 m/Jahr** (DWD Station 05705), Ψ = Abflussbeiwert. `max(0, …)` fängt den Fall ab, dass der Zielbelag stärker versiegelt ist als der Ausgangsbelag (dann zusätzliches Caveat). Unbekannte Belagstypen → HTTP 422. `retention_pct` ist der Anteil des Niederschlags, der auf dem Zielbelag nicht oberflächlich abfließt (1 − Ψ_zu); er wird in der App nicht angezeigt.
 
-**Beispiel:** 1.000 m² Asphalt → Schotterrasen: delta_C = 0,90 − 0,30 = 0,60 → Versickerung = 1.000 · 0,5735 · 0,60 = **344,1 m³/Jahr**.
+**Beispiel:** 1.000 m² Asphalt → Schotterrasen: delta_C = 0,90 − 0,30 = 0,60 → zurückgehaltenes Wasser = 1.000 · 0,5735 · 0,60 = **344,1 m³/Jahr**.
+
+**Was die Zahl bedeutet:** `A · N · ΔΨ` ist die Menge Regenwasser, die nach der Entsiegelung **nicht mehr oberflächlich abfließt**, sondern vor Ort bleibt. Ob sie versickert oder (etwa aus Fugen, Mulden und Bewuchs) verdunstet, unterscheidet das Modell nicht — die Zahl ist damit eine **Obergrenze der Versickerung**. Das API-Feld heißt aus Kompatibilitätsgründen weiterhin `infiltration_m3_year`.
 
 #### Abflussbeiwerte Ψ je Belagstyp
 
-Ψ = Anteil des Niederschlags, der **abfließt** (nicht versickert); 0 = alles versickert, 1 = nichts.
+Ψ = Anteil des Niederschlags, der **oberflächlich abfließt**; 0 = nichts fließt ab, 1 = alles fließt ab.
 
 | Belagstyp (`key`) | Ψ | Primärquelle |
 |---|---|---|
-| Asphalt / Beton (`asphalt`) | **0,90** | DWA-A138 / LfU Bayern |
-| Pflaster dichte Fugen (`pflaster_dicht`) | **0,75** | DWA-A138 / LfU Bayern |
-| Pflaster offene Fugen (`pflaster_offen`) | **0,50** | DWA-A138 / LfU Bayern |
+| Asphalt / Beton (`asphalt`) | **0,90** | DWA-A 138 (2005) |
+| Pflaster dichte Fugen (`pflaster_dicht`) | **0,75** | DWA-A 138 (2005) |
+| Pflaster offene Fugen (`pflaster_offen`) | **0,50** | DWA-A 138 (2005) |
 | Lehm-/Kies-/Splittdecke (`lehm_kies`) | **0,40** | Leitfaden Bayreuth 2024 |
 | Sickerpflaster (`sickerpflaster`) | **0,30** | Leitfaden Bayreuth 2024 (0,0–0,6, Mitte) |
-| Schotterrasen (`schotterrasen`) | **0,30** | DWA-A138 / LfU Bayern |
-| Rasengitter (`rasengitter`) | **0,15** | DWA-A138 / LfU Bayern |
+| Schotterrasen (`schotterrasen`) | **0,30** | DWA-A 138 (2005) |
+| Rasengitter (`rasengitter`) | **0,15** | DWA-A 138 (2005) |
 | Rasenwabe (`rasenwabe`) | **0,15** | Leitfaden Bayreuth 2024 |
-| Rasendecke / Wiese (`rasendecke`) | **0,05** | DWA-A138 / LfU Bayern (0,0–0,1, Mitte) |
+| Rasendecke / Wiese (`rasendecke`) | **0,05** | DWA-A 138 (2005), Spanne 0,0–0,1, Mitte |
 
-**DWA-A138:** technische Norm der Deutschen Vereinigung für Wasserwirtschaft, Abwasser und Abfall — *Planung, Bau und Betrieb von Anlagen zur Versickerung von Niederschlagswasser* (2005, Neufassung 2020); in Bayern durch das LfU verbindlich eingeführt. **Leitfaden Bayreuth 2024:** Landratsamt Bayreuth, *Leitfaden Flächenentsiegelung*, ergänzt DWA-A138 um Kostenkennwerte und Bayern-spezifische Bandbreiten. (Hinweis: Der Asphalt-Wert wurde von früher 0,95 aus dem Leitfaden auf 0,90 nach DWA-A138 angeglichen.)
+**Einschränkung:** Die Ψ-Werte sind mittlere Abflussbeiwerte zur **Bemessung** von Versickerungsanlagen, keine gemessenen Jahresbilanzwerte. Für Jahresmengen sind sie eine Näherung; eine belastbare Aufteilung in Abfluss, Versickerung und Verdunstung liefert erst eine Wasserhaushaltsbilanz nach DWA-M 102-4/BWK-M 3-4 (2022), die hier nicht umgesetzt ist.
+
+**DWA-A 138:** Arbeitsblatt der Deutschen Vereinigung für Wasserwirtschaft, Abwasser und Abfall — *Planung, Bau und Betrieb von Anlagen zur Versickerung von Niederschlagswasser* (Ausgabe 2005). Inzwischen abgelöst durch **DWA-A 138-1** (*Anlagen zur Versickerung von Niederschlagswasser – Teil 1: Planung, Bau, Betrieb*, Oktober 2024). Die Ψ-Werte stammen aus der Tabelle der Ausgabe 2005, wiedergegeben in einer Fachpräsentation des Bayerischen Landesamts für Umwelt (LfU); gegen die Neufassung sind sie nicht geprüft. **Leitfaden Bayreuth 2024:** Landratsamt Bayreuth, *Leitfaden Flächenentsiegelung* (Mai 2024), Praxisleitfaden mit Abflussbeiwerten und Kostenkennwerten für entsiegelte Beläge. (Hinweis: Der Asphalt-Wert wurde von früher 0,95 aus dem Leitfaden auf 0,90 nach DWA-A 138 angeglichen.)
 
 #### Slider-Maximum & Realisierbarkeit
 
@@ -374,16 +378,16 @@ Das Slider-Maximum ist die **Σ versiegelte Fläche** der Auswahl (`Σ area_m2 �
 | Straße | 10 % | nur Seitenstreifen/Bankette |
 | Default | 40 % | — |
 
-Diese Faktoren sind fachliche Plausibilitätsschätzungen und dienen nur der Einordnung („Typisch realistisch: ~X m²").
+Diese Faktoren sind **eigene Schätzungen ohne Literaturbeleg** und dienen nur der Einordnung („Typisch realistisch: ~X m²").
 
 #### Ergebnis-Einordnungen
 
-- **Personen-Jahrestrinkwasserbedarf:** `infiltration / 46,4`. Grundlage: **127 L/Tag/Person** (BDEW Wasserstatistik 2023, Branchenbild Wasser) → 127 · 365 / 1000 ≈ **46,4 m³/Person/Jahr**.
+- **Personen-Jahresverbrauch an Leitungswasser:** `infiltration / 44,2`. Grundlage: **121 L/Tag/Person** — durchschnittlicher Trinkwassergebrauch 2023 laut BDEW ([Pressemitteilung vom 06.08.2024](https://www.bdew.de/presse/presseinformationen/zahl-der-woche-121-liter-leitungswasser/)) → 121 · 365 / 1000 ≈ **44,2 m³/Person/Jahr**. Gemeint ist der gesamte Haushaltsverbrauch (Duschen, Toilette, Waschen …), nicht nur Trinken.
 - **Anschaulicher Kontext** (`formatWasserKontext`): < 2 m³ → Eimer à 10 L; < 150 m³ → Badewannen à 150 L; sonst → Schwimmbecken à 50 m³.
-- **Grundwasserneubildung (Schätzwert):** `infiltration · [0,15 … 0,30]`. Grundlage: Ca. **15–30 %** der oberflächlich versickernden Menge erreichen in Bayern das Grundwasser (LfU Bayern, Planungsrichtwert ohne detaillierte Bodenerkundung). Der Rest verdunstet, wird von Pflanzen aufgenommen oder fließt als Interflow ab. Lokale Bodeneigenschaften (kf-Wert), Grundwassertiefe und Bebauungsdichte sind **nicht** berücksichtigt.
+- **Grundwasser (nur Einordnung):** Die Simulation berechnet **keine** Grundwasserneubildung — wie viel des zusätzlich zurückgehaltenen Wassers das Grundwasser erreicht, hängt von Boden, Bewuchs, Verdunstung und Flurabstand ab, die das Modell nicht kennt. Das Panel nennt zur Einordnung die mittlere **Grundwasserneubildung aus Niederschlag im Landkreis Würzburg inkl. Stadt: 96 mm/Jahr** (LfU Bayern 2025, Modell GWN-BW, Datensatz v2025.1, Zeitraum 1991–2020, ohne Gewässerflächen). Der Wert ist ein Flächenmittel über alle Landnutzungen und wird bewusst **nicht** auf die entsiegelte Fläche umgerechnet.
 
 #### Warum die Entsiegelung kein Δ°C liefert
-Der Koeffizient `LST_PER_PCT_UNSEALING = −0,03 °C/%` (Tervooren 2015, Potsdam) existiert in `simulation_params.py`, wird aber **bewusst nicht** angewendet: Er ist auf **Aggregatebene** (ganzes Bezugsgebiet) kalibriert. Auf eine einzelne Polygonfläche angewendet ergäbe er physikalisch unsinnige Mikro-Werte (z. B. −0,006 °C), die eine Scheingenauigkeit vortäuschen. Die Wasser-Simulation gibt deshalb nur den flächenscharf berechenbaren Wassernutzen aus. Eine v2 müsste das Δ°C auf **Bezugsgebiets-Ebene** ausweisen (z. B. „Δ°C für diesen Stadtbezirk bei X % Gesamtentsiegelung").
+Der Versiegelungsgrad im Tool ist ein Typwert je Nutzungsart. Ein Belagswechsel (z. B. Asphalt → Schotterrasen) ändert den Belag und damit Ψ, aber nicht diesen Versiegelungsgrad. Ein Koeffizient in °C pro Prozentpunkt Versiegelung — etwa −0,03 °C/% aus Tervooren (2015, Potsdam) — lässt sich daher nicht sinnvoll anwenden. Die Simulation weist nur den Wassernutzen aus.
 
 ---
 
@@ -397,37 +401,35 @@ Alle Werte aus `backend/simulation_params.py`. Die Frontend-Kopie `frontend/src/
 | `LST_PER_PCT_CANOPY_OVERALL` | −0,069 °C/% | García de León et al. 2025, gesamtes Stadtgebiet | hinterlegt |
 | `LST_PER_PCT_CANOPY_RECREATIONAL` | −0,038 °C/% | García de León et al. 2025, Erholungsflächen (R² 0,41) | hinterlegt |
 | `CROWN_AREA_M2_DEFAULT` | **50 m²** | konservativer Default (s. u.) | angewendet |
-| `TRANSPIRATION_LB3_KG_M2_DAY` | 0,19 kg/m²/Tag | Stratopoulos-Le Chalony 2020 (TUM-Diss.), feuchteadaptiert | hinterlegt, **nicht** in v1 gerechnet |
-| `TRANSPIRATION_LB6_KG_M2_DAY` | 0,17 kg/m²/Tag | dieselbe Quelle, trockenheitstolerant (−11 %) | hinterlegt, nicht in v1 |
+| `TRANSPIRATION_LB3_KG_M2_DAY` | 0,19 kg/m²/Tag | Stratopoulos-Le Chalony 2020 (TUM-Diss.), feuchteadaptiert | hinterlegt, derzeit **nicht** gerechnet |
+| `TRANSPIRATION_LB6_KG_M2_DAY` | 0,17 kg/m²/Tag | dieselbe Quelle, trockenheitstolerant (−11 %) | hinterlegt, derzeit nicht gerechnet |
 | `LATENT_HEAT_KWH_PER_KG` | 0,628 kWh/kg | Physik: 2260 kJ/kg ÷ 3600 | für v2 (Transpirationskühlung) |
-| `LST_PER_PCT_UNSEALING` | −0,03 °C/% | Tervooren 2015, Potsdam (R² 0,75/0,80) | hinterlegt, **bewusst nicht** angewendet |
-| `RUNOFF_COEFFICIENTS` (Ψ) | 0,90 … 0,05 | DWA-A138 / LfU Bayern; Leitfaden Bayreuth 2024 | **angewendet** (Wasser-Sim) |
+| `RUNOFF_COEFFICIENTS` (Ψ) | 0,90 … 0,05 | DWA-A 138 (2005); Leitfaden Bayreuth 2024 | **angewendet** (Wasser-Sim) |
 | `ANNUAL_RAINFALL_WUERZBURG_M` | 0,5735 m/Jahr | DWD Station 05705, Normalperiode 1991–2020 | angewendet |
 | `CO2_KG_PER_TREE_YEAR` | **12,5 kg** | Dr. Daniel Klein, Wald-Zentrum Uni Münster | angewendet |
-| `SEAL_RATE_BY_TYPE` | 0,98 … 0,20 | Literaturwerte (UBA 141/2021, Bayreuth 2024) | angewendet (Slider-Cap) |
+| `SEAL_RATE_BY_TYPE` | 0,98 … 0,20 | eigene Annahmen (Orientierung: Böcker 1984, in UBA Texte 141/2021) | angewendet (Slider-Cap) |
 | `CELL_AREA_M2` | 10.000 m² | Geometrie 100×100 m | — |
 | `MIN_GROUND_PER_TREE_M2` | 100 m² | FLL-Richtlinie, Bäume 2. Ordnung | Slider-Cap (kein Modell-Cap) |
-| `WATER_USE` | 46,4 m³/Person/Jahr | BDEW 2023 (127 L/Tag) | Ergebnis-Einordnung |
+| `WATER_USE` | 44,2 m³/Person/Jahr | BDEW 2023 (121 L/Tag) | Ergebnis-Einordnung |
 
-**Zur Kronenfläche 50 m²:** Bewusst konservativ gewählt. Reife Kronen der vier Würzburger Hauptarten liegen laut Moser-Reischl et al. 2021 (Würzburg-Direktstudie, n=75–89 je Art) bei **62–124 m²**; Pretzsch et al. 2015 nennt für DBH 25 cm 65,6 m². 50 m² liegt bewusst darunter, um junge/mittelalte Neupflanzungen nicht zu überschätzen — **keine** Endausbau-Annahme. Typische Bandbreite 30–80 m² je nach Art und Alter. Für eine spätere Version ist die Nutzung des gemessenen `kronenbrei`-Felds vorgesehen (`CPA = π·(kronenbrei/2)²`), mit allometrischem Fallback aus Moser-Reischl 2021.
+**Zur Kronenfläche 50 m²:** Bewusst konservativ gewählt. Reife Kronen der vier Würzburger Hauptarten liegen laut Moser-Reischl et al. 2021 (Würzburg-Direktstudie, n=75–89 je Art) bei **62–124 m²**; Pretzsch et al. 2015 nennt für DBH 25 cm 65,6 m². 50 m² liegt bewusst darunter, um junge/mittelalte Neupflanzungen nicht zu überschätzen — **keine** Endausbau-Annahme. Typische Bandbreite 30–80 m² je nach Art und Alter. Die 50 m² gelten nur für **Neupflanzungen**. Der **Bestand** (`bestand_pct`) wird aus dem gemessenen Kronendurchmesser jedes Katasterbaums berechnet (Kronenfläche = `π·(kronenbrei/2)²`). Einträge ohne Kronendurchmesser — 761 von 44.647, davon 634 als „Gehölzfläche“ erfasste Gehölzbestände — gehen nicht ein; eine allometrische Ergänzung wäre nur für 39 davon (mit Stammumfang) möglich und ist nicht umgesetzt. In Zellen mit solchen Gehölzflächen wird die bestehende Kronendeckung daher unterschätzt.
 
-**Zur García-de-León-Quelle:** García de León, A. S. et al. (2025): *The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing*, JURSE 2025, IEEE. Lineare Regression LST ~ Baumkronenanteil über 8.584 ATKIS-Nutzungspolygone; Studienstadt München, Daten Sommer 2020, > 166.000 Einzelbäume aus Luftbild-Segmentierung. R² = 0,41 (Erholung) bis 0,61 (Verkehr). Autoren überwiegend Univ. Würzburg / DLR → als methodisch und regional übertragbar eingestuft.
+**Zur García-de-León-Quelle:** García de León, A. S. et al. (2025): *The Relation of Land Surface Temperature and Trees across Different Urban Land Use Classes based on Remote Sensing*, JURSE 2025, IEEE. Lineare Regression LST ~ Baumkronenanteil über 8.584 ATKIS-Nutzungspolygone; Studienstadt München, Daten Sommer 2020, > 166.000 Einzelbäume aus Luftbild-Segmentierung. R² = 0,41 (Erholung) bis 0,61 (Verkehr). Die Übertragung auf Würzburg ist plausibel — vergleichbares Klima, gleiche ATKIS-Nutzungsklassen, ähnliche Methodik —, wurde aber nicht mit Würzburger Daten überprüft.
 
-**Zur CO₂-Zahl 12,5 kg/Jahr:** Herleitung Dr. Daniel Klein (Wald-Zentrum Uni Münster): Buche, 23 m, ∅ 30 cm → ~600 kg Trockenmasse → 1.000 kg CO₂ in 80 Jahren. Gilt für **ausgewachsene** Laubbäume im Forstbestand; Neupflanzungen binden in den ersten Jahren deutlich weniger. (Diese Quelle ist noch nicht als eigene Wiki-Seite dokumentiert — vor einem Produktionsrelease nachzuholen.)
+**Zur CO₂-Zahl 12,5 kg/Jahr:** Herleitung Dr. Daniel Klein (Wald-Zentrum Uni Münster): Buche, 23 m, ∅ 30 cm → ~600 kg Trockenmasse → 1.000 kg CO₂ in 80 Jahren. Gilt für **ausgewachsene** Laubbäume im Forstbestand; Neupflanzungen binden in den ersten Jahren deutlich weniger. Es handelt sich um einen groben Faustwert aus einer Informationsschrift, nicht um eine Primärstudie; das Original ist online nur als Sekundärkopie auffindbar. Für Stadtbäume liegt keine lokal belegte Rate vor.
 
 ---
 
 ## 9 · Vergleich der Kühleffekte (Kontextwissen)
 
-Zur Einordnung, warum Bäume und Entsiegelung unterschiedlich wirken:
+Zur Einordnung der Baum-Koeffizienten:
 
 | Maßnahme | Kühlkoeffizient | Quelle |
 |---|---|---|
 | +1 % Baumkronendeckung (München, Mischgebiet) | −0,083 °C LST | García de León 2025 |
 | +1 % Baumkronendeckung (München, gesamt) | −0,069 °C LST | García de León 2025 |
-| −1 % Versiegelung (Potsdam) | −0,030 °C LST | Tervooren 2015 |
 
-→ Bäume kühlen pro Prozentpunkt **~2,3–2,8× stärker** als reine Entsiegelung. Entsiegelung liefert dafür zusätzlichen Wassernutzen (Versickerung, Grundwasser, Biodiversität). Weitere Benchmarks aus dem Wiki: Bäume vs. Stadtgewebe 8–12 K Kühleffekt in Zentraleuropa (Schwaab 2021); Bäume 2–4× effektiver als baumlose Grünflächen.
+Weitere Benchmarks aus der Literatur: Bäume vs. Stadtgewebe 8–12 K Kühleffekt in Zentraleuropa (Schwaab 2021); Bäume 2–4× effektiver als baumlose Grünflächen.
 
 ---
 
@@ -437,10 +439,9 @@ Zur Einordnung, warum Bäume und Entsiegelung unterschiedlich wirken:
 
 | Koeffizient | Ursprung | Transfer nach Würzburg | Status |
 |---|---|---|---|
-| −0,083 °C/% Krone | München (Cfb/Dfb) | gleiche Klimazone, Würzburger Forscher | angewendet, plausibel, nicht validiert |
-| −0,03 °C/% Entsiegelung | Potsdam (Cfb) | etwas kontinentaler (Dfb) | nicht angewendet (nur Aggregatebene gültig) |
-| Ψ-Abflussbeiwerte | Bayern (DWA-A138) | Normwerk direkt anwendbar | gültig |
-| Versiegelungsgrade | Literaturmittel | keine Würzburg-Messung | Schätzung |
+| −0,083 °C/% Krone | München | vergleichbares Klima, gleiche ATKIS-Klassen; nicht lokal kalibriert | angewendet, plausibel, nicht validiert |
+| Ψ-Abflussbeiwerte | DWA-A 138 (bundesweit) | Bemessungswerte, für Jahresmengen genähert | Näherung |
+| Versiegelungsgrade | eigene Annahmen | keine Würzburg-Messung | Schätzung |
 
 **10.2 LST ≠ Lufttemperatur.** Die Landoberflächentemperatur ist ein fernerkundlicher Proxy. Bei Vollsonne liegt sie mehrere °C über der Lufttemperatur; an bedeckten Tagen nähern sich beide an. Alle Δ-Werte beziehen sich auf LST. Für Komfortaussagen (PET, UTCI) wäre ein eigenes Modell nötig. — *Dies ist der einzige Hinweis, der prominent in der App bleiben sollte (Banner `LST ≠ Luft`).*
 
@@ -450,7 +451,7 @@ Zur Einordnung, warum Bäume und Entsiegelung unterschiedlich wirken:
 
 **10.5 Kronenfläche 50 m²** ist ein konservativer Default für mittelalte Bäume; reife Würzburger Kronen liegen bei 62–124 m², junge Neupflanzungen deutlich darunter. Δ°C und Kronendeckung gelten für mittelalte bis reife Bäume.
 
-**10.6 Versiegelungsgrade** sind grobe Typ-Mittelwerte aus Literatur, keine gemessene Per-Zellen-Versiegelung. „Unversiegelt" ≠ tatsächlich verfügbar (Privatgärten, Bestandsvegetation, Abstandsflächen); die pflanzbare Fläche ist eine Obergrenze, kein Pflanzplan.
+**10.6 Versiegelungsgrade** sind grobe eigene Typ-Annahmen, keine gemessene Per-Zellen-Versiegelung. „Unversiegelt" ≠ tatsächlich verfügbar (Privatgärten, Bestandsvegetation, Abstandsflächen); die pflanzbare Fläche ist eine Obergrenze, kein Pflanzplan.
 
 **10.7 CO₂ 12,5 kg/Jahr** gilt für ausgewachsene Waldbäume; Stadtbäume wachsen oft langsamer (Bodenverdichtung, Hitze, Wurzelraum). CO₂-Bindung ist ein Nebeneffekt — die primäre Klimafunktion von Stadtbäumen ist Kühlung durch Transpiration und Beschattung.
 
@@ -464,30 +465,11 @@ Zur Einordnung, warum Bäume und Entsiegelung unterschiedlich wirken:
 3. **Copernicus/GHSL-Imperviousness** (10 m, `JRC/GHSL/P2023A/GHS_BUILT_S`) statt Literatur-Versiegelungsgrade.
 4. **Kronenfläche aus Kataster** (`kronenbrei`) statt Default 50 m².
 5. **Transpirationskühlleistung (kWh)** als v2-Output der Baum-Simulation.
-6. **Entsiegelungs-Δ°C** auf Bezugsgebiets-Ebene.
+6. **Temperaturwirkung der Entsiegelung**, sobald Versiegelung pro Fläche gemessen statt typisiert vorliegt (siehe Punkt 3).
 
 ---
 
-## 11 · Konsolidierung der In-App-Hinweisfelder
-
-Vorschlag, welche Felder nach Einführung dieser Doku-Seite reduziert werden können. Jede Zeile verweist auf das Doku-Kapitel, das den Inhalt vollständig trägt.
-
-| In-App-Element | Empfehlung | Doku-Kapitel |
-|---|---|---|
-| Hitzeatlas · Hinweisbox (4 Punkte) | auf 1 Zeile + Doku-Link reduzieren | 2.1, 2.2, 10.4, 10.9 |
-| Hitzeatlas · Top-5-Methodik-Aufklapp | Kurzsatz behalten, Details verlinken | 4 (Hotspots) |
-| Vulnerabilität · Formelkarte (Aufklapp-Erklärtext) | Formel sichtbar lassen, Erklärtext verlinken | 5 |
-| Vulnerabilität · Interpretations-Box | behalten (kurz) | 5 |
-| Baum-Sim · Methodik & Einschränkungen | auf Doku-Link reduzieren | 7a, 8, 10 |
-| Baum-Sim · Baumscheiben-Hinweis | behalten (kontextspezifisch) | 7a |
-| Wasser-Sim · Methodik (Formel + 3 Tabellen) | auf Doku-Link reduzieren | 7b, 8 |
-| `LST ≠ Luft`-Banner | **behalten** (wichtigster Kernhinweis) | 10.2 |
-
-**Empfohlenes Muster:** je Tab ein dezenter „ℹ Methodik & Quellen"-Link, der auf den passenden Anker dieser Doku-Seite springt (z. B. `/dokumentation#7a-baumpflanzung`). Der einzige inhaltliche Hinweis, der prominent in den Karten bleiben sollte, ist `LST ≠ Luft`.
-
----
-
-## 12 · Glossar
+## 11 · Glossar
 
 | Begriff | Definition |
 |---|---|
@@ -496,18 +478,18 @@ Vorschlag, welche Felder nach Einführung dieser Doku-Seite reduziert werden kö
 | **HVI** | Heat Vulnerability Index — gewichteter Score 1–10 aus LST-Rang und (adjustiertem) Seniorenanteil. |
 | **Ψ (Abflussbeiwert)** | dimensionslos 0–1: Anteil des Niederschlags, der oberflächlich abfließt (1 = vollständig undurchlässig). |
 | **Versiegelungsgrad** | Anteil einer Flächeneinheit, der physisch versiegelt ist. |
-| **Rational-Formel** | vereinfachtes Hydrologiemodell: Abflussvolumen = Fläche × Niederschlag × Abflussbeiwert. |
+| **Abflussbeiwert-Ansatz** | Jahres-Abflussvolumen = Fläche × Jahresniederschlag × Abflussbeiwert Ψ. Nicht zu verwechseln mit der Rational-Methode, die aus der Regenspende einen Spitzenabfluss berechnet. |
 | **Bayesian Shrinkage** | Empirischer Bayes-Schätzer: kleine Rasterzellen werden zur Stadtmittelrate gezogen, um Small-Numbers-Verzerrung zu reduzieren. |
 | **Crookston & Stage (1999)** | negativ-exponentielles Überlappungsmodell für projizierte Kronendeckung: `Deckung = 1 − exp(−Σ Kronenfläche / Fläche)`. |
 | **NDVI** | Normalized Difference Vegetation Index — Vegetationsstärke, 0 (versiegelt) bis ~0,7+ (dichte Vegetation). |
 | **LAEA / EPSG:3035** | Lambert Azimuthal Equal Area — Koordinatensystem der Destatis-Gitterdaten. |
 | **ATKIS** | Amtliches Topographisch-Kartographisches Informationssystem — amtliche Flächennutzungsklassifikation. |
-| **DWA-A138** | technische Norm für Versickerungsanlagen; Primärquelle der Abflussbeiwerte. |
+| **DWA-A 138** | DWA-Arbeitsblatt zu Versickerungsanlagen (Ausgabe 2005, seit 10/2024 DWA-A 138-1); Primärquelle der Abflussbeiwerte. |
 | **FLL-Richtlinie** | „Empfehlungen für Baumpflanzungen" — Grundlage für den Pflanzabstand (100 m²/Baum, 2. Ordnung). |
 
 ---
 
-## 13 · Quellenverzeichnis
+## 12 · Quellenverzeichnis
 
 | Quelle | Datensatz / Beitrag | Lizenz |
 |---|---|---|
@@ -517,7 +499,7 @@ Vorschlag, welche Felder nach Einführung dieser Doku-Seite reduziert werden kö
 | LDBV Bayern | ATKIS Basis-DLM (`sie02_f`, `ver01_f`) | CC BY 4.0 |
 | OpenStreetMap | Parkplätze, Plätze, Flachdächer | ODbL |
 | DWD (Climate Data Center) | Niederschlag Station 05705, 1991–2020 | DWD Open Data |
-| DWA-A138 / LfU Bayern | Abflussbeiwerte Ψ | Normwerk |
+| DWA-A 138 (2005), wiedergegeben vom LfU Bayern; abgelöst durch DWA-A 138-1 (2024) | Abflussbeiwerte Ψ | Regelwerk (kostenpflichtig) |
 | Landratsamt Bayreuth (2024) | Leitfaden Flächenentsiegelung, ergänzende Ψ/Kosten | öffentlich |
 | García de León et al. (2025), München | LST×Kronen-Koeffizienten | wissenschaftl. Publikation |
 | Crookston & Stage (1999), USDA RMRS-GTR-24 | Überlappungsmodell Kronendeckung | öffentlich |
@@ -525,12 +507,12 @@ Vorschlag, welche Felder nach Einführung dieser Doku-Seite reduziert werden kö
 | Pretzsch et al. (2015) | Kronengrößen 22 Baumarten | wissenschaftl. Publikation |
 | Gray et al. (2021) | Beer-Lambert-Überlappungsmodell (Validierung) | wissenschaftl. Publikation |
 | Stratopoulos-Le Chalony (2020), TU München | Transpirationsraten LB3/LB6 | Dissertation |
-| Tervooren (2015), Potsdam | Entsiegelungskoeffizient −0,03 °C/% | wissenschaftl. Publikation |
-| Dr. Daniel Klein, Wald-Zentrum Uni Münster | CO₂-Bindung 12,5 kg/Baum/Jahr | Expertenherleitung |
-| BDEW (2023) | Trinkwasserverbrauch 127 L/Tag | öffentlich |
-| LfU Bayern | Grundwasserneubildung 15–30 % | öffentlich |
-| UBA Texte 141/2021; Arnold & Gibbons (1996); DIN 18005 | Versiegelungsgrade je Landnutzung | öffentlich / Normwerk |
+| Tervooren (2015), Potsdam | Entsiegelungskoeffizient −0,03 °C/% (nicht angewendet, s. Kap. 7b) | wissenschaftl. Publikation |
+| Dr. Daniel Klein, Wald-Zentrum Uni Münster | CO₂-Bindung 12,5 kg/Baum/Jahr | Faustwert (Informationsschrift), keine Primärstudie |
+| BDEW (2024) | Trinkwassergebrauch 2023: 121 L/Person/Tag — [Pressemitteilung](https://www.bdew.de/presse/presseinformationen/zahl-der-woche-121-liter-leitungswasser/) | öffentlich |
+| LfU Bayern (2025) | Grundwasserneubildung aus Niederschlag je Landkreis, 1991–2020 (Würzburg: 96 mm/Jahr) — [PDF](https://www.lfu.bayern.de/wasser/trinkwassereinzugsgebieteverordnung/beschreibung_einzugsgebiet/doc/gwneubildung_n_bayern.pdf) | öffentlich |
+| UBA Texte 141/2021 (Pannicke-Prochnow et al.) | Versiegelungsstufen nach Böcker (1984), S. 60 — Orientierung für die eigenen Versiegelungsgrade | öffentlich |
 
 ---
 
-*Diese Doku bündelt den Inhalt von `simulation_params.py`, `vuln_formula.py`, den Backend-Routern und dem Wiki-Submodul `urban-heat-wiki/wiki/`. Bei Koeffizientenänderungen zuerst die Wiki-Quellseite, dann `simulation_params.py`, dann diese Doku aktualisieren.*
+*Diese Doku bündelt den Inhalt von `simulation_params.py`, `vuln_formula.py` und den Backend-Routern. Bei Koeffizientenänderungen zuerst `simulation_params.py`, dann diese Doku aktualisieren.*

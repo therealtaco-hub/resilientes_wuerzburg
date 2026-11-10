@@ -6,10 +6,8 @@ Implementiert:
     im Projekt, an der HVI berechnet wird. Routers (vulnerability, stadtbezirke)
     rufen diese Funktion auf — nie direkt compute_hvi().
 
-Noch nicht implementiert (für Simulationsseiten):
-    compute_sealing_potential()  — Entsiegelungspotenzial je ATKIS-Fläche
-    simulate_tree_cooling()      — Δ°C + CO₂ für n Neupflanzungen
-    simulate_infiltration()      — m³ Versickerung nach Rational-Formel
+Die Simulationen (Baumpflanzung, Entsiegelung) liegen in routers/simulate.py,
+der Versiegelungsgrad je Zelle in utils/data_loader._compute_seal_pct().
 """
 
 import math

@@ -175,7 +175,7 @@ def _compute_seal_pct(lst_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
     Zellfläche so nicht mehr überschreiten (v1 klemmte doppelt gezählte Flächen auf
     ein falsches „100 %").
 
-    Versiegelungsgrade je type_key aus SEAL_RATE_BY_TYPE (Literaturwerte), unbekannte
+    Versiegelungsgrade je type_key aus SEAL_RATE_BY_TYPE (eigene Annahmen), unbekannte
     Typen → _default. Kacheln ohne Polygon-Überdeckung gelten als unversiegelt (seal=0,
     dominant=None) — Abwesenheit von sie02/ver01 ≈ Grün-/Freifläche (E2).
     Gibt (seal_pct, dominant_type_key) zurück.

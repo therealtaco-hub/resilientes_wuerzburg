@@ -30,8 +30,29 @@ backend/data/Zensus2022_Bevoelkerungszahl_100m-Gitter.csv
 !backend/data/*.parquet
 !backend/data/dwd_wuerzburg_monthly_kl_hist.zip
 
+# Ungenutzte Analyse-Raster (nur lokal)
+backend/data/lst_delta.parquet
+backend/data/lst_wuerzburg.tif
+backend/data/lst_wuerzburg_baseline_2014_2016.tif
+backend/data/lst_wuerzburg_current_2023_2025.tif
+backend/data/lst_wue_2023_summer_median.tif
+backend/data/lst_wue_2024_summer_median.tif
+backend/data/lst_wue_2025_summer_median.tif
+
+# osmnx-Abfrage-Cache (Overpass-Antworten)
+backend/cache/
+
+# Editor
+.vscode/
+
+# Paper (Manuskript, Gutachten, Verlags-PDFs) – nur lokal
+paper/
+paper_*.tex
+response_to_reviewers.tex
+Simulating_Urban_Climate_Resilience*.pdf
+
 # OS
 .DS_Store
 Thumbs.db
-# Local Claude Code settings (machine-specific)
-.claude/settings.local.json
+# Claude Code (Skills, Launch-Config, lokale Settings) – nur lokal
+.claude/
