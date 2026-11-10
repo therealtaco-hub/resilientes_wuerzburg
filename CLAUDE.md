@@ -143,7 +143,7 @@ resilientes-wuerzburg/
 ├── CLAUDE.md
 ├── docs/
 │   └── Design System.html
-├── .env (nie committen – GEE_PROJECT_ID, etc.)
+├── .env (nie committen)
 ├── .gitignore
 ├── backend/
 │ ├── main.py (FastAPI App-Instanz, CORS, Router-Einbindung)
@@ -190,7 +190,7 @@ resilientes-wuerzburg/
 | Endpoint | Status | Beschreibung |
 |---|---|---|
 | `GET /api/trees` | ✅ | Baumkataster als GeoJSON FeatureCollection (alle 44.647 Bäume). Quelle: lokale Parquet-Datei. `?refresh=true` liest neu aus Quelldatei. Cache: `backend/data/trees.parquet`. |
-| `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection. Properties: `gitter_id`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`. **Nur Zellen, die mindestens ein LST-Pixel schneiden** (Inner-Spatial-Join gegen LST-Cache) → ~3.089 Features, deckungsgleich mit HVI- und LST-Layer-Extent. `?refresh=true` ignoriert Parquet-Cache. |
+| `GET /api/zensus` | ✅ | Zensus-100m-Gitter als GeoJSON FeatureCollection. Properties: `gitter_id`, `anteil_65plus`, `anteil_65plus_clamped`, `Einwohner`. **Nur Zellen, die mindestens ein LST-Pixel schneiden** (Inner-Spatial-Join gegen LST-Cache) → ~3.950 Features, deckungsgleich mit HVI- und LST-Layer-Extent. `?refresh=true` ignoriert Parquet-Cache. |
 | `GET /api/lst` | ✅ | GeoTIFF (`lst_wue_2023_2025_summer_median.tif`, EPSG:3035, 100m, Zensus-aligned). ~15.900 Features. Properties: `lst_celsius` (°C, 1 Dez.), `lst_norm` (Rang-normiert 0–1), `bestand_pct` (projizierte Kronendeckung), `seal_pct` (flächengew. Versiegelungsgrad 0–1), `dominant_type_key` (dominante ATKIS/OSM-Kategorie je Zelle, `null` bei keiner Überdeckung), `plantable_m2` (`10.000 × (1−seal_pct)`). Cache: `backend/data/lst.parquet`. `?refresh=true` erzwingt Neuberechnung. |
 | `GET /api/vulnerability` | ✅ | HVI-Score als GeoJSON FeatureCollection. Properties: `hvi`, `anteil_65plus` (Rohwert), `anteil_65plus_adj` (Bayesian-Shrinkage-korrigiert), `lst_norm`, `lst_celsius`, `Einwohner`. Formel + Shrinkage in `utils/vuln_formula.py`. `meta`: `weights`, `n_prior` (50), `global_65_rate` (bevölkerungsgewichteter Stadtmittelwert). Kein Parquet-Cache — nur In-Memory (`_cache`), reset bei Backend-Restart oder `?refresh=true`. |
 | `GET /api/entsiegelung` | ✅ | ATKIS + OSM-Flächen als GeoJSON FeatureCollection. Properties: `source` (`"atkis"`/`"osm"`), `type_key` (OBJART_TXT as-is / `"osm_parking"` / `"osm_square"` / `"osm_flat_roof_industrial"`), `label`, `area_m2`. `meta`: `atkis_count`, `osm_count`, `total_count`. Cache: `backend/data/entsiegelung.parquet`. `?refresh=true` erzwingt Neuberechnung. Kein Score, kein seal_rate. |

@@ -1,55 +1,41 @@
 # Resilientes Würzburg
 
-Interaktive Geodaten-Webanwendung zur Analyse urbaner Hitzeinseln, sozialer Vulnerabilität und Entsiegelungspotenzial in Würzburg — mit Was-wäre-wenn-Simulationen für Baumpflanzung und Flächenentsiegelung.
+Interactive web app for exploring urban heat, heat vulnerability and unsealing potential in Würzburg (Germany), with what-if simulations for tree planting and surface unsealing.
 
-**Frontend:** [Vercel](https://vercel.com) · **Backend:** [Render.com](https://render.com) · **Daten:** Google Earth Engine, Destatis Zensus 2022, ATKIS Basis-DLM Bayern, opendata.wuerzburg.de
+**Live app:** [resilientes-wuerzburg.vercel.app](https://resilientes-wuerzburg.vercel.app) · **Documentation:** [in the app](https://resilientes-wuerzburg.vercel.app/dokumentation) · [English](docs/Dokumentation.en.md) · [Deutsch](docs/Dokumentation.md)
 
----
+> The backend runs on a free hosting tier and sleeps when idle, so the first load can take 1–2 minutes.
 
 ## Features
 
-| Tab | Funktion |
+| Page | What it shows |
 |---|---|
-| **Dashboard** | KPI-Strip (heißeste Zone, vulnerabelster Bezirk, Baumanzahl, Entsiegelungspotenzial) + Top-3-Listen je Dimension auf Stadtbezirksebene |
-| **Hitzeatlas** | LST-Choropleth (Landsat 8+9, Sommer-Median 2023–2025, 100 m) + Baumkataster-Overlay (44.647 Bäume, Klick-Popup) + Stadtbezirks-Choropleth + NDVI-Layer + Top-5-Hitzespots-Card |
-| **Vulnerabilität** | Heat Vulnerability Index (HVI 1–10): gewichteter Score aus LST (60 %) + Seniorenanteil 65+ (40 %, Bayesian Shrinkage) + Demografie-Layer + Stadtbezirks-Choropleth |
-| **Entsiegelung** | ATKIS + OSM-Flächen nach Nutzungsklasse eingefärbt (reine Visualisierung, kein Score) + NDBI-Layer |
-| **Simulation** | Baumpflanzung → Δ°C LST + CO₂/Jahr + Kronendeckung (Überlappungsmodell); Entsiegelung → m³ Versickerung/Jahr + Grundwasserschätzwert |
+| Dashboard | Key figures and top lists per city district |
+| Heat atlas | Land surface temperature (Landsat 8/9, summer median 2023–2025, 100 m grid), tree cadastre, NDVI, top-5 heat spots |
+| Vulnerability | Heat Vulnerability Index (1–10) from surface temperature and the share of residents aged 65+ (Census 2022) |
+| Unsealing | Sealed surfaces by land-use type (ATKIS Basis-DLM, OpenStreetMap) |
+| Simulation | Tree planting → change in surface temperature, CO₂ uptake, canopy cover · Unsealing → rainwater retained on site per year |
 
----
+The app is available in German and English.
 
-## Tech Stack
+## Method in brief
 
-**Frontend**
-- React 18 + Vite · Plain JSX · Tailwind CSS v4 (Tokens im `@theme`-Block, kein `tailwind.config.js`)
-- deck.gl (`MapboxOverlay + useControl`) + MapLibre GL + react-map-gl · Basemap: CartoCDN dark-matter (kein Token)
-- Zustand (State Management) · React Router v6 (Lazy-Routes)
+- **Tree planting:** projected canopy cover from the negative-exponential overlap model (Crookston & Stage 1999), multiplied by −0.083 °C per percentage point of canopy cover (García de León et al. 2025, Munich).
+- **Unsealing:** avoided surface runoff = area × annual rainfall (573.5 mm, DWD station Würzburg) × (Ψ<sub>before</sub> − Ψ<sub>after</sub>), with runoff coefficients Ψ after DWA-A 138.
+- **Vulnerability:** HVI = (0.6 · LST rank + 0.4 · share 65+) × 9 + 1; the senior share is adjusted for small cells with empirical-Bayes shrinkage.
 
-**Backend**
-- FastAPI + uvicorn · GeoPandas + Shapely · Rasterio + rasterstats
-- osmnx (OSM-Abfragen) · earthengine-api (nur für Offline-Datenexport) · PyArrow (GeoParquet) · SciPy
+Results are first-order estimates based on literature coefficients, not local measurements. Land surface temperature is not air temperature. All formulas, coefficients, sources and limitations are in the [documentation](docs/Dokumentation.en.md); the coefficients themselves live in [`backend/simulation_params.py`](backend/simulation_params.py).
 
----
+## Run locally
 
-## Lokale Entwicklung
-
-### Voraussetzungen
-
-- Node.js ≥ 18
-- Python 3.11 (Production pinnt 3.11.0, siehe `render.yaml`)
-- Manuelle Daten (nicht im Repo — siehe unten)
-
-### Repo klonen (inkl. Wiki-Submodul)
+Requirements: Python 3.11 and Node.js 20.19+ (or 22.12+).
 
 ```bash
-git clone --recurse-submodules <repo-url>
-# oder bei bereits geklontem Repo:
-git submodule update --init --recursive
+git clone https://github.com/therealtaco-hub/resilientes_wuerzburg.git
+cd resilientes_wuerzburg
 ```
 
-Das Verzeichnis `urban-heat-wiki/` ist ein Git-Submodul mit Zusammenfassungen der verwendeten Literatur und ist ohne diesen Schritt leer.
-
-### Backend starten
+Backend (http://localhost:8000):
 
 ```bash
 cd backend
@@ -57,171 +43,71 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-### Frontend starten
+Frontend (http://localhost:5173):
 
 ```bash
 cd frontend
 npm install
-npm run dev        # http://localhost:5173
+npm run dev
 ```
 
-### Environment Variables
+The data the app needs is included in `backend/data/`; no API keys are required. Both `.env` files are optional and default to localhost (see `backend/.env.example` and `frontend/.env.example`).
 
-`backend/.env`:
-```
-# Komma-separierte Liste erlaubter CORS-Origins (Default: http://localhost:5173)
-ALLOWED_ORIGINS=http://localhost:5173
-```
+## Data
 
-`frontend/.env.local`:
-```
-VITE_API_URL=http://localhost:8000
-```
+`backend/data/` holds the source files and pre-built caches the app reads at runtime: the Landsat LST GeoTIFF (exported from Google Earth Engine, snapped to the census 100 m grid), the Würzburg tree cadastre, the census grid, city districts and the ATKIS/OSM surface polygons.
 
-> Hinweis: Das Backend fragt Google Earth Engine **nicht zur Laufzeit** ab, sondern liest die
-> LST-GeoTIFFs als lokale Dateien (siehe „Manuelle Daten" unten) — ein GEE-Zugang ist zum
-> **Betrieb** der App also nicht nötig. Die GeoTIFFs selbst wurden einmalig per GEE exportiert
-> und liegen **nicht** im Repo; `earthengine-api` brauchst du nur, wenn du diese Daten selbst
-> (neu) exportieren willst.
+Cached endpoints accept `?refresh=true`. Rebuilding the census and surface caches needs raw downloads that are too large for the repository: the Zensus 2022 100 m CSV files (Destatis) and the ATKIS Basis-DLM for Bavaria (`bkg_shape_712.zip`).
 
----
+Sources, licences and required attributions: [`backend/data/LICENSES.md`](backend/data/LICENSES.md).
 
-## Manuelle Daten (nicht im Git)
+## Adapting to another city
 
-Diese Dateien müssen manuell in `backend/data/` abgelegt werden:
+The pipeline works for other German cities. Census grid and ATKIS are German datasets; outside Germany they need equivalents.
 
-| Datei | Quelle | Hinweis |
-|---|---|---|
-| `lst_wue_2023_2025_summer_median.tif` | Google Earth Engine Export | EPSG:3035, 100 m, Band 1 = LST °C, Band 2 = NDVI, Band 3 = NDBI |
-| `baumkataster_stadt_wuerzburg.parquet` | [opendata.wuerzburg.de](https://opendata.wuerzburg.de/api/explore/v2.1/catalog/datasets/baumkataster_stadt_wuerzburg) | GeoParquet Bulk-Export (44.647 Records) |
-| `bkg_shape_712.zip` | [geodaten.bayern.de](https://geodaten.bayern.de/opengeodata/) | ATKIS Basis-DLM Bayern (EPSG:25832), enthält `sie02_f.shp` + `ver01_f.shp` |
-| `Zensus_*.csv` (Alter + Bevölkerung) | [destatis.de](https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Zensus2022/) | 100m-Gitter, Semikolon-getrennt, EPSG:3035 |
+**Replace in `backend/data/`** (keep the file names or adjust the paths at the top of `backend/utils/data_loader.py`):
 
-Abgeleitete Caches (`*.parquet`) werden beim ersten API-Aufruf automatisch gebaut. Nach einem
-LST-Tausch: `backend/data/lst.parquet` löschen und `/api/lst`, `/api/vulnerability`,
-`/api/zensus`, `/api/stadtbezirke` mit `?refresh=true` aufrufen.
-
----
-
-## Ordnerstruktur
-
-```
-resilientes-wuerzburg/
-├── backend/
-│   ├── main.py                  ← FastAPI App, CORS, Router-Registrierung
-│   ├── simulation_params.py     ← Alle Koeffizienten mit Quellenverweis
-│   ├── requirements.txt
-│   ├── routers/                 ← trees, lst, zensus, vulnerability, entsiegelung,
-│   │                               stadtbezirke, simulate, hotspots
-│   ├── utils/
-│   │   ├── data_loader.py       ← load_lst/zensus/trees/entsiegelung/stadtbezirke
-│   │   ├── analysis.py          ← build_hvi_geodataframe() — einzige HVI-Berechnung
-│   │   └── vuln_formula.py      ← WEIGHTS, Bayesian Shrinkage, compute_hvi()
-│   ├── tests/                   ← pytest (test_simulate, test_trees, test_vuln_formula)
-│   └── data/                    ← lokale Daten + Caches (gitignored)
-├── frontend/
-│   └── src/
-│       ├── components/
-│       │   ├── map/             ← MapSurface, Overlays (Heat/Tree/Vuln/Entsiegelung/…), Legenden
-│       │   └── simulation/      ← BaumSimPanel, WasserSimPanel, SimResultCard
-│       ├── pages/               ← Dashboard, Hitzeatlas, Vulnerabilitaet,
-│       │                           Entsiegelung, Simulation
-│       ├── store/               ← useAppStore.js (Zustand)
-│       ├── api/                 ← fetch-Wrapper je Endpoint
-│       └── utils/               ← format.js, colors.js, simulate.js, sources.js
-├── docs/
-│   ├── Design System.html               ← UI-Referenz
-│   ├── Dokumentation.md / .en.md        ← Wissenschaftliche Dokumentation (In-App-Seite /dokumentation)
-├── urban-heat-wiki/             ← Git-Submodul: Literatur-Zusammenfassungen
-├── render.yaml                  ← Render.com Deploy-Konfiguration (Backend)
-└── CLAUDE.md                    ← Vollständige Projektdokumentation für AI-Assistenten
-```
-
----
-
-## Backend-Endpoints
-
-Alle unter Prefix `/api`. Endpoints mit Cache unterstützen `?refresh=true` zum Invalidieren.
-
-| Endpoint | Beschreibung |
+| File | Replace with |
 |---|---|
-| `GET /` | Health-Check (`{"status": "ok"}`) |
-| `GET /api/lst` | LST-Raster als GeoJSON (~15.900 Features: `lst_celsius`, `lst_norm`, `bestand_pct`, `seal_pct`, `dominant_type_key`, `plantable_m2`, `ndvi`, `ndbi`) |
-| `GET /api/trees` | Baumkataster als GeoJSON (44.647 Punkte) |
-| `GET /api/zensus` | Zensus-100m-Gitter als GeoJSON (~3.089 Features: `anteil_65plus`, `Einwohner`) |
-| `GET /api/vulnerability` | HVI-Score als GeoJSON (`hvi` 1–10, Bayesian-adjustiert) |
-| `GET /api/entsiegelung` | ATKIS + OSM-Polygone nach `type_key` (`source`, `label`, `area_m2`) |
-| `GET /api/stadtbezirke` | 13 Stadtbezirke mit aggregierten Kennzahlen (LST/HVI/Entsiegelung/Bäume) |
-| `GET /api/hotspots` | Top-5 Hitzespots (Focal-Mean-Glättung 200 m + Non-Maximum-Suppression 600 m, nur Innenstadtbezirke) |
-| `GET /api/simulate/baeume` | Neupflanzungen → `delta_lst_celsius`, `co2_kg_year`, `effective_new_pct`, `total_coverage_pct` |
-| `GET /api/simulate/wasser` | Entsiegelung → `infiltration_m3_year`, `retention_pct`, `context_persons` |
+| `lst_wue_2023_2025_summer_median.tif` | Landsat 8/9 summer median exported from Google Earth Engine: band 1 = LST in °C, band 2 = NDVI, band 3 = NDBI; EPSG:3035, 100 m, pixel edges on full 100 m (aligned with the census grid) |
+| `baumkataster_stadt_wuerzburg.parquet` | The city's tree cadastre as GeoParquet with the same column names (at least `kronenbrei` = crown diameter in m) |
+| Zensus 2022 CSVs (not in repo) | Same nationwide Destatis files, only the bounding box changes |
+| `bkg_shape_712.zip` (not in repo) | ATKIS Basis-DLM of the respective federal state (availability and licence vary by state) |
 
----
+Then delete the derived caches (`lst.parquet`, `trees.parquet`, `zensus.parquet`, `entsiegelung.parquet`, `stadtbezirke.parquet`) so they are rebuilt.
 
-## Simulationsformeln
+**Adjust in code:**
 
-**Baumpflanzung** — projizierte Kronendeckung nach dem Überlappungsmodell (Crookston & Stage 1999),
-Δ°C wirkt nur auf den realen Zuwachs (García de León et al. 2025, München; Daten Sommer 2020):
+- `backend/utils/data_loader.py`: bounding boxes (`_WUE_X_MIN` … `_WUE_Y_MAX`, `_WUE_ATKIS_BBOX`, the `.cx[...]` filter), the OSM place name `"Würzburg, Germany"`, and the district source `_STADTBEZIRKE_URL` with its field mapping in `load_stadtbezirke()`
+- `backend/simulation_params.py`: rainfall of the nearest DWD station (`ANNUAL_RAINFALL_WUERZBURG_M`, `MONTHLY_RAINFALL_WUERZBURG_MM`)
+- `frontend/src/utils/simulate.js`: groundwater recharge reference `GW_RECHARGE_LK_WUERZBURG_MM_YEAR`
+- `frontend/src/components/map/MapSurface.jsx` (map centre) and `frontend/src/i18n/locales/*.json` (city name, rainfall and groundwater figures in the texts)
 
-```
-new_ratio       = (n_trees × 50 m²) / area_m2
-existing_ratio  = −ln(1 − existing_coverage_pct / 100)
-total_coverage  = (1 − exp(−(existing_ratio + new_ratio))) × 100
-effective_new   = total_coverage − existing_coverage_pct          [≥ 0]
-
-Δ LST = −0,083 °C × effective_new        (Mischgebiet-Koeffizient)
-CO₂   = n_trees × 12,5 kg/Jahr
-```
-
-Das Slider-Maximum im Frontend ist ein pflanzpraktischer Cap (`pflanzbare Fläche / 100 m²/Baum`,
-FLL-Richtlinie, Bäume 2. Ordnung) — kein Modell-Cap.
-
-**Entsiegelung** — vereinfachte Rational-Formel (DWA-A138 / LfU Bayern):
-
-```
-Versickerung [m³/Jahr] = A [m²] × 0,5735 [m/Jahr] × (Ψ_von − Ψ_zu)
-```
-
-Jahresniederschlag: DWD Station 05705 Würzburg, Klimanormalperiode 1991–2020.
-Die Wasser-Simulation liefert in v1 bewusst **kein** Δ°C (der Tervooren-Entsiegelungskoeffizient
-−0,03 °C/% ist auf Stadtbezirks-, nicht auf Einzelflächenebene kalibriert).
-
-**HVI** — Vulnerabilitäts-Score:
-
-```
-HVI = (0,6 × lst_norm + 0,4 × anteil_65plus_adj) × 9 + 1        → Skala 1–10
-```
-
-`anteil_65plus_adj` ist Bayesian-Shrinkage-korrigiert (Empirical Bayes, N_PRIOR = 50).
-
----
+The tree coefficient comes from Munich and the sealing rates are own assumptions; check their transferability for the new city (see documentation).
 
 ## Tests
 
 ```bash
 cd backend
-python -m pytest -v        # benötigt den vollen Geo-Stack aus requirements.txt
+python -m pytest
 ```
 
-Abgedeckt: beide Simulationsendpoints (Rechenkontrollen, Überlappungsmodell, Validierung 422),
-Baumkataster-Loader und die HVI-/Shrinkage-Formel.
+```bash
+cd frontend
+node scripts/test-sim-store.mjs
+```
 
----
+## Project structure
 
-## Wissenschaftliche Dokumentation
+```
+backend/           FastAPI API: routers/, utils/ (data loading, HVI), simulation_params.py, tests/, data/
+frontend/          React + Vite app: pages/, components/, store/ (Zustand), i18n/ (DE/EN)
+docs/              Documentation shown in the app (DE/EN), design system
+urban-heat-wiki/   Git submodule with literature notes (not needed to run the app)
+```
 
-Alle Formeln, Koeffizienten und Datenquellen sind vollständig dokumentiert:
+**Stack:** React 19, Vite, MapLibre GL, deck.gl, Tailwind CSS, Zustand, i18next · FastAPI, GeoPandas, Rasterio, SciPy, osmnx · Hosting: Vercel (frontend), Render (backend, [`render.yaml`](render.yaml)).
 
-- [`docs/Dokumentation.md`](docs/Dokumentation.md) — Tab-für-Tab-Beschreibung (in der App unter `/dokumentation`); englisch: [`docs/Dokumentation.en.md`](docs/Dokumentation.en.md)
-- `backend/simulation_params.py` — Alle Koeffizienten mit Quellverweis (Single Source of Truth)
+## License
 
----
-
-## Deployment
-
-| Service | Konfiguration |
-|---|---|
-| **Frontend** | Vercel · `frontend/` als Root · `VITE_API_URL` als Environment Variable |
-| **Backend** | Render.com Free Tier · `render.yaml` (rootDir `backend`, `uvicorn main:app --host 0.0.0.0 --port $PORT`, `ALLOWED_ORIGINS` + `PYTHON_VERSION=3.11.0`) |
-
-Beide Services sind via GitHub CI/CD verbunden (push to `main` → automatisches Deploy).
+Code: [MIT](LICENSE). Data: licences of the respective providers (Destatis, City of Würzburg, Bavarian Surveying Administration, © OpenStreetMap contributors, DWD, USGS), see [`backend/data/LICENSES.md`](backend/data/LICENSES.md).
